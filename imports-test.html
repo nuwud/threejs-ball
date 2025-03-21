@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Imports Test</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #333;
+      color: white;
+    }
+    pre {
+      background-color: #1E1E1E;
+      padding: 10px;
+      border-radius: 3px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .success { color: #4CAF50; }
+    .error { color: #f44336; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <h1>Module Import Test</h1>
+  
+  <h2>Old Files</h2>
+  <div id="old-files-result"></div>
+  
+  <h2>New Files</h2>
+  <div id="new-files-result"></div>
+  
+  <script type="module">
+    const oldFilesResult = document.getElementById('old-files-result');
+    const newFilesResult = document.getElementById('new-files-result');
+    
+    // Test imports from old files
+    async function testOldImports() {
+      try {
+        console.log("Testing import from geometry.js");
+        const geometryModule = await import('./geometry.js');
+        
+        let output = '<div class="success">Successfully imported geometry.js</div>';
+        output += '<pre>' + JSON.stringify(Object.keys(geometryModule), null, 2) + '</pre>';
+        
+        console.log("Testing import from animation.js");
+        const animationModule = await import('./animation.js');
+        
+        output += '<div class="success">Successfully imported animation.js</div>';
+        output += '<pre>' + JSON.stringify(Object.keys(animationModule), null, 2) + '</pre>';
+        
+        oldFilesResult.innerHTML = output;
+      } catch (error) {
+        console.error("Error importing old files:", error);
+        oldFilesResult.innerHTML = '<div class="error">Error: ' + error.message + '</div><pre>' + error.stack + '</pre>';
+      }
+    }
+    
+    // Test imports from new files
+    async function testNewImports() {
+      try {
+        console.log("Testing import from js/main.js");
+        const mainModule = await import('./js/main.js');
+        
+        let output = '<div class="success">Successfully imported js/main.js</div>';
+        output += '<pre>' + JSON.stringify(Object.keys(mainModule), null, 2) + '</pre>';
+        
+        console.log("Testing import from js/renderer.js");
+        const rendererModule = await import('./js/renderer.js');
+        
+        output += '<div class="success">Successfully imported js/renderer.js</div>';
+        output += '<pre>' + JSON.stringify(Object.keys(rendererModule), null, 2) + '</pre>';
+        
+        console.log("Testing import from js/scene.js");
+        const sceneModule = await import('./js/scene.js');
+        
+        output += '<div class="success">Successfully imported js/scene.js</div>';
+        output += '<pre>' + JSON.stringify(Object.keys(sceneModule), null, 2) + '</pre>';
+        
+        newFilesResult.innerHTML = output;
+      } catch (error) {
+        console.error("Error importing new files:", error);
+        newFilesResult.innerHTML = '<div class="error">Error: ' + error.message + '</div><pre>' + error.stack + '</pre>';
+      }
+    }
+    
+    // Run tests
+    testOldImports();
+    testNewImports();
+  </script>
+</body>
+</html>

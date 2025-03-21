@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simple Three.js Test</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #333;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+    
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background-color: rgba(0,0,0,0.7);
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 100;
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="info">
+    <h2>Simple Three.js Test</h2>
+    <p>You should see a green rotating cube on a blue background.</p>
+    <p>Check the browser console (F12) for detailed logs.</p>
+  </div>
+  
+  <script type="module" src="js/simple-test.js"></script>
+</body>
+</html>

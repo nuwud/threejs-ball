@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Debug Three.js</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #333;
+      color: white;
+    }
+    
+    #debug-info {
+      background-color: rgba(0,0,0,0.7);
+      padding: 20px;
+      border-radius: 5px;
+      max-width: 800px;
+      margin: 0 auto;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    
+    h1 {
+      color: #4CAF50;
+    }
+    
+    .log {
+      background-color: #1E1E1E;
+      padding: 10px;
+      border-radius: 3px;
+      font-family: monospace;
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+    }
+    
+    .success {
+      color: #4CAF50;
+    }
+    
+    .error {
+      color: #f44336;
+    }
+    
+    .warning {
+      color: #ffeb3b;
+    }
+    
+    button {
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 4px 2px;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div id="debug-info">
+    <h1>Three.js Debug Information</h1>
+    
+    <h2>Import Testing</h2>
+    <div id="import-log" class="log"></div>
+    
+    <h2>Renderer Testing</h2>
+    <div id="renderer-log" class="log"></div>
+    
+    <h2>Scene Testing</h2>
+    <div id="scene-log" class="log"></div>
+    
+    <button id="run-tests">Run Diagnostics</button>
+    <button id="view-simple-test">View Simple Test</button>
+  </div>
+  
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js"
+      }
+    }
+  </script>
+  
+  <script type="module">
+    import * as THREE from 'three';
+    
+    const importLog = document.getElementById('import-log');
+    const rendererLog = document.getElementById('renderer-log');
+    const sceneLog = document.getElementById('scene-log');
+    
+    // Helper function to log messages
+    function log(element, message, type = 'info') {
+      const div = document.createElement('div');
+      div.textContent = message;
+      div.className = type;
+      element.appendChild(div);
+    }
+    
+    // Test Three.js import
+    function testImport() {
+      try {
+        log(importLog, `Successfully imported Three.js version ${THREE.REVISION}`, 'success');
+        
+        // Test basic Three.js objects
+        const vector = new THREE.Vector3(1, 2, 3);
+        log(importLog, `Created Vector3: ${JSON.stringify(vector)}`, 'success');
+        
+        return true;
+      } catch (error) {
+        log(importLog, `Error importing Three.js: ${error.message}`, 'error');
+        log(importLog, error.stack, 'error');
+        return false;
+      }
+    }
+    
+    // Test renderer creation
+    function testRenderer() {
+      try {
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        log(rendererLog, 'Successfully created WebGLRenderer', 'success');
+        
+        // Check if WebGL is supported
+        if (renderer.capabilities.isWebGL2) {
+          log(rendererLog, 'WebGL 2.0 is supported', 'success');
+        } else if (renderer.capabilities.isWebGL) {
+          log(rendererLog, 'WebGL 1.0 is supported', 'success');
+        } else {
+          log(rendererLog, 'WebGL is not supported!', 'error');
+        }
+        
+        return renderer;
+      } catch (error) {
+        log(rendererLog, `Error creating renderer: ${error.message}`, 'error');
+        log(rendererLog, error.stack, 'error');
+        return null;
+      }
+    }
+    
+    // Test scene creation
+    function testScene(renderer) {
+      if (!renderer) {
+        log(sceneLog, 'Cannot test scene without a renderer', 'error');
+        return false;
+      }
+      
+      try {
+        const scene = new THREE.Scene();
+        log(sceneLog, 'Successfully created Scene', 'success');
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 5;
+        log(sceneLog, 'Successfully created Camera', 'success');
+        
+        const geometry = new THREE.BoxGeometry();
+        const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        const cube = new THREE.Mesh(geometry, material);
+        scene.add(cube);
+        log(sceneLog, 'Successfully created Cube and added to Scene', 'success');
+        
+        // Try rendering
+        renderer.setSize(100, 100); // Small test render
+        renderer.render(scene, camera);
+        log(sceneLog, 'Successfully rendered Scene', 'success');
+        
+        return true;
+      } catch (error) {
+        log(sceneLog, `Error creating scene: ${error.message}`, 'error');
+        log(sceneLog, error.stack, 'error');
+        return false;
+      }
+    }
+    
+    // Run all tests
+    document.getElementById('run-tests').addEventListener('click', function() {
+      importLog.innerHTML = '';
+      rendererLog.innerHTML = '';
+      sceneLog.innerHTML = '';
+      
+      log(importLog, 'Testing Three.js import...', 'info');
+      const importSuccess = testImport();
+      
+      if (importSuccess) {
+        log(rendererLog, 'Testing renderer creation...', 'info');
+        const renderer = testRenderer();
+        
+        if (renderer) {
+          log(sceneLog, 'Testing scene creation and rendering...', 'info');
+          testScene(renderer);
+        }
+      }
+    });
+    
+    // Link to simple test
+    document.getElementById('view-simple-test').addEventListener('click', function() {
+      window.location.href = 'simple-test.html';
+    });
+    
+    // Run tests automatically on load
+    window.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('run-tests').click();
+    });
+  </script>
+</body>
+</html>
