@@ -152,6 +152,24 @@ Some planned features include:
 - **MIDI control**: Support for external MIDI controllers
 - **Audio reactivity**: Visual elements that respond to sound characteristics
 
+## Credits
+
+This project was inspired by and developed following the excellent tutorial:
+
+**"Getting Started with Three.js: A Beginner's Tutorial"** by Bobby Roe (Robot Bobby)  
+YouTube Video: [https://www.youtube.com/watch?v=XPhAR1YdD6o](https://www.youtube.com/watch?v=XPhAR1YdD6o)  
+YouTube Channel: [https://www.youtube.com/@robotbobby9](https://www.youtube.com/@robotbobby9)
+
+### About the Creator
+Bobby Roe is a 3D Web engineer, YouTuber, and coach based in the Pacific Northwest, with extensive experience in interactive and real-time 3D development. He has over 20 years of experience as a creative developer and has helped thousands learn to code and create art.
+
+- **Website**: [https://bobbyroe.com/](https://bobbyroe.com/)
+- **GitHub**: [https://github.com/bobbyroe](https://github.com/bobbyroe)
+- **LinkedIn**: [https://www.linkedin.com/in/bobbyroe/](https://www.linkedin.com/in/bobbyroe/)
+- **Courses**: [https://robotbobby.thinkific.com/](https://robotbobby.thinkific.com/)
+
+His Three.js tutorials are designed for coders and artists who want more than "Hello World" but aren't yet ready for advanced shader techniques. I highly recommend checking out Robot Bobby's channel for more excellent Three.js and creative coding tutorials.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -165,3 +183,4 @@ This project is open source and available under the [MIT License](LICENSE).
 - [Three.js](https://threejs.org/) for the powerful 3D library
 - [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) for audio processing
 - Inspiration from various WebGL demos and creative coding projects
+- Bobby Roe's tutorial that provided the foundation for this project
