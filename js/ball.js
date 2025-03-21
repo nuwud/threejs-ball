@@ -1,52 +1,20 @@
-// ball.js - Handles creation and management of the 3D ball
+// ball.js - Creates and manages the 3D ball
 import * as THREE from 'three';
 
-// Global variables to store the initial ball state
-let originalPositions = null;
-let colorStart = '#FF00FF'; // Neon pink at center
-let colorMid = '#8800FF';   // Purple in middle
-let colorEnd = '#00FFFF';   // Cyan at edges
-
-// Create a gradient texture for the faces
-function createGradientTexture(colorStart, colorMid, colorEnd) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
-    const context = canvas.getContext('2d');
-
-    // Create gradient
-    const gradient = context.createRadialGradient(
-        canvas.width / 2, canvas.height / 2, 0,
-        canvas.width / 2, canvas.height / 2, canvas.width / 2
-    );
-
-    // Add gradient colors
-    gradient.addColorStop(0, colorStart);
-    gradient.addColorStop(0.5, colorMid);
-    gradient.addColorStop(1, colorEnd);
-
-    // Fill with gradient
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, canvas.width, canvas.height);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
-
-    return texture;
-}
-
-// Create the ball mesh
+// Create the 3D ball
 function createBall(app) {
-    // Create an icosahedron geometry with subdivision level 4 for smoother deformation
+    // Create an icosahedron with subdivision level 4 for smooth deformation
     const geo = new THREE.IcosahedronGeometry(1.0, 4);
-
-    // Store original vertices for resetting the shape
-    originalPositions = geo.attributes.position.array.slice();
-
-    // Create the initial gradient texture
+    
+    // Initial gradient colors
+    const colorStart = '#FF00FF'; // Neon pink at center
+    const colorMid = '#8800FF';   // Purple in middle
+    const colorEnd = '#00FFFF';   // Cyan at edges
+    
+    // Create a gradient texture for the ball
     const gradientTexture = createGradientTexture(colorStart, colorMid, colorEnd);
-
-    // Create a material for the main mesh with physically based rendering
+    
+    // Create a material with physically based rendering properties
     const mat = new THREE.MeshPhysicalMaterial({
         color: 0xFFFFFF,
         map: gradientTexture,
@@ -58,8 +26,8 @@ function createBall(app) {
         clearcoatRoughness: 0.3,
         side: THREE.DoubleSide
     });
-
-    // Create a second material specifically for wireframe effect
+    
+    // Create a second material for wireframe effect
     const wireMat = new THREE.MeshBasicMaterial({
         color: 0x00FFFF,
         wireframe: true,
@@ -67,223 +35,236 @@ function createBall(app) {
         opacity: 0.5,
         side: THREE.DoubleSide
     });
-
-    // Create a wireframe geometry based on the edges of the icosahedron
+    
+    // Create a wireframe geometry based on the edges
     const wireGeo = new THREE.EdgesGeometry(geo);
-
-    // Create a line segments mesh using the wireframe geometry and material
+    
+    // Create a line segments mesh for the wireframe
     const wireMesh = new THREE.LineSegments(wireGeo, wireMat);
-
-    // Create the main mesh using the icosahedron geometry and material
+    
+    // Create the main mesh
     const mesh = new THREE.Mesh(geo, mat);
-
-    // Group both meshes for easier interaction
+    
+    // Group both meshes for easier manipulation
     const ballGroup = new THREE.Group();
     ballGroup.add(mesh);
     ballGroup.add(wireMesh);
-
-    // Add the ball group to the scene
-    app.scene.add(ballGroup);
-
-    // Store references for access from other modules
+    
+    // Store the original vertex positions for deformation
+    const positions = geo.attributes.position.array.slice();
+    
+    // Store references and data in userData for easy access
     ballGroup.userData = {
-        geo: geo,
-        wireGeo: wireGeo,
         mesh: mesh,
         wireMesh: wireMesh,
         mat: mat,
         wireMat: wireMat,
-        originalPositions: originalPositions,
+        geo: geo,
+        wireGeo: wireGeo,
+        originalPositions: positions,
         gradientTexture: gradientTexture,
-        spikes: []
+        colorStart: colorStart,
+        colorMid: colorMid,
+        colorEnd: colorEnd,
+        // For special effects
+        spikes: [],
+        deformationPoints: []
     };
-
+    
+    // Add to scene
+    app.scene.add(ballGroup);
+    
     return ballGroup;
 }
 
-// Apply deformation to the mesh at a specific point
-function applyDeformation(app, point, intensity, radius) {
+// Create a gradient texture for the ball
+function createGradientTexture(colorStart, colorMid, colorEnd) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    
+    const context = canvas.getContext('2d');
+    
+    // Create gradient
+    const gradient = context.createRadialGradient(
+        canvas.width / 2, canvas.height / 2, 0,
+        canvas.width / 2, canvas.height / 2, canvas.width / 2
+    );
+    
+    // Add gradient colors
+    gradient.addColorStop(0, colorStart);
+    gradient.addColorStop(0.5, colorMid);
+    gradient.addColorStop(1, colorEnd);
+    
+    // Fill with gradient
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    
+    return texture;
+}
+
+// Update the ball's gradient texture with new colors
+function updateGradientColors(app, colorStart, colorMid, colorEnd) {
+    const ballGroup = app.ballGroup;
+    const mat = ballGroup.userData.mat;
+    
+    // Create new gradient texture with updated colors
+    const gradientTexture = createGradientTexture(colorStart, colorMid, colorEnd);
+    
+    // Apply to the material
+    mat.map = gradientTexture;
+    mat.needsUpdate = true;
+    
+    // Update stored colors
+    ballGroup.userData.colorStart = colorStart;
+    ballGroup.userData.colorMid = colorMid;
+    ballGroup.userData.colorEnd = colorEnd;
+    ballGroup.userData.gradientTexture = gradientTexture;
+}
+
+// Apply deformation to the ball at a specific point
+function applyDeformation(app, point, strength = 0.5, radius = 0.5) {
     const ballGroup = app.ballGroup;
     const geo = ballGroup.userData.geo;
     const wireGeo = ballGroup.userData.wireGeo;
     const wireMesh = ballGroup.userData.wireMesh;
     const mesh = ballGroup.userData.mesh;
     const originalPositions = ballGroup.userData.originalPositions;
-
-    // Get position attribute for direct manipulation
+    
+    // Get position attribute
     const positions = geo.attributes.position;
-
-    // Apply deformation to each vertex based on distance from touch point
+    
+    // Convert point to local space if it's in world space
+    const localPoint = point.clone().applyMatrix4(mesh.matrixWorld.clone().invert());
+    
+    // Apply deformation
     for (let i = 0; i < positions.count; i++) {
         const vertexPosition = new THREE.Vector3(
-            positions.array[i * 3],
-            positions.array[i * 3 + 1],
-            positions.array[i * 3 + 2]
+            originalPositions[i * 3],
+            originalPositions[i * 3 + 1],
+            originalPositions[i * 3 + 2]
         );
-
-        // Calculate world position of the vertex
-        const worldPosition = vertexPosition.clone()
-            .applyMatrix4(mesh.matrixWorld);
-
-        // Calculate distance from touch point
-        const distance = worldPosition.distanceTo(point);
-
-        // Only affect vertices within radius
+        
+        // Calculate distance to deformation point
+        const distance = vertexPosition.distanceTo(localPoint);
+        
+        // Only deform vertices within radius
         if (distance < radius) {
-            // Calculate direction vector from touch point to vertex
-            const direction = worldPosition.clone().sub(point).normalize();
-
-            // Calculate deformation factor based on distance (closer = more deformation)
-            const factor = (1 - (distance / radius)) * intensity;
-
-            // Move vertex in the direction from touch point (inward deformation)
-            const deformation = direction.multiplyScalar(-factor);
-
-            // Apply deformation (in local space)
-            const localDeformation = deformation.clone()
-                .applyMatrix4(mesh.matrixWorld.clone().invert());
-
-            // Get original position (pre-deformation)
-            const originalX = originalPositions[i * 3];
-            const originalY = originalPositions[i * 3 + 1];
-            const originalZ = originalPositions[i * 3 + 2];
-
-            // Apply deformation and blend with original position
-            positions.array[i * 3] = originalX + localDeformation.x;
-            positions.array[i * 3 + 1] = originalY + localDeformation.y;
-            positions.array[i * 3 + 2] = originalZ + localDeformation.z;
+            // Calculate deformation based on distance
+            const deformation = Math.max(0, 1 - distance / radius) * strength;
+            
+            // Direction from vertex to point (for pushing inward)
+            const direction = new THREE.Vector3().subVectors(localPoint, vertexPosition).normalize();
+            
+            // Push vertex inward
+            const newPosition = vertexPosition.clone().add(direction.multiplyScalar(deformation));
+            
+            // Apply to position buffer
+            positions.array[i * 3] = newPosition.x;
+            positions.array[i * 3 + 1] = newPosition.y;
+            positions.array[i * 3 + 2] = newPosition.z;
         }
     }
-
-    // Update wireframe to match the deformed shape
+    
+    // Update wireframe to match new geometry
     wireGeo.copy(new THREE.EdgesGeometry(geo));
     wireMesh.geometry = wireGeo;
-
+    
     // Mark attributes as needing update
     positions.needsUpdate = true;
     geo.computeVertexNormals();
+    
+    // Store deformation point for potential animation
+    ballGroup.userData.deformationPoints.push({
+        point: localPoint,
+        strength: strength,
+        radius: radius,
+        time: Date.now()
+    });
+    
+    // Limit number of stored deformation points
+    if (ballGroup.userData.deformationPoints.length > 5) {
+        ballGroup.userData.deformationPoints.shift();
+    }
 }
 
-// Gradually reset deformation
-function resetDeformation(app, speed) {
+// Reset deformation, gradually returning the ball to original shape
+function resetDeformation(app, speed = 0.1) {
     const ballGroup = app.ballGroup;
+    if (!ballGroup) return;
+    
     const geo = ballGroup.userData.geo;
     const wireGeo = ballGroup.userData.wireGeo;
     const wireMesh = ballGroup.userData.wireMesh;
     const originalPositions = ballGroup.userData.originalPositions;
-
+    
     const positions = geo.attributes.position;
-    let needsUpdate = false;
-
+    
+    // Gradually move vertices back to original positions
     for (let i = 0; i < positions.count; i++) {
         const currentX = positions.array[i * 3];
         const currentY = positions.array[i * 3 + 1];
         const currentZ = positions.array[i * 3 + 2];
-
+        
         const originalX = originalPositions[i * 3];
         const originalY = originalPositions[i * 3 + 1];
         const originalZ = originalPositions[i * 3 + 2];
-
-        // Move vertices gradually back to their original positions
+        
+        // Move each vertex a small step toward its original position
         positions.array[i * 3] = currentX + (originalX - currentX) * speed;
         positions.array[i * 3 + 1] = currentY + (originalY - currentY) * speed;
         positions.array[i * 3 + 2] = currentZ + (originalZ - currentZ) * speed;
+    }
+    
+    // Update wireframe
+    wireGeo.copy(new THREE.EdgesGeometry(geo));
+    wireMesh.geometry = wireGeo;
+    
+    // Mark attributes as updated
+    positions.needsUpdate = true;
+    geo.computeVertexNormals();
+    
+    // Clear stored deformation points
+    if (speed === 1) {
+        ballGroup.userData.deformationPoints = [];
+    }
+}
 
-        // Check if there's still significant deformation
-        if (Math.abs(positions.array[i * 3] - originalX) > 0.001 ||
-            Math.abs(positions.array[i * 3 + 1] - originalY) > 0.001 ||
-            Math.abs(positions.array[i * 3 + 2] - originalZ) > 0.001) {
-            needsUpdate = true;
+// Animate deformations over time for more organic motion
+function animateDeformations(app) {
+    const ballGroup = app.ballGroup;
+    if (!ballGroup) return;
+    
+    const deformationPoints = ballGroup.userData.deformationPoints;
+    if (deformationPoints.length === 0) return;
+    
+    const now = Date.now();
+    
+    // Animate each deformation point
+    for (let i = deformationPoints.length - 1; i >= 0; i--) {
+        const deform = deformationPoints[i];
+        const elapsed = (now - deform.time) / 1000; // seconds
+        
+        // Reduce strength over time
+        deform.strength *= 0.98;
+        
+        // Increase radius slightly for a spreading effect
+        deform.radius += 0.001;
+        
+        // Remove old deformation points
+        if (elapsed > 2 || deform.strength < 0.01) {
+            deformationPoints.splice(i, 1);
         }
     }
-
-    if (needsUpdate) {
-        // Update wireframe to match the deformed shape
-        wireGeo.copy(new THREE.EdgesGeometry(geo));
-        wireMesh.geometry = wireGeo;
-
-        positions.needsUpdate = true;
-        geo.computeVertexNormals();
-    }
 }
 
-// Function to update gradient colors with smooth transition
-function updateGradientColors(app, newColorStart, newColorMid, newColorEnd) {
-    const ballGroup = app.ballGroup;
-    const mat = ballGroup.userData.mat;
-
-    // Create a new texture with updated colors
-    const gradientTexture = createGradientTexture(newColorStart, newColorMid, newColorEnd);
-
-    // Apply it to the material
-    mat.map = gradientTexture;
-    mat.needsUpdate = true;
-
-    // Store the texture in userData for potential future use
-    ballGroup.userData.gradientTexture = gradientTexture;
-}
-
-// Animation function to make the mesh scale pulse based on time
-function updateMeshScale(app) {
-    const ballGroup = app.ballGroup;
-
-    // Smoothly transition to target scale
-    app.currentScale += (app.targetScale - app.currentScale) * 0.1;
-
-    // Only apply automated scale changes if not being interacted with
-    if (!app.isDragging && !app.isHovered) {
-        // Enhanced breathing animation with multiple sine waves for organic movement
-        const time = Date.now() * 0.001;
-        const primaryBreath = Math.sin(time * 0.5) * 0.1 + 1; // Slower, deeper breath
-        const secondaryBreath = Math.sin(time * 1.3) * 0.03; // Faster, smaller modulation
-        const breathingScale = primaryBreath + secondaryBreath;
-
-        ballGroup.scale.set(
-            breathingScale * app.currentScale,
-            breathingScale * app.currentScale * 0.95 + 0.05, // Slightly less Y-scale for asymmetric breathing
-            breathingScale * app.currentScale
-        );
-    } else {
-        // Just apply the target scale
-        ballGroup.scale.set(app.currentScale, app.currentScale, app.currentScale);
-    }
-}
-
-// Animation function to make the mesh continuously rotate when not interacted with
-function updateMeshRotation(app) {
-    const ballGroup = app.ballGroup;
-
-    // Only auto-rotate if not being dragged
-    if (!app.isDragging) {
-        ballGroup.rotation.x += 0.003;
-        ballGroup.rotation.y += 0.004;
-    }
-}
-
-// Animation function to make the mesh move in a circular path
-function updateMeshPosition(app) {
-    const ballGroup = app.ballGroup;
-
-    // Only apply automatic position changes if not being interacted with
-    if (!app.isDragging && !app.isHovered) {
-        // Calculate new position with smooth sine wave movement
-        const time = Date.now() * 0.0005;
-        const newX = Math.sin(time) * 0.3;
-        const newY = Math.cos(time * 1.3) * 0.2;
-
-        // Apply position with smoothing
-        ballGroup.position.x += (newX - ballGroup.position.x) * 0.05;
-        ballGroup.position.y += (newY - ballGroup.position.y) * 0.05;
-    }
-}
-
-export {
-    createBall,
-    applyDeformation,
+export { 
+    createBall, 
+    updateGradientColors, 
+    applyDeformation, 
     resetDeformation,
-    updateGradientColors,
-    updateMeshScale,
-    updateMeshRotation,
-    updateMeshPosition,
-    createGradientTexture
+    animateDeformations
 };

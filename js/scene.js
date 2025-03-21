@@ -1,79 +1,73 @@
-// scene.js - Handles scene creation and camera setup
+// scene.js - Creates the scene, camera, and lighting
 import * as THREE from 'three';
 
 // Create the scene
 function createScene() {
     const scene = new THREE.Scene();
-
-    // Create a touch sphere to visualize the touch point
-    const touchSphere = new THREE.Mesh(
-        new THREE.SphereGeometry(0.05, 16, 16),
-        new THREE.MeshBasicMaterial({
-            color: 0xFFFFFF,
-            transparent: true,
-            opacity: 0.5
-        })
-    );
-    touchSphere.visible = false;
-    scene.add(touchSphere);
-
-    // Store touchSphere reference for access from other modules
-    scene.userData.touchSphere = touchSphere;
-
+    
+    // Set background color to a deep blue/black
+    scene.background = new THREE.Color(0x000510);
+    
+    // Add fog for depth effect (very subtle)
+    scene.fog = new THREE.FogExp2(0x000510, 0.1);
+    
     return scene;
 }
 
-// Set up the camera
+// Setup the camera
 function setupCamera() {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-
-    // Set up the camera with field of view, aspect ratio, and clipping planes
-    const fov = 75;
-    const aspect = w / h;
+    // Create a perspective camera
+    const fov = 75; // Field of view
+    const aspect = window.innerWidth / window.innerHeight;
     const near = 0.1;
     const far = 1000;
-
+    
     const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-    camera.position.set(0, 0, 2); // Position camera 2 units away from origin
-
-    // Create an audio listener and add it to the camera
-    const listener = new THREE.AudioListener();
-    camera.add(listener);
-
-    // Store listener in camera for access from audio module
-    camera.userData.listener = listener;
-
+    
+    // Position the camera
+    camera.position.set(0, 0, 2);
+    
     return camera;
 }
 
-// Set up the lighting
+// Setup lighting for the scene
 function setupLights(app) {
-    // Hemisphere light (sky and ground color)
-    const hemilight = new THREE.HemisphereLight(0xffffff, 0x000000, 1);
+    // Hemisphere light for ambient illumination
+    const hemilight = new THREE.HemisphereLight(0x99BBFF, 0x000000, 1);
     hemilight.position.set(0, 1, 0).normalize();
     app.scene.add(hemilight);
-
-    // Directional lights for shadows and highlights
-    const light = new THREE.DirectionalLight(0xffffff, 1);
+    
+    // Main directional light with shadows
+    const light = new THREE.DirectionalLight(0xFFFFFF, 1);
     light.position.set(1, 1, 1).normalize();
     app.scene.add(light);
-
-    const light2 = new THREE.DirectionalLight(0xffffff, 1);
+    
+    // Secondary directional light for fill
+    const light2 = new THREE.DirectionalLight(0xFF99CC, 0.5);
     light2.position.set(-1, -1, -1).normalize();
     app.scene.add(light2);
-
-    const light3 = new THREE.DirectionalLight(0xffffff, 0.5);
-    light3.position.set(0, 1, 0).normalize();
-    app.scene.add(light3);
-
-    // Add a point light that follows the mouse for interactive lighting
-    const pointLight = new THREE.PointLight(0xFFFFFF, 1, 5);
+    
+    // Add point light that follows mouse for highlights
+    const pointLight = new THREE.PointLight(0x00FFFF, 2, 4);
     pointLight.position.set(0, 0, 2);
     app.scene.add(pointLight);
-
-    // Store point light in scene for access from event handlers
+    
+    // Store the point light for later access
     app.scene.userData.pointLight = pointLight;
+    
+    // Add a small touch sphere to show where the user is touching
+    const touchSphere = new THREE.Mesh(
+        new THREE.SphereGeometry(0.05, 16, 16),
+        new THREE.MeshBasicMaterial({
+            color: 0xFF00FF,
+            transparent: true,
+            opacity: 0.6,
+            depthTest: false
+        })
+    );
+    touchSphere.visible = false;
+    app.scene.add(touchSphere);
+    app.scene.userData.touchSphere = touchSphere;
 }
 
 export { createScene, setupCamera, setupLights };

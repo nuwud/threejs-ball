@@ -3,24 +3,133 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Getting Started with Three.js</title>
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-    }
-  </style>
+  <title>Interactive 3D Ball with Three.js</title>
+  <link rel="stylesheet" href="styles/styles.css" />
   <script type="importmap">
     {
       "imports": {
         "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
-        "jsm/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
       }
     }
   </script>
 </head>
 <body>
+  <!-- Hamburger Menu -->
+  <div class="hamburger-menu" id="menu-btn">
+    <span></span>
+  </div>
+  
+  <!-- Instructions Panel -->
+  <div id="instructions">
+    <h2>Interactive 3D Ball</h2>
+    
+    <h3>Basic Interactions</h3>
+    <ul>
+      <li><strong>Hover:</strong> Move your mouse over the ball to create dents and hear warm pad sounds</li>
+      <li><strong>Click & Drag:</strong> Rotate the ball in any direction</li>
+      <li><strong>Cross Facet Boundaries:</strong> Hear unique crunchy sonic textures for each facet</li>
+    </ul>
+    
+    <h3>Special Effects</h3>
+    <ul>
+      <li><strong>Double-Click:</strong> Toggle rainbow mode with color cycling</li>
+      <li><strong>Mouse Wheel:</strong> Create spiky deformations</li>
+      <li><strong>Right-Click:</strong> Particle explosion effect</li>
+    </ul>
+    
+    <h3>Sound Experience</h3>
+    <p>Each triangle facet produces a unique sound with its own timbre. The hover movement creates warm musical tones that change with cursor position.</p>
+  </div>
+  
+  <!-- Status Indicator -->
+  <div id="status-indicator"></div>
+  
   <!-- Main entry point script -->
   <script type="module" src="js/main.js"></script>
+  
+  <!-- Menu Toggle Script -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const menuBtn = document.getElementById('menu-btn');
+      const instructions = document.getElementById('instructions');
+      
+      menuBtn.addEventListener('click', () => {
+        menuBtn.classList.toggle('open');
+        instructions.classList.toggle('open');
+      });
+      
+      // Close instructions when clicking outside (but not on the ball)
+      document.addEventListener('click', (e) => {
+        if (!instructions.contains(e.target) && 
+            e.target !== menuBtn && 
+            !menuBtn.contains(e.target) &&
+            !e.target.closest('canvas')) {
+          instructions.classList.remove('open');
+          menuBtn.classList.remove('open');
+        }
+      });
+      
+      // Add event listeners for effect buttons
+      const buttons = {
+        rainbow: document.getElementById('btn-rainbow'),
+        magnetic: document.getElementById('btn-magnetic'),
+        blackhole: document.getElementById('btn-blackhole'),
+        explosion: document.getElementById('btn-explosion'),
+        reset: document.getElementById('btn-reset')
+      };
+      
+      // We'll define these functions in main.js and make them globally available
+      buttons.rainbow.addEventListener('click', () => {
+        if (window.appControls && window.appControls.toggleRainbowMode) {
+          window.appControls.toggleRainbowMode();
+          showStatus('Rainbow Mode ' + (window.app.isRainbowMode ? 'Activated' : 'Deactivated'));
+        }
+      });
+      
+      buttons.magnetic.addEventListener('click', () => {
+        if (window.appControls && window.appControls.toggleMagneticMode) {
+          window.appControls.toggleMagneticMode();
+          showStatus('Magnetic Effect ' + (window.app.isMagneticMode ? 'Activated' : 'Deactivated'));
+        }
+      });
+      
+      buttons.blackhole.addEventListener('click', () => {
+        if (window.appControls && window.appControls.createBlackholeEffect) {
+          window.appControls.createBlackholeEffect();
+          showStatus('Blackhole Effect Activated');
+        }
+      });
+      
+      buttons.explosion.addEventListener('click', () => {
+        if (window.appControls && window.appControls.createExplosion) {
+          window.appControls.createExplosion();
+          showStatus('Explosion Effect Activated');
+        }
+      });
+      
+      buttons.reset.addEventListener('click', () => {
+        if (window.appControls && window.appControls.resetBall) {
+          window.appControls.resetBall();
+          showStatus('Ball Reset to Default State');
+        }
+      });
+      
+      // Status indicator function
+      function showStatus(message) {
+        const statusIndicator = document.getElementById('status-indicator');
+        statusIndicator.textContent = message;
+        statusIndicator.classList.add('visible');
+        
+        // Hide after 2 seconds
+        setTimeout(() => {
+          statusIndicator.classList.remove('visible');
+        }, 2000);
+      }
+      
+      // Make showStatus available globally
+      window.showStatus = showStatus;
+    });
+  </script>
 </body>
 </html>
