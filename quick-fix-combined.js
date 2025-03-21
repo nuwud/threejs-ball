@@ -1,8 +1,9 @@
-// quick-fix.js - First part (initialization and scene setup)
+// quick-fix-combined.js - All-in-one file for Three.js Interactive Ball
 import * as THREE from 'three';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/controls/OrbitControls.js';
 
 // Set up scene, camera, renderer
-let scene, camera, renderer;
+let scene, camera, renderer, controls;
 
 // Create a simple ball
 let ballGroup;
@@ -14,6 +15,7 @@ let listener;
 
 // Raycaster for interactions
 let raycaster;
+let mouse = new THREE.Vector2();
 
 // Tracking variables
 let isDragging = false;
@@ -22,19 +24,25 @@ let previousMousePosition = { x: 0, y: 0 };
 let targetScale = 1.0;
 let currentScale = 1.0;
 let lastFacetIndex = -1;
+let clock;
 
 // Initialize the scene
 function init() {
     console.log("Initializing application...");
     
+    // Create clock for animations
+    clock = new THREE.Clock();
+    
     // Create renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     document.body.appendChild(renderer.domElement);
     console.log("Renderer created");
     
     // Create scene
     scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000510);
     console.log("Scene created");
     
     // Create camera
@@ -44,6 +52,13 @@ function init() {
     const far = 1000;
     camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
     camera.position.set(0, 0, 2);
+    
+    // Create orbit controls
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.enablePan = false;
+    controls.enabled = false; // Disable controls initially
     
     // Create audio listener
     listener = new THREE.AudioListener();
@@ -55,17 +70,25 @@ function init() {
     console.log("Camera created");
     
     // Create lighting
-    const hemilight = new THREE.HemisphereLight(0xffffff, 0x000000, 1);
+    const hemilight = new THREE.HemisphereLight(0x99BBFF, 0x000000, 1);
     hemilight.position.set(0, 1, 0).normalize();
     scene.add(hemilight);
     
-    const light = new THREE.DirectionalLight(0xffffff, 1);
+    const light = new THREE.DirectionalLight(0xFFFFFF, 1);
     light.position.set(1, 1, 1).normalize();
     scene.add(light);
     
-    const light2 = new THREE.DirectionalLight(0xffffff, 1);
+    const light2 = new THREE.DirectionalLight(0xFF99CC, 0.5);
     light2.position.set(-1, -1, -1).normalize();
     scene.add(light2);
+    
+    // Add point light that follows mouse for highlights
+    const pointLight = new THREE.PointLight(0x00FFFF, 2, 4);
+    pointLight.position.set(0, 0, 2);
+    scene.add(pointLight);
+    
+    // Store the point light in scene userData for easy access
+    scene.userData = { pointLight };
     
     console.log("Lights created");
     
@@ -134,7 +157,9 @@ class SoundSynthesizer {
         
         // Store active note modules for management
         this.activeNotes = [];
-    }    // Create a basic reverb effect
+    }
+    
+    // Create a basic reverb effect
     createReverb() {
         const convolver = this.audioContext.createConvolver();
         
@@ -289,7 +314,9 @@ class SoundSynthesizer {
         }, (duration + releaseTime + 0.3) * 1000);
         
         return noteModule;
-    }    // Play a chord based on a root note
+    }
+    
+    // Play a chord based on a root note
     playChord(rootNote, duration = 0.8) {
         this.playWarmPad(rootNote, duration);
         this.playWarmPad(rootNote * 5/4, duration); // Major third
@@ -393,7 +420,9 @@ class SoundSynthesizer {
         
         // Connect through distortion chains
         gain1.connect(distortion1);
-        gain2.connect(distortion2);        // Create a bandpass filter to shape the sound
+        gain2.connect(distortion2);
+        
+        // Create a bandpass filter to shape the sound
         const filter = this.audioContext.createBiquadFilter();
         filter.type = 'bandpass';
         filter.frequency.value = frequency * (1 + (facetIndex % 3) * 0.5);
@@ -498,7 +527,9 @@ class SoundSynthesizer {
             this.masterGain.gain.value = 0.4;
         }, 100);
     }
-}// Create a gradient texture for the faces
+}
+
+// Create a gradient texture for the faces
 function createGradientTexture(colorStart, colorMid, colorEnd) {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -589,6 +620,8 @@ function createBall() {
     };
     
     scene.add(ballGroup);
+    
+    return ballGroup;
 }
 
 // Update window size
@@ -609,8 +642,149 @@ function getFacetIndex(mesh, intersectPoint) {
     
     // The facet index is just the face index for simple geometry
     return facesIndex;
-}        const newX = Math.sin(time) * 0.3;
-        const newY = Math.cos(time * 1.3) * 0.2;
+}
+
+// Update mouse position
+function onPointerMove(event) {
+    // Calculate mouse position in normalized device coordinates
+    // (-1 to +1) for both components
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    
+    // Get the main mesh from the ball group
+    const mesh = ballGroup.userData.mesh;
+    
+    // Update the raycaster
+    raycaster.setFromCamera(mouse, camera);
+    
+    // Check for intersections
+    const intersects = raycaster.intersectObject(mesh);
+    
+    // If we're not dragging and have an intersection, show hover effect
+    if (!isDragging && intersects.length > 0) {
+        isHovered = true;
+        
+        // Set scale target to increase size slightly
+        targetScale = 1.05;
+        
+        // Move point light to follow mouse for highlights
+        if (scene.userData.pointLight) {
+            const pointLight = scene.userData.pointLight;
+            pointLight.position.set(mouse.x * 3, mouse.y * 3, 2);
+        }
+        
+        // Check which facet was hit
+        const facetIndex = getFacetIndex(mesh, intersects[0]);
+        
+        // Only trigger sound when crossing facet boundaries
+        if (facetIndex !== lastFacetIndex) {
+            // Initialize audio on first interaction
+            if (!audioContext) {
+                initAudio();
+            }
+            
+            if (soundSynth) {
+                // Play a facet-specific sound
+                soundSynth.playFacetSound(facetIndex, 0.6);
+                
+                // Also play a positional sound based on mouse coords
+                soundSynth.playPositionSound(mouse.x, mouse.y);
+            }
+            
+            // Update last facet index
+            lastFacetIndex = facetIndex;
+        }
+    } else if (!isDragging) {
+        isHovered = false;
+        // Reset scale when not hovering
+        targetScale = 1.0;
+    }
+    
+    // If we're dragging, rotate the ball
+    if (isDragging) {
+        // Calculate the rotation delta
+        const deltaX = event.clientX - previousMousePosition.x;
+        const deltaY = event.clientY - previousMousePosition.y;
+        
+        // Apply rotation to the ball
+        ballGroup.rotation.y += deltaX * 0.005;
+        ballGroup.rotation.x += deltaY * 0.005;
+        
+        // Update previous position
+        previousMousePosition.x = event.clientX;
+        previousMousePosition.y = event.clientY;
+    }
+}
+
+// Handle mouse down
+function onPointerDown(event) {
+    // Capture mouse position and enable dragging
+    previousMousePosition.x = event.clientX;
+    previousMousePosition.y = event.clientY;
+    isDragging = true;
+    
+    // Disable orbit controls while directly dragging
+    if (controls) controls.enabled = false;
+    
+    // Initialize audio on first interaction if needed
+    if (!audioContext) {
+        initAudio();
+    }
+    
+    // Play click sound if we have audio
+    if (soundSynth) {
+        soundSynth.playClickSound();
+    }
+}
+
+// Handle mouse up
+function onPointerUp() {
+    isDragging = false;
+    
+    // Re-enable orbit controls
+    if (controls) controls.enabled = true;
+    
+    // Play release sound if we have audio
+    if (soundSynth) {
+        soundSynth.playReleaseSound();
+    }
+}
+
+// Update mesh scale based on hover state
+function updateMeshScale() {
+    // Smoothly interpolate current scale towards target scale
+    currentScale += (targetScale - currentScale) * 0.1;
+    
+    // Apply scale to the ball group
+    if (ballGroup) {
+        ballGroup.scale.set(currentScale, currentScale, currentScale);
+    }
+}
+
+// Update mesh rotation for idle animation
+function updateMeshRotation() {
+    // Only apply automatic rotation if not being dragged
+    if (!isDragging && ballGroup) {
+        // Very slow automatic rotation for subtle movement
+        ballGroup.rotation.y += 0.001;
+        ballGroup.rotation.x += 0.0005;
+    }
+    
+    // Apply damping to orbit controls if enabled
+    if (controls && controls.enabled) {
+        controls.update();
+    }
+}
+
+// Update mesh position for "breathing" effect
+function updateMeshPosition() {
+    if (ballGroup) {
+        // Get elapsed time for animation
+        const time = clock.getElapsedTime();
+        
+        // Calculate subtle floating motion using sine waves
+        const newX = Math.sin(time) * 0.03;
+        const newY = Math.cos(time * 1.3) * 0.02;
         
         // Apply position with smoothing
         ballGroup.position.x += (newX - ballGroup.position.x) * 0.05;
@@ -627,9 +801,9 @@ function animate() {
     updateMeshRotation();
     updateMeshPosition();
     
-    // Render
+    // Render the scene
     renderer.render(scene, camera);
 }
 
-// Initialize when the DOM is loaded
+// Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', init);
