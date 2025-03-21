@@ -128,6 +128,9 @@ let isHovered = false;
 let touchPoint = null;
 let targetScale = 1.0;
 let currentScale = 1.0;
+let isExploded = false;
+let particleSystem = null;
+let isRainbowMode = false;
 
 // Create a sphere to visualize the touch point
 const touchSphere = new THREE.Mesh(
@@ -225,11 +228,21 @@ function onPointerDown(event) {
     const intersects = raycaster.intersectObject(mesh);
     
     if (intersects.length > 0) {
-        // Set target scale for smooth animation
-        targetScale = 1.1;
-        
-        // Change color more dramatically on click
-        updateGradientColors('#FFAAFF', '#CC66FF', '#66FFFF');
+        // Handle right click differently
+        if (event.button === 2 || (event.touches && event.touches.length > 1)) {
+            // Explode effect on right click
+            explodeEffect();
+            // Change to hot colors
+            updateGradientColors('#FF5500', '#FF0000', '#FFFF00');
+            targetScale = 1.3;
+        } else {
+            // Regular left click
+            // Set target scale for smooth animation
+            targetScale = 1.1;
+            
+            // Change color more dramatically on click
+            updateGradientColors('#FFAAFF', '#CC66FF', '#66FFFF');
+        }
     }
 }
 
@@ -382,6 +395,10 @@ window.addEventListener('mouseup', onPointerUp);
 window.addEventListener('touchmove', (e) => onPointerMove(e.touches[0]));
 window.addEventListener('touchstart', (e) => onPointerDown(e.touches[0]));
 window.addEventListener('touchend', onPointerUp);
+window.addEventListener('contextmenu', (e) => e.preventDefault()); // Prevent context menu on right click
+
+// Double click to toggle rainbow mode
+window.addEventListener('dblclick', toggleRainbowMode);
 
 // Resize handler to make the scene responsive
 window.addEventListener('resize', () => {
@@ -438,12 +455,179 @@ function updateMeshPosition() {
     }
 }
 
+// Function to create particle explosion effect
+function explodeEffect() {
+    // Create particles
+    if (particleSystem) {
+        scene.remove(particleSystem);
+    }
+    
+    const particleCount = 1000;
+    const particleGeometry = new THREE.BufferGeometry();
+    const particleMaterial = new THREE.PointsMaterial({
+        color: 0xFFFF00,
+        size: 0.05,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        sizeAttenuation: true
+    });
+    
+    const positions = new Float32Array(particleCount * 3);
+    const velocities = [];
+    
+    for (let i = 0; i < particleCount; i++) {
+        // Random points on a sphere
+        const radius = 0.8;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        
+        positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+        positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+        positions[i * 3 + 2] = radius * Math.cos(phi);
+        
+        // Store velocity for animation
+        velocities.push({
+            x: positions[i * 3] * (Math.random() * 0.02 + 0.01),
+            y: positions[i * 3 + 1] * (Math.random() * 0.02 + 0.01),
+            z: positions[i * 3 + 2] * (Math.random() * 0.02 + 0.01)
+        });
+    }
+    
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    
+    particleSystem = new THREE.Points(particleGeometry, particleMaterial);
+    particleSystem.userData.velocities = velocities;
+    particleSystem.userData.lifetime = 0;
+    particleSystem.userData.maxLifetime = 2.0; // 2 seconds
+    
+    scene.add(particleSystem);
+    isExploded = true;
+    
+    // Make the main mesh temporarily invisible
+    mesh.visible = false;
+    wireMesh.visible = false;
+    
+    // Set a timeout to restore the mesh
+    setTimeout(() => {
+        isExploded = false;
+        mesh.visible = true;
+        wireMesh.visible = true;
+    }, 1000);
+}
+
+// Function to update particle system
+function updateParticles() {
+    if (particleSystem) {
+        particleSystem.userData.lifetime += 0.016; // approximately 60fps
+        
+        if (particleSystem.userData.lifetime >= particleSystem.userData.maxLifetime) {
+            scene.remove(particleSystem);
+            particleSystem = null;
+            return;
+        }
+        
+        const positions = particleSystem.geometry.attributes.position.array;
+        const velocities = particleSystem.userData.velocities;
+        const lifecycle = particleSystem.userData.lifetime / particleSystem.userData.maxLifetime;
+        
+        // Update particle positions based on velocities
+        for (let i = 0; i < positions.length / 3; i++) {
+            positions[i * 3] += velocities[i].x;
+            positions[i * 3 + 1] += velocities[i].y;
+            positions[i * 3 + 2] += velocities[i].z;
+            
+            // Add some gravity
+            velocities[i].y -= 0.0005;
+        }
+        
+        // Fade out particles
+        particleSystem.material.opacity = 1 - lifecycle;
+        
+        particleSystem.geometry.attributes.position.needsUpdate = true;
+    }
+}
+
+// Toggle rainbow mode on double click
+function toggleRainbowMode() {
+    isRainbowMode = !isRainbowMode;
+    
+    if (isRainbowMode) {
+        // Add a color shift animation to the ball
+        colorStart = '#FF0000'; // Red
+        colorMid = '#00FF00';   // Green
+        colorEnd = '#0000FF';   // Blue
+        updateGradientColors(colorStart, colorMid, colorEnd);
+    } else {
+        // Reset to original colors
+        colorStart = '#FF00FF'; // Pink
+        colorMid = '#8800FF';   // Purple
+        colorEnd = '#00FFFF';   // Cyan
+        updateGradientColors(colorStart, colorMid, colorEnd);
+    }
+}
+
+// Function to update rainbow colors
+function updateRainbowColors() {
+    if (isRainbowMode) {
+        // Shift hues based on time
+        const time = Date.now() * 0.001;
+        
+        // Convert HSL to hex color string
+        const hslToHex = (h, s, l) => {
+            const hue2rgb = (p, q, t) => {
+                if (t < 0) t += 1;
+                if (t > 1) t -= 1;
+                if (t < 1/6) return p + (q - p) * 6 * t;
+                if (t < 1/2) return q;
+                if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                return p;
+            };
+            
+            s /= 100;
+            l /= 100;
+            
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+            
+            const r = Math.round(hue2rgb(p, q, h/360 + 1/3) * 255);
+            const g = Math.round(hue2rgb(p, q, h/360) * 255);
+            const b = Math.round(hue2rgb(p, q, h/360 - 1/3) * 255);
+            
+            return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
+        };
+        
+        // Calculate shifting hues
+        const hue1 = (time * 50) % 360;
+        const hue2 = (hue1 + 120) % 360;
+        const hue3 = (hue1 + 240) % 360;
+        
+        const newColorStart = hslToHex(hue1, 100, 50);
+        const newColorMid = hslToHex(hue2, 100, 50);
+        const newColorEnd = hslToHex(hue3, 100, 50);
+        
+        updateGradientColors(newColorStart, newColorMid, newColorEnd);
+    }
+}
+
 // Main animation loop that runs continuously
 function animate() {
     requestAnimationFrame(animate);
     updateMeshScale();
-    updateMeshRotation();
-    updateMeshPosition();
+    
+    // Only update rotation and position if not exploded
+    if (!isExploded) {
+        updateMeshRotation();
+        updateMeshPosition();
+    }
+    
+    // Update particles if they exist
+    updateParticles();
+    
+    // Update rainbow colors if in rainbow mode
+    if (isRainbowMode) {
+        updateRainbowColors();
+    }
+    
     renderer.render(scene, camera);
 }
 
