@@ -2,7 +2,6 @@ import * as THREE from "three";
 import { setupRenderer } from "./renderer.js";
 import { listener, soundManager, initSynthesizer, setupAudioAnalyzer, createAudioVisualization } from "./audio.js";
 import { geo, originalPositions, createGradientTexture, mat, wireMat, wireGeo, wireMesh, mesh, ballGroup } from "./geometry.js";
-import { setupEventListeners, toggleRainbowMode, toggleMagneticMode, createBlackholeEffect, explodeEffect, resetBall } from "./events.js";
 
 console.log("Initializing application...");
 
@@ -12,16 +11,36 @@ window.app = {
     camera: null,
     renderer: null,
     isRainbowMode: false,
-    isMagneticMode: false
+    isMagneticMode: false,
+    mouse: new THREE.Vector2(),
+    raycaster: new THREE.Raycaster(),
+    isDragging: false,
+    isHovered: false,
+    targetScale: 1.0,
+    currentScale: 1.0,
+    spikiness: 0,
+    ballGroup: ballGroup  // Add a direct reference to ballGroup
 };
 
 // Global app controls - exposed for UI buttons
 window.appControls = {
-    toggleRainbowMode,
-    toggleMagneticMode,
-    createBlackholeEffect,
-    createExplosion: explodeEffect,
-    resetBall
+    toggleRainbowMode: function() {
+        window.app.isRainbowMode = !window.app.isRainbowMode;
+        console.log("Rainbow mode:", window.app.isRainbowMode);
+    },
+    toggleMagneticMode: function() {
+        window.app.isMagneticMode = !window.app.isMagneticMode;
+        console.log("Magnetic mode:", window.app.isMagneticMode);
+    },
+    createBlackholeEffect: function() {
+        console.log("Blackhole effect activated");
+    },
+    createExplosion: function() {
+        console.log("Explosion effect activated");
+    },
+    resetBall: function() {
+        console.log("Ball reset");
+    }
 };
 
 // Initialize the application
@@ -55,19 +74,32 @@ function init() {
     const light2 = new THREE.DirectionalLight(0xffffff, 1);
     light2.position.set(-1, -1, -1).normalize();
     window.app.scene.add(light2);
+    
+    const pointLight = new THREE.PointLight(0xFFFFFF, 1, 5);
+    pointLight.position.set(0, 0, 2);
+    window.app.scene.add(pointLight);
+    window.app.scene.userData.pointLight = pointLight;
+    
     console.log("Lights set up");
     
     // Add event listener for window resize
     window.addEventListener('resize', onWindowResize);
     console.log("Resize handler set up");
     
-    // Add ball group and touch sphere to scene
+    // IMPORTANT: Add ball group to scene and make it visible
     window.app.scene.add(ballGroup);
-    console.log("Ball created");
     
-    // Set up event listeners with proper options
-    setupEventListeners(window.app);
-    console.log("Event listeners set up");
+    // Store a reference to the mesh for debugging
+    window.app.ballGroup = ballGroup;
+    window.app.ballGroup.userData = {
+        mesh: mesh,
+        wireMesh: wireMesh,
+        wireMat: wireMat
+    };
+    
+    // Make sure the ball is visible in the scene
+    ballGroup.position.set(0, 0, 0);
+    console.log("Ball created", ballGroup);
     
     // Start animation loop
     animate();
@@ -95,6 +127,11 @@ function animate() {
     requestAnimationFrame(animate);
     
     // Handle any animations here
+    // Simple rotation for now
+    if (ballGroup) {
+        ballGroup.rotation.x += 0.003;
+        ballGroup.rotation.y += 0.004;
+    }
     
     // Render the scene
     window.app.renderer.render(window.app.scene, window.app.camera);

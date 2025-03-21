@@ -1,4 +1,3 @@
-// audio.js - Handles audio and sound effects
 import * as THREE from 'three';
 
 // Enhanced SoundSynthesizer class for better audio
@@ -775,12 +774,155 @@ function updateAudioVisualization(app) {
     }
 }
 
+// Create a listener for 3D audio
+const listener = new THREE.AudioListener();
+
+// Sound manager for handling sound effects
+const soundManager = {
+    sounds: {},
+    
+    // Initialize all sounds
+    init: function() {
+        // Create sound effects
+        this.createSound('hover', 'https://assets.codepen.io/729648/hover.mp3');
+        this.createSound('click', 'https://assets.codepen.io/729648/click.mp3');
+        this.createSound('explosion', 'https://assets.codepen.io/729648/explosion.mp3');
+        this.createSound('spike', 'https://assets.codepen.io/729648/spike.mp3');
+        this.createSound('rainbow', 'https://assets.codepen.io/729648/rainbow.mp3');
+        this.createSound('blackhole', 'https://assets.codepen.io/729648/blackhole.mp3');
+        this.createSound('magnetic', 'https://assets.codepen.io/729648/magnetic.mp3');
+        
+        // Create positional sounds (these will come from the ball's location)
+        this.createPositionalSound('deform', 'https://assets.codepen.io/729648/deform.mp3');
+    },
+    
+    // Create a global sound
+    createSound: function(name, url) {
+        const sound = new THREE.Audio(listener);
+        
+        // Load a sound and set it as the Audio object's buffer
+        const audioLoader = new THREE.AudioLoader();
+        audioLoader.load(url, function(buffer) {
+            sound.setBuffer(buffer);
+            sound.setVolume(0.5);
+        });
+        
+        this.sounds[name] = sound;
+    },
+    
+    // Create a positional sound
+    createPositionalSound: function(name, url) {
+        const sound = new THREE.PositionalAudio(listener);
+        
+        // Load a sound and set it as the Audio object's buffer
+        const audioLoader = new THREE.AudioLoader();
+        audioLoader.load(url, function(buffer) {
+            sound.setBuffer(buffer);
+            sound.setRefDistance(3); // The distance at which the volume reduction starts
+            sound.setVolume(0.5);
+        });
+        
+        this.sounds[name] = sound;
+    },
+    
+    // Play a sound
+    play: function(name, loop = false) {
+        const sound = this.sounds[name];
+        if (sound && sound.buffer) {
+            // Don't restart if it's already playing
+            if (!sound.isPlaying) {
+                sound.setLoop(loop);
+                sound.play();
+            }
+        }
+    },
+    
+    // Stop a sound
+    stop: function(name) {
+        const sound = this.sounds[name];
+        if (sound && sound.isPlaying) {
+            sound.stop();
+        }
+    },
+    
+    // Attach a positional sound to an object
+    attachToObject: function(name, object) {
+        const sound = this.sounds[name];
+        if (sound && !object.children.includes(sound)) {
+            object.add(sound);
+        }
+    },
+    
+    // Set the frequency of an oscillator
+    setFrequency: function(name, value) {
+        const sound = this.sounds[name];
+        if (sound && sound.source && sound.source.frequency) {
+            sound.source.frequency.value = value;
+        }
+    }
+};
+
+// We'll use the Web Audio API to create a synthesizer for reactive sounds
+let audioContext;
+let oscillator;
+let gainNode;
+
+// Initialize Web Audio API synthesizer
+function initSynthesizer() {
+    try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Create gain node (for volume control)
+        gainNode = audioContext.createGain();
+        gainNode.gain.value = 0; // Start silent
+        gainNode.connect(audioContext.destination);
+        
+        // Create oscillator (for tone generation)
+        oscillator = audioContext.createOscillator();
+        oscillator.type = 'sine'; // Sine wave
+        oscillator.frequency.value = 440; // A4 note
+        oscillator.connect(gainNode);
+        oscillator.start();
+        
+        console.log("Audio synthesizer initialized");
+    } catch (e) {
+        console.error("Web Audio API not supported or error initializing:", e);
+    }
+}
+
+// Create an audio analyzer to visualize sound
+let analyzer;
+let bufferLength;
+let dataArray;
+
+function setupAudioAnalyzer() {
+    if (!audioContext) return;
+    
+    // Create an analyzer node
+    analyzer = audioContext.createAnalyser();
+    analyzer.fftSize = 256;
+    bufferLength = analyzer.frequencyBinCount;
+    dataArray = new Uint8Array(bufferLength);
+    
+    // Connect the analyzer to the audio context
+    gainNode.connect(analyzer);
+}
+
+// Export all needed functions and variables
 export {
-    setupAudio,
-    initAudioEffects,
-    playToneForPosition,
-    stopTone,
+    listener,
+    soundManager,
+    initSynthesizer,
+    setupAudioAnalyzer,
+    analyzer,
+    bufferLength,
+    dataArray,
     createAudioVisualization,
     updateAudioVisualization,
+    playToneForPosition,
+    stopTone,
+    mapToFrequency,
+    setupAudio,
+    initAudioEffects,
     SoundSynthesizer
 };
