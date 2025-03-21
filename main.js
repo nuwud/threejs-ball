@@ -2,17 +2,7 @@
 import * as THREE from 'three';
 import { setupRenderer } from './renderer.js';
 import { createScene } from './scene.js';
-import { 
-    listener, 
-    setupAudio, 
-    setupAudioAnalyzer, 
-    createAudioVisualization, 
-    updateAudioVisualization,
-    playFacetSound,
-    playClickSound,
-    playReleaseSound,
-    ensureAudioInitialized
-} from './audio/core.js';
+import { listener, setupAudio, setupAudioAnalyzer, createAudioVisualization, updateAudioVisualization } from './audio/core.js';
 import { createBall, updateBallScale, updateBallRotation, updateBallPosition, resetBall } from './ball.js';
 import { setupEventListeners } from './events.js';
 import { 
@@ -32,11 +22,6 @@ window.app = {
     scene: null,
     camera: null,
     renderer: null,
-    audioContext: null,
-    soundSynth: null,
-    analyser: null,
-    bufferLength: null,
-    audioDataArray: null,
     isRainbowMode: false,
     isMagneticMode: false,
     gravitationalPull: 0,
@@ -51,15 +36,13 @@ window.app = {
     lastFacetIndex: -1,
     touchPoint: null,
     rainbowSoundPlaying: false,
-    clock: new THREE.Clock(),
-    audioInitialized: false
+    clock: new THREE.Clock()
 };
 
 // Global app controls - exposed for UI buttons
 window.appControls = {
     toggleRainbowMode: function() {
-        const isActive = !window.app.isRainbowMode;
-        window.app.isRainbowMode = isActive;
+        const isActive = toggleRainbowMode(window.app);
         console.log("Rainbow mode:", isActive);
         return isActive;
     },
@@ -68,10 +51,7 @@ window.appControls = {
         if (window.app.isMagneticMode) {
             createMagneticTrail(window.app);
         } else {
-            // This function is referenced but may not be implemented yet
-            if (typeof removeMagneticTrail === 'function') {
-                removeMagneticTrail(window.app);
-            }
+            removeMagneticTrail(window.app);
         }
         console.log("Magnetic mode:", window.app.isMagneticMode);
         return window.app.isMagneticMode;
@@ -87,18 +67,6 @@ window.appControls = {
     resetBall: function() {
         resetBall(window.app);
         console.log("Ball reset");
-    },
-    playSound: function() {
-        // Make sure audio is initialized
-        if (!window.app.audioInitialized) {
-            initOnFirstClick();
-        }
-        
-        if (window.app.soundSynth) {
-            // Play a test sound
-            window.app.soundSynth.playClickSound();
-            console.log("Test sound played");
-        }
     }
 };
 
@@ -153,18 +121,12 @@ function init() {
     setupEventListeners(window.app);
     console.log("Event listeners set up");
     
-    // Initialize audio on first user interaction
-    document.addEventListener('click', initOnFirstClick, { once: true });
-    document.addEventListener('mousedown', initOnFirstClick, { once: true });
-    document.addEventListener('touchstart', initOnFirstClick, { once: true });
-    document.addEventListener('keydown', initOnFirstClick, { once: true });
-    
     // Start animation loop
     animate();
-    console.log("Animation loop started");
     
-    // Add debug button for audio testing
-    addDebugButton();
+    // Initialize all needed components
+    document.addEventListener('click', initOnFirstClick, { once: true });
+    console.log("Animation loop started");
     
     console.log("Application initialized successfully");
 }
@@ -207,11 +169,6 @@ function animate() {
 // Initialize audio on first user interaction
 function initOnFirstClick() {
     try {
-        // Don't initialize multiple times
-        if (window.app.audioInitialized) return;
-        
-        console.log("Initializing audio on first user interaction");
-        
         setupAudio(window.app);
         setupAudioAnalyzer(window.app);
         
@@ -221,54 +178,21 @@ function initOnFirstClick() {
         if (window.app.audioContext && window.app.audioContext.state === 'suspended') {
             window.app.audioContext.resume().then(() => {
                 console.log("AudioContext resumed successfully");
-                
-                // Play a test sound to verify that audio is working
-                if (window.app.soundSynth) {
-                    setTimeout(() => {
-                        window.app.soundSynth.playWarmPad(440, 0.5);
-                    }, 500);
-                }
-            }).catch(err => {
-                console.error("Failed to resume AudioContext:", err);
             });
         }
         
-        window.app.audioInitialized = true;
         console.log("Audio effects initialized");
     } catch (error) {
         console.error("Error initializing audio:", error);
     }
 }
 
-// For debugging: add a button to test audio
-function addDebugButton() {
-    const button = document.createElement('button');
-    button.textContent = 'Test Audio';
-    button.style.position = 'absolute';
-    button.style.bottom = '10px';
-    button.style.right = '10px';
-    button.style.zIndex = '1000';
-    button.style.padding = '8px 16px';
-    button.style.background = '#00AAFF';
-    button.style.color = 'white';
-    button.style.border = 'none';
-    button.style.borderRadius = '4px';
-    button.style.cursor = 'pointer';
-    
-    button.addEventListener('click', () => {
-        // Ensure audio is initialized
-        ensureAudioInitialized(window.app);
-        
-        // Play test sound
-        if (window.app.soundSynth) {
-            window.app.soundSynth.playClickSound();
-            console.log("Test sound played");
-        } else {
-            console.warn("Sound synthesizer not available");
-        }
-    });
-    
-    document.body.appendChild(button);
+function createAudioVisualization(app) {
+    if (!app.audioContext) {
+        console.warn("Cannot create audio visualization: AudioContext not available");
+        return;
+    }
+    // rest of your code...
 }
 
 // Initialize the application

@@ -1,15 +1,22 @@
 // events.js - Handles user interactions
 import * as THREE from 'three';
-import { initAudioEffects, playToneForPosition, stopTone } from './audio.js';
-import { applyDeformation, resetDeformation, updateGradientColors } from './ball.js';
 import { 
-  createParticleExplosion, 
-  applySpikyEffect, 
-  createMagneticTrail, 
-  removeMagneticTrail, 
-  createBlackholeEffect, 
-  removeBlackholeEffect
-} from './effects.js';
+    ensureAudioInitialized, 
+    playToneForPosition, 
+    playFacetSound, 
+    playClickSound, 
+    playReleaseSound 
+} from './audio/core.js';
+import { applyDeformation, resetDeformation } from './ball.js';
+import { createGradientTexture, updateGradientColors } from './effects/gradients.js';
+import { 
+    createParticleExplosion,
+    applySpikyEffect, 
+    createMagneticTrail, 
+    removeMagneticTrail, 
+    createBlackholeEffect,
+    toggleRainbowMode
+} from './effects/index.js';
 
 // Set up event listeners
 function setupEventListeners(app) {
@@ -29,28 +36,39 @@ function setupEventListeners(app) {
         onPointerDown(e.touches[0], app);
     }, { passive: false });
     window.addEventListener('touchend', () => onPointerUp(app));
-    window.addEventListener('contextmenu', e => e.preventDefault()); // Prevent context menu on right click
+    window.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        // Right-click trigger explosion
+        ensureAudioInitialized(app);
+        createParticleExplosion(app);
+    });
     
     // Double click to toggle rainbow mode
     window.addEventListener('dblclick', () => {
-        if (window.appControls && window.appControls.toggleRainbowMode) {
-            window.appControls.toggleRainbowMode();
-            window.showStatus && window.showStatus('Rainbow Mode ' + (app.isRainbowMode ? 'Activated' : 'Deactivated'));
+        // Toggle rainbow mode
+        const isActive = toggleRainbowMode(app);
+        
+        // Show status
+        if (window.showStatus) {
+            window.showStatus('Rainbow Mode ' + (isActive ? 'Activated' : 'Deactivated'));
         }
     });
     
     // Forward/back mouse buttons
     window.addEventListener('mousedown', e => {
         if (e.button === 3) { // Forward button (may vary by mouse)
-            if (window.appControls && window.appControls.toggleMagneticMode) {
-                window.appControls.toggleMagneticMode();
-                window.showStatus && window.showStatus('Magnetic Effect ' + (app.isMagneticMode ? 'Activated' : 'Deactivated'));
+            if (app.isMagneticMode) {
+                removeMagneticTrail(app);
+                app.isMagneticMode = false;
+                window.showStatus && window.showStatus('Magnetic Effect Deactivated');
+            } else {
+                createMagneticTrail(app);
+                app.isMagneticMode = true;
+                window.showStatus && window.showStatus('Magnetic Effect Activated');
             }
         } else if (e.button === 4) { // Back button (may vary by mouse)
-            if (window.appControls && window.appControls.createBlackholeEffect) {
-                window.appControls.createBlackholeEffect();
-                window.showStatus && window.showStatus('Blackhole Effect Activated');
-            }
+            createBlackholeEffect(app);
+            window.showStatus && window.showStatus('Blackhole Effect Activated');
         }
     });
     
@@ -74,7 +92,8 @@ function onPointerMove(event, app) {
     }
     
     // Get reference to the main mesh in the ball group
-    const mesh = app.ballGroup.userData.mesh;
+    const mesh = app.ballGroup?.userData?.mesh;
+    if (!mesh) return;
     
     // Calculate objects intersecting the ray
     const intersects = app.raycaster.intersectObject(mesh);
@@ -106,17 +125,13 @@ function onPointerMove(event, app) {
         // Only trigger sound when crossing facet boundaries
         if (facetIndex !== app.lastFacetIndex) {
             // Initialize audio on first interaction
-            if (!app.audioContext) {
-                initAudioEffects(app);
-            }
+            ensureAudioInitialized(app);
             
-            if (app.soundSynth) {
-                // Play a facet-specific sound
-                app.soundSynth.playFacetSound(facetIndex, 0.6);
-                
-                // Also play a positional sound based on mouse coords
-                app.soundSynth.playPositionSound(app.mouse.x, app.mouse.y);
-            }
+            // Play a facet-specific sound
+            playFacetSound(app, facetIndex);
+            
+            // Also play a positional sound based on mouse coords
+            playToneForPosition(app, app.mouse.x, app.mouse.y);
             
             // Update last facet index
             app.lastFacetIndex = facetIndex;
@@ -167,9 +182,7 @@ function getFacetIndex(intersectPoint) {
 
 function onPointerDown(event, app) {
     // Make sure audio is initialized on first user interaction
-    if (!app.audioContext) {
-        initAudioEffects(app);
-    }
+    ensureAudioInitialized(app);
     
     app.isDragging = true;
     app.previousMousePosition = {
@@ -182,7 +195,9 @@ function onPointerDown(event, app) {
     
     // Check if we're clicking on the ball
     app.raycaster.setFromCamera(app.mouse, app.camera);
-    const mesh = app.ballGroup.userData.mesh;
+    const mesh = app.ballGroup?.userData?.mesh;
+    if (!mesh) return;
+    
     const intersects = app.raycaster.intersectObject(mesh);
     
     if (intersects.length > 0) {
@@ -196,11 +211,6 @@ function onPointerDown(event, app) {
             
             app.targetScale = 1.3;
             
-            // Play explosion sound
-            if (app.soundSynth) {
-                app.soundSynth.playSpecialSound('explosion');
-            }
-            
             // Show status
             window.showStatus && window.showStatus('Explosion Effect Activated');
         } else {
@@ -212,9 +222,7 @@ function onPointerDown(event, app) {
             updateGradientColors(app, '#FFAAFF', '#CC66FF', '#66FFFF');
             
             // Play click sound
-            if (app.soundSynth) {
-                app.soundSynth.playClickSound();
-            }
+            playClickSound(app);
         }
     }
 }
@@ -234,9 +242,7 @@ function onPointerUp(app) {
     }
     
     // Play release sound
-    if (app.soundSynth) {
-        app.soundSynth.playReleaseSound();
-    }
+    playReleaseSound(app);
 }
 
 // Handle mouse wheel scroll
@@ -259,9 +265,13 @@ function onMouseWheel(event, app) {
         if (app.spikiness > 0) {
             applySpikyEffect(app, app.spikiness);
             
-            // Play spike sound
-            if (app.soundSynth) {
+            // Play spike sound if available
+            ensureAudioInitialized(app);
+            if (app.soundSynth && app.soundSynth.playSpecialSound) {
                 app.soundSynth.playSpecialSound('spike');
+            } else if (app.soundSynth) {
+                // Fallback to click sound if no special sound function
+                playClickSound(app);
             }
             
             // Show status
