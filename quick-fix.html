@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Three.js Quick Fix</title>
+  <title>Three.js Interactive Ball with Facet Sounds</title>
   <style>
     body {
       margin: 0;
@@ -21,6 +21,12 @@
       border-radius: 5px;
       z-index: 100;
       pointer-events: none;
+      max-width: 300px;
+    }
+    
+    h2 {
+      margin-top: 0;
+      color: #00FFFF;
     }
   </style>
   <script type="importmap">
@@ -33,10 +39,12 @@
 </head>
 <body>
   <div id="info">
-    <h2>Three.js Quick Fix</h2>
-    <p>Drag to rotate the ball. Click for scale animation.</p>
+    <h2>Interactive 3D Ball</h2>
+    <p>Move your mouse over the ball to hear pleasing sounds that change when crossing facet boundaries.</p>
+    <p>Click and drag to rotate.</p>
+    <p>Each triangle facet has its own unique crunchy sound texture!</p>
   </div>
   
-  <script type="module" src="quick-fix.js"></script>
+  <script type="module" src="quick-fix-combined.js"></script>
 </body>
 </html>
