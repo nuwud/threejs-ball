@@ -837,6 +837,166 @@ function applyGravitationalDeformation(attractorPosition, strength) {
     geo.computeVertexNormals();
 }
 
+// Function to handle explosion effect (referenced in onPointerDown)
+function explodeEffect() {
+    if (isExploded) return;
+    
+    isExploded = true;
+    
+    // Create an array to hold explosion particles
+    const particles = [];
+    const particleCount = 100;
+    
+    // Create a particle system for the explosion
+    const particleGeometry = new THREE.BufferGeometry();
+    const particlePositions = new Float32Array(particleCount * 3);
+    const particleVelocities = [];
+    
+    // Sample positions from the original geometry
+    const positions = geo.attributes.position;
+    
+    for (let i = 0; i < particleCount; i++) {
+        // Sample a random vertex from the geometry
+        const vertexIndex = Math.floor(Math.random() * positions.count);
+        const radius = 1;
+        
+        // Position at surface of sphere
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        
+        const x = radius * Math.sin(phi) * Math.cos(theta);
+        const y = radius * Math.sin(phi) * Math.sin(theta);
+        const z = radius * Math.cos(phi);
+        
+        particlePositions[i * 3] = x;
+        particlePositions[i * 3 + 1] = y;
+        particlePositions[i * 3 + 2] = z;
+        
+        // Create random velocities pointing outward
+        const velocity = new THREE.Vector3(x, y, z).normalize();
+        velocity.multiplyScalar(0.05 + Math.random() * 0.05);
+        
+        particleVelocities.push(velocity);
+    }
+    
+    // Set the vertex positions
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+    
+    // Create a material for the particles
+    const particleMaterial = new THREE.PointsMaterial({
+        color: 0xFFFFFF,
+        size: 0.05,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 0.8,
+        vertexColors: false
+    });
+    
+    // Create the particle system
+    particleSystem = new THREE.Points(particleGeometry, particleMaterial);
+    
+    // Position it to match the ball
+    particleSystem.position.copy(ballGroup.position);
+    particleSystem.userData = {
+        velocities: particleVelocities,
+        startTime: Date.now()
+    };
+    
+    scene.add(particleSystem);
+    
+    // Hide the original ball
+    ballGroup.visible = false;
+    
+    // Automatically reset after a delay
+    setTimeout(() => {
+        resetExplosion();
+    }, 3000);
+}
+
+// Function to reset after explosion
+function resetExplosion() {
+    isExploded = false;
+    
+    // Remove particle system
+    if (particleSystem) {
+        scene.remove(particleSystem);
+        particleSystem = null;
+    }
+    
+    // Show the ball again
+    ballGroup.visible = true;
+    
+    // Reset colors
+    updateGradientColors(colorStart, colorMid, colorEnd);
+}
+
+// Update explosion particles
+function updateParticles() {
+    if (!particleSystem) return;
+    
+    const positions = particleSystem.geometry.attributes.position;
+    const velocities = particleSystem.userData.velocities;
+    const elapsed = (Date.now() - particleSystem.userData.startTime) / 1000;
+    
+    // Apply gravity and move particles
+    for (let i = 0; i < positions.count; i++) {
+        positions.array[i * 3] += velocities[i].x;
+        positions.array[i * 3 + 1] += velocities[i].y - 0.01; // Add gravity
+        positions.array[i * 3 + 2] += velocities[i].z;
+        
+        // Slow down over time
+        velocities[i].multiplyScalar(0.99);
+    }
+    
+    // Fade out the particles over time
+    const life = 3.0; // 3 seconds
+    const normalizedTime = Math.min(elapsed / life, 1.0);
+    particleSystem.material.opacity = 1.0 - normalizedTime;
+    
+    positions.needsUpdate = true;
+}
+
+// Toggle rainbow mode on double click
+function toggleRainbowMode() {
+    isRainbowMode = !isRainbowMode;
+    
+    if (isRainbowMode) {
+        // Start with a rainbow gradient
+        updateGradientColors('#FF0000', '#00FF00', '#0000FF');
+    } else {
+        // Reset to original colors
+        updateGradientColors(colorStart, colorMid, colorEnd);
+    }
+}
+
+// Update rainbow colors with cycling hue
+function updateRainbowColors() {
+    const time = Date.now() * 0.001;
+    
+    // Cycle the hue for each color stop, offset by phase
+    const hue1 = (time * 0.1) % 1;
+    const hue2 = ((time * 0.1) + 0.33) % 1;
+    const hue3 = ((time * 0.1) + 0.66) % 1;
+    
+    // Convert HSL to hex color
+    const color1 = new THREE.Color().setHSL(hue1, 1, 0.5);
+    const color2 = new THREE.Color().setHSL(hue2, 1, 0.5);
+    const color3 = new THREE.Color().setHSL(hue3, 1, 0.5);
+    
+    // Convert THREE.Color to hex string
+    const hex1 = '#' + color1.getHexString();
+    const hex2 = '#' + color2.getHexString();
+    const hex3 = '#' + color3.getHexString();
+    
+    // Update the gradient
+    gradientTexture = createGradientTexture(hex1, hex2, hex3);
+    mat.map = gradientTexture;
+    mat.needsUpdate = true;
+    
+    // Also update wireframe color
+    wireMat.color.copy(color1);
+}
+
 // Main animation loop that runs continuously
 function animate() {
     requestAnimationFrame(animate);
