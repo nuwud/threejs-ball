@@ -15,6 +15,239 @@ const far = 1000;
 const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
 camera.position.set(0, 0, 2); // Position camera 2 units away from origin
 
+// Create an audio listener and add it to the camera
+const listener = new THREE.AudioListener();
+camera.add(listener);
+
+// Sound manager object to handle all audio
+const soundManager = {
+    sounds: {},
+    
+    // Initialize all sounds
+    init: function() {
+        // Create sound effects
+        this.createSound('hover', 'https://assets.codepen.io/729648/hover.mp3');
+        this.createSound('click', 'https://assets.codepen.io/729648/click.mp3');
+        this.createSound('explosion', 'https://assets.codepen.io/729648/explosion.mp3');
+        this.createSound('spike', 'https://assets.codepen.io/729648/spike.mp3');
+        this.createSound('rainbow', 'https://assets.codepen.io/729648/rainbow.mp3');
+        this.createSound('blackhole', 'https://assets.codepen.io/729648/blackhole.mp3');
+        this.createSound('magnetic', 'https://assets.codepen.io/729648/magnetic.mp3');
+        
+        // Create positional sounds (these will come from the ball's location)
+        this.createPositionalSound('deform', 'https://assets.codepen.io/729648/deform.mp3');
+    },
+    
+    // Create a global sound
+    createSound: function(name, url) {
+        const sound = new THREE.Audio(listener);
+        
+        // Load a sound and set it as the Audio object's buffer
+        const audioLoader = new THREE.AudioLoader();
+        audioLoader.load(url, function(buffer) {
+            sound.setBuffer(buffer);
+            sound.setVolume(0.5);
+        });
+        
+        this.sounds[name] = sound;
+    },
+    
+    // Create a positional sound
+    createPositionalSound: function(name, url) {
+        const sound = new THREE.PositionalAudio(listener);
+        
+        // Load a sound and set it as the Audio object's buffer
+        const audioLoader = new THREE.AudioLoader();
+        audioLoader.load(url, function(buffer) {
+            sound.setBuffer(buffer);
+            sound.setRefDistance(3); // The distance at which the volume reduction starts
+            sound.setVolume(0.5);
+        });
+        
+        this.sounds[name] = sound;
+    },
+    
+    // Play a sound
+    play: function(name, loop = false) {
+        const sound = this.sounds[name];
+        if (sound && sound.buffer) {
+            // Don't restart if it's already playing
+            if (!sound.isPlaying) {
+                sound.setLoop(loop);
+                sound.play();
+            }
+        }
+    },
+    
+    // Stop a sound
+    stop: function(name) {
+        const sound = this.sounds[name];
+        if (sound && sound.isPlaying) {
+            sound.stop();
+        }
+    },
+    
+    // Attach a positional sound to an object
+    attachToObject: function(name, object) {
+        const sound = this.sounds[name];
+        if (sound && !object.children.includes(sound)) {
+            object.add(sound);
+        }
+    },
+    
+    // Set the frequency of an oscillator
+    setFrequency: function(name, value) {
+        const sound = this.sounds[name];
+        if (sound && sound.source && sound.source.frequency) {
+            sound.source.frequency.value = value;
+        }
+    }
+};
+
+// We'll use the Web Audio API to create a synthesizer for reactive sounds
+let audioContext;
+let oscillator;
+let gainNode;
+
+// Initialize Web Audio API synthesizer
+function initSynthesizer() {
+    try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Create gain node (for volume control)
+        gainNode = audioContext.createGain();
+        gainNode.gain.value = 0; // Start silent
+        gainNode.connect(audioContext.destination);
+        
+        // Create oscillator (for tone generation)
+        oscillator = audioContext.createOscillator();
+        oscillator.type = 'sine'; // Sine wave
+        oscillator.frequency.value = 440; // A4 note
+        oscillator.connect(gainNode);
+        oscillator.start();
+        
+        console.log("Audio synthesizer initialized");
+    } catch (e) {
+        console.error("Web Audio API not supported or error initializing:", e);
+    }
+}
+
+// Map a value to a frequency range (for mouse movement)
+function mapToFrequency(value, min, max, freqMin = 220, freqMax = 880) {
+    return freqMin + ((value - min) / (max - min)) * (freqMax - freqMin);
+}
+
+// Play a tone based on position
+function playToneForPosition(x, y) {
+    if (!audioContext) return;
+    
+    // Map x position to frequency
+    const frequency = mapToFrequency(x, -1, 1, 220, 880);
+    oscillator.frequency.value = frequency;
+    
+    // Map y position to volume
+    const volume = mapToFrequency(y, -1, 1, 0, 0.2);
+    gainNode.gain.value = volume;
+}
+
+// Stop playing the tone
+function stopTone() {
+    if (!audioContext) return;
+    
+    // Ramp down to avoid clicks
+    gainNode.gain.setTargetAtTime(0, audioContext.currentTime, 0.1);
+}
+
+// Create an audio analyzer to visualize sound
+let analyzer;
+let bufferLength;
+let dataArray;
+
+function setupAudioAnalyzer() {
+    if (!audioContext) return;
+    
+    // Create an analyzer node
+    analyzer = audioContext.createAnalyser();
+    analyzer.fftSize = 256;
+    bufferLength = analyzer.frequencyBinCount;
+    dataArray = new Uint8Array(bufferLength);
+    
+    // Connect the analyzer to the audio context
+    gainNode.connect(analyzer);
+}
+
+// Create visualization for sound
+function createAudioVisualization() {
+    if (!analyzer) return;
+    
+    // Create a circle of small cubes around the ball
+    const visualizationGroup = new THREE.Group();
+    const cubeCount = 32;
+    const radius = 2;
+    
+    for (let i = 0; i < cubeCount; i++) {
+        const angle = (i / cubeCount) * Math.PI * 2;
+        
+        const cube = new THREE.Mesh(
+            new THREE.BoxGeometry(0.1, 0.1, 0.1),
+            new THREE.MeshBasicMaterial({
+                color: 0xFFFFFF,
+                transparent: true,
+                opacity: 0.8
+            })
+        );
+        
+        cube.position.set(
+            Math.cos(angle) * radius,
+            Math.sin(angle) * radius,
+            0
+        );
+        
+        visualizationGroup.add(cube);
+    }
+    
+    scene.add(visualizationGroup);
+    
+    // Store it for updates
+    scene.userData.audioVisualization = visualizationGroup;
+}
+
+// Update audio visualization
+function updateAudioVisualization() {
+    if (!analyzer || !scene.userData.audioVisualization) return;
+    
+    // Get frequency data
+    analyzer.getByteFrequencyData(dataArray);
+    
+    // Update visualization cubes
+    const visualization = scene.userData.audioVisualization;
+    const cubes = visualization.children;
+    
+    for (let i = 0; i < cubes.length; i++) {
+        const cube = cubes[i];
+        
+        // Map frequency bin to cube
+        const frequencyBin = Math.floor((i / cubes.length) * bufferLength);
+        const value = dataArray[frequencyBin] / 255; // Normalize to 0-1
+        
+        // Scale cube based on frequency value
+        cube.scale.y = 0.1 + value * 2;
+        
+        // Position the cube
+        cube.position.y = Math.sin((i / cubes.length) * Math.PI * 2) * 2 + (value * 0.5);
+        
+        // Color based on frequency (optional)
+        cube.material.color.setHSL(i / cubes.length, 0.8, 0.5 + value * 0.5);
+    }
+}
+
+// Create audio visualizer
+function setupVisualizer() {
+    if (analyzer) {
+        createAudioVisualization();
+    }
+}
+
 // Create a new scene
 const scene = new THREE.Scene();
 
@@ -218,9 +451,24 @@ function onPointerMove(event) {
             y: event.clientY
         };
     }
+    
+    // Play tone based on mouse position
+    if (isHovered) {
+        playToneForPosition(mouse.x, mouse.y);
+    }
 }
 
 function onPointerDown(event) {
+    // Make sure audio is initialized on first user interaction
+    if (!audioContext) {
+        initSynthesizer();
+        setupAudioAnalyzer();
+        soundManager.init();
+        
+        // Attach positional sounds to ball
+        soundManager.attachToObject('deform', ballGroup);
+    }
+    
     isDragging = true;
     
     previousMousePosition = {
@@ -261,6 +509,9 @@ function onPointerUp() {
     if (!isHovered) {
         updateGradientColors(colorStart, colorMid, colorEnd);
     }
+    
+    // Stop the tone
+    stopTone();
 }
 
 // Helper function for smooth color transitions using GSAP-like tweening
@@ -968,9 +1219,54 @@ function toggleRainbowMode() {
     if (isRainbowMode) {
         // Start with a rainbow gradient
         updateGradientColors('#FF0000', '#00FF00', '#0000FF');
+        
+        // Play rainbow sound
+        soundManager.play('rainbow', true);
+        
+        // Create a special oscillator effect for rainbow mode
+        if (oscillator) {
+            oscillator.type = 'triangle';
+            oscillator.frequency.value = 440; // A4 note
+            gainNode.gain.value = 0.1;
+            
+            // Set up a fancy modulation effect
+            if (!audioContext.rainbowLFO) {
+                // Create a low frequency oscillator for frequency modulation
+                const lfo = audioContext.createOscillator();
+                lfo.type = 'sine';
+                lfo.frequency.value = 0.5; // 0.5 Hz modulation
+                
+                const lfoGain = audioContext.createGain();
+                lfoGain.gain.value = 100; // Modulation depth
+                
+                lfo.connect(lfoGain);
+                lfoGain.connect(oscillator.frequency);
+                
+                lfo.start();
+                
+                // Store for later cleanup
+                audioContext.rainbowLFO = lfo;
+            }
+        }
     } else {
         // Reset to original colors
         updateGradientColors(colorStart, colorMid, colorEnd);
+        
+        // Stop rainbow sound
+        soundManager.stop('rainbow');
+        
+        // Clean up modulation
+        if (audioContext && audioContext.rainbowLFO) {
+            audioContext.rainbowLFO.stop();
+            audioContext.rainbowLFO.disconnect();
+            delete audioContext.rainbowLFO;
+        }
+        
+        // Reset oscillator
+        if (oscillator) {
+            oscillator.type = 'sine';
+            gainNode.gain.value = 0;
+        }
     }
 }
 
@@ -1000,6 +1296,24 @@ function updateRainbowColors() {
     
     // Also update wireframe color
     wireMat.color.copy(color1);
+    
+    // If we have a sound analyzer, use it to make audio reactive visuals
+    if (analyzer && isRainbowMode) {
+        // Get frequency data
+        analyzer.getByteFrequencyData(dataArray);
+        
+        // Calculate average frequency 
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+            sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+        
+        // Use to modulate color saturation or brightness
+        const normalizedValue = average / 255;
+        // Add a bit of audio reactivity to the material
+        mat.emissiveIntensity = normalizedValue * 2;
+    }
 }
 
 // Main animation loop that runs continuously
@@ -1027,8 +1341,39 @@ function animate() {
     // Update blackhole effect
     updateBlackholeEffect();
     
+    // Update audio visualization
+    updateAudioVisualization();
+    
     renderer.render(scene, camera);
+}
+
+// Initialize audio and visuals on first user interaction
+function initAllAudio() {
+    // Initialize Web Audio API
+    initSynthesizer();
+    
+    // Set up analyzer for visualizations
+    setupAudioAnalyzer();
+    
+    // Initialize sound manager
+    soundManager.init();
+    
+    // Attach positional sounds to ball
+    soundManager.attachToObject('deform', ballGroup);
+    
+    // Create audio visualization
+    setupVisualizer();
 }
 
 // Start the animation loop
 animate();
+
+// Delayed initialization to ensure proper initialization after the document is loaded
+setTimeout(() => {
+    document.addEventListener('click', function initOnFirstClick() {
+        // First user interaction - initialize audio
+        initAllAudio();
+        // Remove the event listener
+        document.removeEventListener('click', initOnFirstClick);
+    });
+}, 500);
