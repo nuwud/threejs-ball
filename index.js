@@ -131,6 +131,11 @@ let currentScale = 1.0;
 let isExploded = false;
 let particleSystem = null;
 let isRainbowMode = false;
+let spikiness = 0;
+let isMagneticMode = false;
+let gravitationalPull = 0;
+let spikes = [];
+let blackholeEffect = null;
 
 // Create a sphere to visualize the touch point
 const touchSphere = new THREE.Mesh(
@@ -392,6 +397,7 @@ function resetDeformation(speed) {
 window.addEventListener('mousemove', onPointerMove);
 window.addEventListener('mousedown', onPointerDown);
 window.addEventListener('mouseup', onPointerUp);
+window.addEventListener('wheel', onMouseWheel);
 window.addEventListener('touchmove', (e) => onPointerMove(e.touches[0]));
 window.addEventListener('touchstart', (e) => onPointerDown(e.touches[0]));
 window.addEventListener('touchend', onPointerUp);
@@ -399,6 +405,15 @@ window.addEventListener('contextmenu', (e) => e.preventDefault()); // Prevent co
 
 // Double click to toggle rainbow mode
 window.addEventListener('dblclick', toggleRainbowMode);
+
+// Forward/back mouse buttons
+window.addEventListener('mousedown', (e) => {
+    if (e.button === 3) { // Forward button (may vary by mouse)
+        toggleMagneticMode();
+    } else if (e.button === 4) { // Back button (may vary by mouse)
+        createBlackholeEffect();
+    }
+});
 
 // Resize handler to make the scene responsive
 window.addEventListener('resize', () => {
@@ -455,158 +470,371 @@ function updateMeshPosition() {
     }
 }
 
-// Function to create particle explosion effect
-function explodeEffect() {
-    // Create particles
-    if (particleSystem) {
-        scene.remove(particleSystem);
+// Handle mouse wheel scroll
+function onMouseWheel(event) {
+    // Only affect the ball if we're hovering over it
+    if (isHovered) {
+        // Prevent default scroll behavior
+        event.preventDefault();
+        
+        // Determine scroll direction
+        const delta = Math.sign(event.deltaY);
+        
+        // Adjust spikiness
+        spikiness += delta * 0.05;
+        
+        // Clamp to a reasonable range
+        spikiness = Math.max(0, Math.min(2, spikiness));
+        
+        // Apply spiky deformation
+        if (spikiness > 0) {
+            applySpikyEffect(spikiness);
+        } else {
+            // If spikiness is 0, reset to original shape
+            resetDeformation(0.5);
+        }
+    }
+}
+
+// Create spiky effect on the ball
+function applySpikyEffect(intensity) {
+    const positions = geo.attributes.position;
+    
+    // If we haven't stored spikes yet, create them
+    if (spikes.length === 0) {
+        for (let i = 0; i < positions.count; i++) {
+            const x = originalPositions[i * 3];
+            const y = originalPositions[i * 3 + 1];
+            const z = originalPositions[i * 3 + 2];
+            
+            const vertex = new THREE.Vector3(x, y, z).normalize();
+            spikes.push({
+                index: i,
+                direction: vertex,
+                phase: Math.random() * Math.PI * 2 // Random phase for animation
+            });
+        }
     }
     
-    const particleCount = 1000;
-    const particleGeometry = new THREE.BufferGeometry();
-    const particleMaterial = new THREE.PointsMaterial({
-        color: 0xFFFF00,
-        size: 0.05,
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-        sizeAttenuation: true
-    });
+    // Apply spiky effect
+    for (const spike of spikes) {
+        const i = spike.index;
+        const time = Date.now() * 0.002;
+        
+        // Calculate spike extension with some wobble
+        const wobble = Math.sin(time + spike.phase) * 0.1;
+        const extension = (1.0 + wobble) * intensity;
+        
+        // Apply to vertex
+        positions.array[i * 3] = originalPositions[i * 3] + spike.direction.x * extension;
+        positions.array[i * 3 + 1] = originalPositions[i * 3 + 1] + spike.direction.y * extension;
+        positions.array[i * 3 + 2] = originalPositions[i * 3 + 2] + spike.direction.z * extension;
+    }
     
-    const positions = new Float32Array(particleCount * 3);
-    const velocities = [];
+    // Update wireframe to match
+    wireGeo.copy(new THREE.EdgesGeometry(geo));
+    wireMesh.geometry = wireGeo;
     
-    for (let i = 0; i < particleCount; i++) {
-        // Random points on a sphere
-        const radius = 0.8;
+    // Mark as needing update
+    positions.needsUpdate = true;
+    geo.computeVertexNormals();
+}
+
+// Toggle magnetic mode (for forward mouse button)
+function toggleMagneticMode() {
+    isMagneticMode = !isMagneticMode;
+    
+    if (isMagneticMode) {
+        // Turn on magnetic effect
+        updateGradientColors('#0066FF', '#3399FF', '#99CCFF'); // Blue colors
+        wireMat.color.set(0x0066FF); // Blue wireframe
+        
+        // Create a trail of small spheres that follow the ball
+        createMagneticTrail();
+    } else {
+        // Turn off magnetic effect
+        updateGradientColors(colorStart, colorMid, colorEnd);
+        wireMat.color.set(0x00FFFF);
+        
+        // Remove trail
+        removeMagneticTrail();
+    }
+}
+
+// Create floating particles that follow the ball in magnetic mode
+let magneticParticles = [];
+function createMagneticTrail() {
+    // Clean up any existing particles
+    removeMagneticTrail();
+    
+    // Create a batch of particles
+    for (let i = 0; i < 50; i++) {
+        const size = Math.random() * 0.05 + 0.02;
+        const color = new THREE.Color(0x0066FF);
+        
+        // Adjust color based on size (smaller = lighter)
+        color.r += (1 - size) * 0.8;
+        color.g += (1 - size) * 0.8;
+        color.b += (1 - size) * 0.1;
+        
+        const particle = new THREE.Mesh(
+            new THREE.SphereGeometry(size, 8, 8),
+            new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.7,
+                blending: THREE.AdditiveBlending
+            })
+        );
+        
+        // Random position around the ball
+        const radius = Math.random() * 2 + 1.5;
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(2 * Math.random() - 1);
         
-        positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
-        positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
-        positions[i * 3 + 2] = radius * Math.cos(phi);
+        particle.position.set(
+            radius * Math.sin(phi) * Math.cos(theta),
+            radius * Math.sin(phi) * Math.sin(theta),
+            radius * Math.cos(phi)
+        );
         
-        // Store velocity for animation
-        velocities.push({
-            x: positions[i * 3] * (Math.random() * 0.02 + 0.01),
-            y: positions[i * 3 + 1] * (Math.random() * 0.02 + 0.01),
-            z: positions[i * 3 + 2] * (Math.random() * 0.02 + 0.01)
-        });
-    }
-    
-    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    
-    particleSystem = new THREE.Points(particleGeometry, particleMaterial);
-    particleSystem.userData.velocities = velocities;
-    particleSystem.userData.lifetime = 0;
-    particleSystem.userData.maxLifetime = 2.0; // 2 seconds
-    
-    scene.add(particleSystem);
-    isExploded = true;
-    
-    // Make the main mesh temporarily invisible
-    mesh.visible = false;
-    wireMesh.visible = false;
-    
-    // Set a timeout to restore the mesh
-    setTimeout(() => {
-        isExploded = false;
-        mesh.visible = true;
-        wireMesh.visible = true;
-    }, 1000);
-}
-
-// Function to update particle system
-function updateParticles() {
-    if (particleSystem) {
-        particleSystem.userData.lifetime += 0.016; // approximately 60fps
-        
-        if (particleSystem.userData.lifetime >= particleSystem.userData.maxLifetime) {
-            scene.remove(particleSystem);
-            particleSystem = null;
-            return;
-        }
-        
-        const positions = particleSystem.geometry.attributes.position.array;
-        const velocities = particleSystem.userData.velocities;
-        const lifecycle = particleSystem.userData.lifetime / particleSystem.userData.maxLifetime;
-        
-        // Update particle positions based on velocities
-        for (let i = 0; i < positions.length / 3; i++) {
-            positions[i * 3] += velocities[i].x;
-            positions[i * 3 + 1] += velocities[i].y;
-            positions[i * 3 + 2] += velocities[i].z;
-            
-            // Add some gravity
-            velocities[i].y -= 0.0005;
-        }
-        
-        // Fade out particles
-        particleSystem.material.opacity = 1 - lifecycle;
-        
-        particleSystem.geometry.attributes.position.needsUpdate = true;
-    }
-}
-
-// Toggle rainbow mode on double click
-function toggleRainbowMode() {
-    isRainbowMode = !isRainbowMode;
-    
-    if (isRainbowMode) {
-        // Add a color shift animation to the ball
-        colorStart = '#FF0000'; // Red
-        colorMid = '#00FF00';   // Green
-        colorEnd = '#0000FF';   // Blue
-        updateGradientColors(colorStart, colorMid, colorEnd);
-    } else {
-        // Reset to original colors
-        colorStart = '#FF00FF'; // Pink
-        colorMid = '#8800FF';   // Purple
-        colorEnd = '#00FFFF';   // Cyan
-        updateGradientColors(colorStart, colorMid, colorEnd);
-    }
-}
-
-// Function to update rainbow colors
-function updateRainbowColors() {
-    if (isRainbowMode) {
-        // Shift hues based on time
-        const time = Date.now() * 0.001;
-        
-        // Convert HSL to hex color string
-        const hslToHex = (h, s, l) => {
-            const hue2rgb = (p, q, t) => {
-                if (t < 0) t += 1;
-                if (t > 1) t -= 1;
-                if (t < 1/6) return p + (q - p) * 6 * t;
-                if (t < 1/2) return q;
-                if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-                return p;
-            };
-            
-            s /= 100;
-            l /= 100;
-            
-            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-            const p = 2 * l - q;
-            
-            const r = Math.round(hue2rgb(p, q, h/360 + 1/3) * 255);
-            const g = Math.round(hue2rgb(p, q, h/360) * 255);
-            const b = Math.round(hue2rgb(p, q, h/360 - 1/3) * 255);
-            
-            return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
+        particle.userData = {
+            offset: new THREE.Vector3(
+                Math.sin(i * 0.5) * 1.5,
+                Math.cos(i * 0.5) * 1.5,
+                Math.sin(i * 0.3) * 1.5
+            ),
+            phase: Math.random() * Math.PI * 2,
+            speed: Math.random() * 0.02 + 0.01
         };
         
-        // Calculate shifting hues
-        const hue1 = (time * 50) % 360;
-        const hue2 = (hue1 + 120) % 360;
-        const hue3 = (hue1 + 240) % 360;
-        
-        const newColorStart = hslToHex(hue1, 100, 50);
-        const newColorMid = hslToHex(hue2, 100, 50);
-        const newColorEnd = hslToHex(hue3, 100, 50);
-        
-        updateGradientColors(newColorStart, newColorMid, newColorEnd);
+        scene.add(particle);
+        magneticParticles.push(particle);
     }
+}
+
+// Remove magnetic particles
+function removeMagneticTrail() {
+    for (const particle of magneticParticles) {
+        scene.remove(particle);
+    }
+    magneticParticles = [];
+}
+
+// Update magnetic particles
+function updateMagneticParticles() {
+    if (!isMagneticMode || magneticParticles.length === 0) return;
+    
+    const time = Date.now() * 0.001;
+    
+    for (const particle of magneticParticles) {
+        // Calculate a position that follows the ball with some delay and orbit
+        const targetX = ballGroup.position.x;
+        const targetY = ballGroup.position.y;
+        const targetZ = ballGroup.position.z;
+        
+        // Add orbital motion
+        const phase = particle.userData.phase + time * particle.userData.speed;
+        const orbitRadius = 0.5 + Math.sin(phase) * 0.3;
+        
+        const orbitX = Math.cos(phase) * orbitRadius + particle.userData.offset.x * 0.2;
+        const orbitY = Math.sin(phase) * orbitRadius + particle.userData.offset.y * 0.2;
+        const orbitZ = Math.cos(phase * 0.7) * orbitRadius + particle.userData.offset.z * 0.2;
+        
+        // Smoothly move toward target
+        particle.position.x += (targetX + orbitX - particle.position.x) * 0.03;
+        particle.position.y += (targetY + orbitY - particle.position.y) * 0.03;
+        particle.position.z += (targetZ + orbitZ - particle.position.z) * 0.03;
+        
+        // Pulsate size
+        const scale = 0.8 + Math.sin(time * 2 + particle.userData.phase) * 0.2;
+        particle.scale.set(scale, scale, scale);
+        
+        // Pulsate opacity
+        particle.material.opacity = 0.5 + Math.sin(time + particle.userData.phase) * 0.3;
+    }
+}
+
+// Create blackhole effect (for back mouse button)
+function createBlackholeEffect() {
+    // Make sure we don't have an existing effect
+    if (blackholeEffect) {
+        scene.remove(blackholeEffect);
+    }
+    
+    // Create a dark sphere with a distortion shader
+    const blackholeMaterial = new THREE.MeshBasicMaterial({
+        color: 0x000000,
+        transparent: true,
+        opacity: 0.8
+    });
+    
+    blackholeEffect = new THREE.Mesh(
+        new THREE.SphereGeometry(0.3, 32, 32),
+        blackholeMaterial
+    );
+    
+    // Position it slightly offset from the ball
+    blackholeEffect.position.set(
+        ballGroup.position.x + 1,
+        ballGroup.position.y,
+        ballGroup.position.z
+    );
+    
+    scene.add(blackholeEffect);
+    
+    // Start gravitational pull
+    gravitationalPull = 1.0;
+    
+    // Create ring particles around the blackhole
+    createBlackholeRing();
+    
+    // Automatically remove after a few seconds
+    setTimeout(() => {
+        removeBlackholeEffect();
+    }, 5000);
+}
+
+// Create particles forming a ring around the blackhole
+let blackholeRingParticles = [];
+function createBlackholeRing() {
+    // Clean up any existing particles
+    for (const particle of blackholeRingParticles) {
+        scene.remove(particle);
+    }
+    blackholeRingParticles = [];
+    
+    // Create ring of particles
+    const ringCount = 100;
+    for (let i = 0; i < ringCount; i++) {
+        const angle = (i / ringCount) * Math.PI * 2;
+        
+        // Create a small stretched cube for the ring particles
+        const particle = new THREE.Mesh(
+            new THREE.BoxGeometry(0.05, 0.02, 0.02),
+            new THREE.MeshBasicMaterial({
+                color: 0xFF00FF,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            })
+        );
+        
+        // Position in a ring
+        const ringRadius = 0.6;
+        particle.position.set(
+            Math.cos(angle) * ringRadius,
+            Math.sin(angle) * ringRadius,
+            0
+        );
+        
+        // Store the initial angle for animation
+        particle.userData = {
+            initialAngle: angle,
+            radius: ringRadius,
+            speed: 0.02 + Math.random() * 0.02
+        };
+        
+        // Rotate to face tangent to the ring
+        particle.lookAt(new THREE.Vector3(0, 0, 0));
+        particle.rotateZ(Math.PI / 2);
+        
+        blackholeEffect.add(particle);
+        blackholeRingParticles.push(particle);
+    }
+}
+
+// Remove blackhole effect
+function removeBlackholeEffect() {
+    if (blackholeEffect) {
+        scene.remove(blackholeEffect);
+        blackholeEffect = null;
+    }
+    gravitationalPull = 0;
+}
+
+// Update blackhole effect
+function updateBlackholeEffect() {
+    if (!blackholeEffect) return;
+    
+    const time = Date.now() * 0.001;
+    
+    // Rotate the ring particles
+    for (const particle of blackholeRingParticles) {
+        const angle = particle.userData.initialAngle + time * particle.userData.speed;
+        particle.position.x = Math.cos(angle) * particle.userData.radius;
+        particle.position.y = Math.sin(angle) * particle.userData.radius;
+        
+        // Make particles point in the direction of travel
+        particle.lookAt(new THREE.Vector3(0, 0, 0));
+        particle.rotateZ(Math.PI / 2);
+        
+        // Pulsate
+        particle.material.opacity = 0.5 + Math.sin(time * 3 + particle.userData.initialAngle) * 0.3;
+    }
+    
+    // Make the blackhole rotate
+    blackholeEffect.rotation.z += 0.02;
+    
+    // Apply gravitational pull effect on the main ball
+    if (gravitationalPull > 0) {
+        // Calculate direction vector from ball to blackhole
+        const direction = new THREE.Vector3()
+            .subVectors(blackholeEffect.position, ballGroup.position)
+            .normalize();
+        
+        // Move ball toward the blackhole based on gravitational pull
+        ballGroup.position.add(direction.multiplyScalar(gravitationalPull * 0.01));
+        
+        // Deform the ball in the direction of the blackhole
+        applyGravitationalDeformation(blackholeEffect.position, gravitationalPull);
+        
+        // Slowly increase pull over time
+        gravitationalPull += 0.01;
+    }
+}
+
+// Apply gravitational deformation to the ball
+function applyGravitationalDeformation(attractorPosition, strength) {
+    const positions = geo.attributes.position;
+    
+    // Convert attractor position to local space of the mesh
+    const localAttractor = attractorPosition.clone()
+        .sub(ballGroup.position);
+    
+    // Apply deformation
+    for (let i = 0; i < positions.count; i++) {
+        const vertexPosition = new THREE.Vector3(
+            positions.array[i * 3],
+            positions.array[i * 3 + 1],
+            positions.array[i * 3 + 2]
+        );
+        
+        // Calculate direction from vertex to attractor
+        const direction = new THREE.Vector3()
+            .subVectors(localAttractor, vertexPosition)
+            .normalize();
+        
+        // Calculate distance
+        const distance = vertexPosition.distanceTo(localAttractor);
+        
+        // Deform more based on proximity (inverse square law)
+        let factor = strength / (1 + distance * distance);
+        factor = Math.min(factor, 0.2); // Cap the deformation
+        
+        // Apply deformation
+        positions.array[i * 3] = originalPositions[i * 3] + direction.x * factor;
+        positions.array[i * 3 + 1] = originalPositions[i * 3 + 1] + direction.y * factor;
+        positions.array[i * 3 + 2] = originalPositions[i * 3 + 2] + direction.z * factor;
+    }
+    
+    // Update wireframe
+    wireGeo.copy(new THREE.EdgesGeometry(geo));
+    wireMesh.geometry = wireGeo;
+    
+    // Mark as needing update
+    positions.needsUpdate = true;
+    geo.computeVertexNormals();
 }
 
 // Main animation loop that runs continuously
@@ -627,6 +855,12 @@ function animate() {
     if (isRainbowMode) {
         updateRainbowColors();
     }
+    
+    // Update magnetic particles
+    updateMagneticParticles();
+    
+    // Update blackhole effect
+    updateBlackholeEffect();
     
     renderer.render(scene, camera);
 }
