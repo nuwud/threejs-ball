@@ -433,11 +433,16 @@ function updateMeshScale() {
     
     // Only apply automated scale changes if not being interacted with
     if (!isDragging && !isHovered) {
-        // Add subtle breathing animation
-        const breathingScale = Math.sin(Date.now() * 0.001) * 0.05 + 1;
+        // Enhanced breathing animation with multiple sine waves for organic movement
+        const time = Date.now() * 0.001;
+        const primaryBreath = Math.sin(time * 0.5) * 0.1 + 1; // Slower, deeper breath
+        const secondaryBreath = Math.sin(time * 1.3) * 0.03; // Faster, smaller modulation
+        
+        const breathingScale = primaryBreath + secondaryBreath;
+        
         ballGroup.scale.set(
             breathingScale * currentScale, 
-            breathingScale * currentScale, 
+            breathingScale * currentScale * 0.95 + 0.05, // Slightly less Y-scale for asymmetric breathing 
             breathingScale * currentScale
         );
     } else {
