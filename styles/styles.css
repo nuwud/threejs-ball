@@ -1,0 +1,161 @@
+/* styles.css - Compiled from SCSS */
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #000510;
+}
+
+/* Hamburger Menu Styles */
+.hamburger-menu {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    width: 40px;
+    height: 40px;
+    background-color: rgba(0, 0, 0, 0.7);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    z-index: 200;
+    transition: transform 0.3s ease;
+}
+
+.hamburger-menu:hover {
+    transform: scale(1.1);
+}
+
+.hamburger-menu span {
+    position: relative;
+    width: 20px;
+    height: 2px;
+    background-color: #00FFFF;
+    transition: all 0.3s ease;
+}
+
+.hamburger-menu span::before,
+.hamburger-menu span::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 2px;
+    background-color: #00FFFF;
+    transition: all 0.3s ease;
+}
+
+.hamburger-menu span::before {
+    transform: translateY(-6px);
+}
+
+.hamburger-menu span::after {
+    transform: translateY(6px);
+}
+
+/* Open state of hamburger */
+.hamburger-menu.open span {
+    background-color: transparent;
+}
+
+.hamburger-menu.open span::before {
+    transform: translateY(0) rotate(45deg);
+}
+
+.hamburger-menu.open span::after {
+    transform: translateY(0) rotate(-45deg);
+}
+
+/* Instructions Panel */
+#instructions {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 300px;
+    background-color: rgba(0, 5, 20, 0.85);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    color: white;
+    font-family: 'Arial', sans-serif;
+    padding: 20px;
+    border-right: 1px solid rgba(0, 255, 255, 0.3);
+    height: 100vh;
+    box-sizing: border-box;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+    z-index: 100;
+}
+
+#instructions.open {
+    transform: translateX(0);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+}
+
+#instructions h2 {
+    margin-top: 0;
+    color: #00FFFF;
+    font-size: 1.5rem;
+    border-bottom: 1px solid rgba(0, 255, 255, 0.5);
+    padding-bottom: 10px;
+}
+
+#instructions h3 {
+    color: #FF77FF;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    font-size: 1.2rem;
+}
+
+#instructions p {
+    line-height: 1.5;
+    margin-bottom: 15px;
+    font-size: 0.95rem;
+}
+
+#instructions ul {
+    padding-left: 20px;
+}
+
+#instructions li {
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+/* Buttons */
+.effect-button {
+    background-color: rgba(0, 0, 0, 0.6);
+    border: 1px solid #00FFFF;
+    color: #FFFFFF;
+    padding: 10px 15px;
+    margin: 5px;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    display: inline-block;
+}
+
+.effect-button:hover {
+    background-color: rgba(0, 255, 255, 0.2);
+    transform: scale(1.05);
+}
+
+/* Status indicator */
+#status-indicator {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background-color: rgba(0, 0, 0, 0.7);
+    border-radius: 5px;
+    padding: 10px;
+    color: white;
+    font-family: 'Arial', sans-serif;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#status-indicator.visible {
+    opacity: 1;
+}

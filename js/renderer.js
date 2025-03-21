@@ -1,34 +1,25 @@
-// renderer.js - Sets up the WebGL renderer
 import * as THREE from 'three';
 
 // Setup and configure the renderer
-function setupRenderer() {
+export function setupRenderer(width, height) {
     // Create WebGL renderer with antialiasing
     const renderer = new THREE.WebGLRenderer({ 
         antialias: true,
-        powerPreference: 'high-performance'
+        alpha: true
     });
     
     // Set size to full window
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(width, height);
     
     // Set device pixel ratio for better quality on high DPI displays
-    // But limit to 2x to prevent performance issues on super high DPI devices
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(window.devicePixelRatio);
     
     // Enable shadows
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     
-    // Enable tone mapping for better color rendering
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.0;
-    
-    // Set output encoding for proper color space
-    renderer.outputEncoding = THREE.sRGBEncoding;
-    
-    // Add a small amount of clearing jitter to create subtle grain effect
-    renderer.autoClearColor = false;
+    // Use outputColorSpace instead of the deprecated outputEncoding
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     
     return renderer;
 }
@@ -42,4 +33,4 @@ function customClearRenderer(renderer, scene, camera) {
     // This can be implemented if desired for a film grain effect
 }
 
-export { setupRenderer, customClearRenderer };
+export { customClearRenderer };

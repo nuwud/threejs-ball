@@ -19,7 +19,7 @@ function setupEventListeners(app) {
     window.addEventListener('mousemove', e => onPointerMove(e, app));
     window.addEventListener('mousedown', e => onPointerDown(e, app));
     window.addEventListener('mouseup', () => onPointerUp(app));
-    window.addEventListener('wheel', e => onMouseWheel(e, app));
+    window.addEventListener('wheel', e => onMouseWheel(e, app), { passive: false });
     window.addEventListener('touchmove', e => {
         e.preventDefault();
         onPointerMove(e.touches[0], app);
