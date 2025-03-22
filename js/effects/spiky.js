@@ -1,69 +1,63 @@
 // effects/spiky.js - Spiky deformation effect
 import * as THREE from 'three';
 
-// Apply spiky effect on the ball
-function applySpikyEffect(app, intensity) {
-    const ballGroup = app.ballGroup;
-    if (!ballGroup || !ballGroup.userData) return;
+export function applySpikyEffect(app, intensity) {
+    if (!app.ballGroup || !app.ballGroup.userData) return;
     
-    const geo = ballGroup.userData.geo;
-    const wireGeo = ballGroup.userData.wireGeo;
-    const wireMesh = ballGroup.userData.wireMesh;
-    const mesh = ballGroup.userData.mesh;
-    const originalPositions = ballGroup.userData.originalPositions;
+    const mesh = app.ballGroup.userData.mesh;
+    if (!mesh || !mesh.geometry) return;
     
-    if (!geo || !originalPositions) {
-        console.error("Missing geometry or original positions");
-        return;
-    }
-
-    const positions = geo.attributes.position;
-
-    // If we haven't stored spikes yet, create them
-    if (!ballGroup.userData.spikes || ballGroup.userData.spikes.length === 0) {
-        ballGroup.userData.spikes = [];
-        for (let i = 0; i < positions.count; i++) {
-            const x = originalPositions[i * 3];
-            const y = originalPositions[i * 3 + 1];
-            const z = originalPositions[i * 3 + 2];
-
-            const vertex = new THREE.Vector3(x, y, z).normalize();
-
-            ballGroup.userData.spikes.push({
-                index: i,
-                direction: vertex,
-                phase: Math.random() * Math.PI * 2 // Random phase for animation
-            });
+    // Save original positions if not already saved
+    if (!app.ballGroup.userData.originalPositions) {
+        const positions = mesh.geometry.attributes.position;
+        const originalPositions = new Float32Array(positions.array.length);
+        for (let i = 0; i < positions.array.length; i++) {
+            originalPositions[i] = positions.array[i];
         }
+        app.ballGroup.userData.originalPositions = originalPositions;
     }
-
-    // Apply spiky effect
-    for (const spike of ballGroup.userData.spikes) {
-        const i = spike.index;
-        const time = Date.now() * 0.002;
-
-        // Calculate spike extension with some wobble
-        const wobble = Math.sin(time + spike.phase) * 0.1;
-        const extension = (1.0 + wobble) * intensity;
-
-        // Apply to vertex
-        positions.array[i * 3] = originalPositions[i * 3] + spike.direction.x * extension;
-        positions.array[i * 3 + 1] = originalPositions[i * 3 + 1] + spike.direction.y * extension;
-        positions.array[i * 3 + 2] = originalPositions[i * 3 + 2] + spike.direction.z * extension;
-    }
-
-    // Update wireframe to match
-    wireGeo.copy(new THREE.EdgesGeometry(geo));
-    wireMesh.geometry = wireGeo;
-
-    // Mark as needing update
-    positions.needsUpdate = true;
-    geo.computeVertexNormals();
     
-    // Play spike sound if available
-    if (app.soundSynth) {
-        app.soundSynth.playSpecialSound('spike', false);
+    const positions = mesh.geometry.attributes.position;
+    const originalPositions = app.ballGroup.userData.originalPositions;
+    
+    // Apply spiky deformation to each vertex
+    for (let i = 0; i < positions.count; i++) {
+        const vertexPosition = new THREE.Vector3(
+            originalPositions[i * 3],
+            originalPositions[i * 3 + 1],
+            originalPositions[i * 3 + 2]
+        );
+        
+        // Normalize to get direction
+        const direction = vertexPosition.clone().normalize();
+        
+        // Random variation per vertex
+        const spikeIntensity = intensity * (0.8 + Math.random() * 0.4);
+        
+        // Move vertex outward in its normal direction
+        positions.array[i * 3] = originalPositions[i * 3] + direction.x * spikeIntensity;
+        positions.array[i * 3 + 1] = originalPositions[i * 3 + 1] + direction.y * spikeIntensity;
+        positions.array[i * 3 + 2] = originalPositions[i * 3 + 2] + direction.z * spikeIntensity;
     }
+    
+    positions.needsUpdate = true;
+    mesh.geometry.computeVertexNormals();
 }
 
-export { applySpikyEffect };
+export function resetBall(app) {
+    if (!app.ballGroup || !app.ballGroup.userData) return;
+    
+    const mesh = app.ballGroup.userData.mesh;
+    if (!mesh || !mesh.geometry || !app.ballGroup.userData.originalPositions) return;
+    
+    const positions = mesh.geometry.attributes.position;
+    const originalPositions = app.ballGroup.userData.originalPositions;
+    
+    // Reset to original positions
+    for (let i = 0; i < positions.array.length; i++) {
+        positions.array[i] = originalPositions[i];
+    }
+    
+    positions.needsUpdate = true;
+    mesh.geometry.computeVertexNormals();
+}

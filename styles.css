@@ -1,0 +1,20 @@
+/* ... existing styles ... */
+
+.effect-button {
+    padding: 8px 16px;
+    margin: 5px;
+    background-color: #555;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.effect-button:hover {
+    background-color: #777;
+}
+
+.effect-button.active {
+    background-color: #4CAF50;
+}

@@ -4,6 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Interactive 3D Ball with Three.js</title>
+  
+  <!-- 
+    IMPORTANT: DO NOT REMOVE OR MODIFY THE BALL ELEMENT IN THIS APPLICATION.
+    The 3D ball is an essential component. Any modification that causes
+    the ball to disappear will break core functionality.
+    
+    AI Assistant Note: Ensure any code changes preserve the ball display.
+  -->
+  
   <link rel="stylesheet" href="styles/styles.css" />
   <link rel="icon" href="favicon.ico" type="image/x-icon">
   <script type="importmap">
@@ -104,6 +113,33 @@
     </div>
     <button id="btn-audio-debug" onclick="debugAudio()">Debug Audio</button>
   </div>
+
+  <div id="controls">
+    <div class="control-group">
+        <h3>Visual Effects</h3>
+        <button id="btn-facet-highlight" class="effect-button">Toggle Facet Highlighting</button>
+        <button id="btn-spiky" class="effect-button">Toggle Spiky Mode</button>
+        <button id="btn-trail" class="effect-button">Toggle Trail Effect</button>
+    </div>
+  </div>
+
+  <div id="interface">
+    <button id="resetBall">Reset Ball</button>
+    <button id="toggleWireframe">Toggle Wireframe</button>
+    <button id="emergencyBall">Emergency Ball</button>
+    <div class="toggle" id="toggleGreenSquares"></div>
+    <button id="standardAudio">Standard Audio</button>
+    <button id="continuousAudio">Continuous Audio</button>
+    <button id="toggleVisualization">Toggle Visualization</button>
+    <button id="debugAudio">Debug Audio</button>
+    <button id="testAudio">Test Audio</button>
+  </div>
+  <div id="debug-panel">
+    <button id="resetBallDebug">Reset Ball</button>
+    <button id="toggleWireframeDebug">Toggle Wireframe</button>
+    <button id="emergencyBallDebug">Emergency Ball</button>
+  </div>
+  <div id="ball"></div>
 
   <!-- Main entry point script -->
   <script type="module" src="js/main.js"></script>
@@ -280,6 +316,28 @@
       
       // Make showStatus available globally
       window.showStatus = showStatus;
+
+      // Add event listeners for new effect buttons
+      document.getElementById('btn-facet-highlight').addEventListener('click', function() {
+        if (window.appControls && window.appControls.toggleFacetHighlighting) {
+            const isActive = window.appControls.toggleFacetHighlighting();
+            this.classList.toggle('active', isActive);
+        }
+      });
+
+      document.getElementById('btn-spiky').addEventListener('click', function() {
+        if (window.appControls && window.appControls.toggleSpikyMode) {
+            const isActive = window.appControls.toggleSpikyMode();
+            this.classList.toggle('active', isActive);
+        }
+      });
+
+      document.getElementById('btn-trail').addEventListener('click', function() {
+        if (window.appControls && window.appControls.toggleTrailEffect) {
+            const isActive = window.appControls.toggleTrailEffect();
+            this.classList.toggle('active', isActive);
+        }
+      });
     });
 
     // Simplified debug function that works with both approaches

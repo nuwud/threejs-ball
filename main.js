@@ -26,12 +26,19 @@ import {
     createMagneticTrail,
     createBlackholeEffect,
     removeMagneticTrail,
-    toggleRainbowMode
+    toggleRainbowMode,
+    highlightFacet,
+    updateFacetHighlights,
+    applySpikyEffect,
+    createTrailEffect,
+    updateTrailEffect,
+    updateVisualFromAudio
 } from './js/effects/index.js';
 import {
     getSynthesizer,
     createBallSoundEffects
 } from './js/audio/index.js';
+import { initBallProtection } from './js/ball-protection.js';
 
 console.log("Initializing application...");
 
@@ -114,6 +121,20 @@ window.appControls = {
         window.app.enableFacetHighlighting = !window.app.enableFacetHighlighting;
         console.log("Facet highlighting:", window.app.enableFacetHighlighting);
         return window.app.enableFacetHighlighting;
+    },
+    toggleTrailEffect: function() {
+        if (window.app.trailEffect) {
+            // Remove existing trail
+            window.app.scene.remove(window.app.trailEffect.system);
+            window.app.trailEffect = null;
+            console.log("Trail effect deactivated");
+            return false;
+        } else {
+            // Create new trail
+            createTrailEffect(window.app);
+            console.log("Trail effect activated");
+            return true;
+        }
     }
 };
 
@@ -176,19 +197,22 @@ async function initApp() {
         
         console.log("Scene and renderer initialized");
         
+        // Save reference to createBall function for protection system
+        const originalCreateBall = createBall;
+        
         // Try to create the regular ball first
         try {
             console.log("Attempting to create ball...");
             const ball = createBall(window.app);
             console.log("Ball creation result:", ball ? "Success" : "Failed");
+            
+            // Explicitly check if ball was created
+            if (!window.app.ballGroup) {
+                throw new Error("Ball not properly attached to app");
+            }
         } catch (ballError) {
             console.error("Error creating regular ball:", ballError);
-        }
-        
-        // If ball wasn't created or had an issue, create emergency ball immediately
-        if (!window.app.ballGroup) {
-            console.warn("Ball not created successfully - creating emergency ball");
-            createEmergencyBall();
+            createEmergencyBall();  // Create emergency ball immediately on error
         }
         
         // Set up event listeners for interactivity
@@ -198,18 +222,17 @@ async function initApp() {
         // Set up the audio autoplay handler
         setupAudioAutoplayHandler();
         
+        // Initialize ball protection system
+        initBallProtection(window.app, originalCreateBall);
+        
+        // Make createEmergencyBall available to the protection system
+        window.app.createEmergencyBall = createEmergencyBall;
+        window.createEmergencyBall = createEmergencyBall;
+        
         // Start animation loop
         animate();
         
         console.log("Application initialized successfully");
-        
-        // Double-check ball existence after a short delay
-        setTimeout(() => {
-            if (!window.app.ballGroup || !window.app.scene.children.includes(window.app.ballGroup)) {
-                console.warn("Ball still missing after init - creating emergency ball");
-                createEmergencyBall();
-            }
-        }, 1000);
         
     } catch (error) {
         console.error("Error during initialization:", error);
@@ -308,6 +331,7 @@ function animate() {
     try {
         requestAnimationFrame(animate);
         
+        // Check if ball exists, create it if it doesn't
         if (!window.app.ballGroup) {
             console.error("Ball missing in animation loop, attempting to recreate");
             createEmergencyBall();

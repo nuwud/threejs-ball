@@ -28,7 +28,7 @@ function getPositionInFacet(intersect) {
  * This uses a different approach than vertex coloring - 
  * it creates a small overlay mesh that floats just above the facet
  */
-function highlightFacet(app, faceIndex) {
+function highlightFacet(app, faceIndex, intensity = 0.7) {
     if (!app.ballGroup) {
         console.error("Cannot highlight facet: ball not found");
         return;
@@ -56,7 +56,7 @@ function highlightFacet(app, faceIndex) {
         // If we already have a highlight object for this facet, just update it
         if (facetHighlightObjects.has(faceIndex)) {
             const highlight = facetHighlightObjects.get(faceIndex);
-            highlight.material.opacity = 0.7; // Make fully visible again
+            highlight.material.opacity = intensity; // Make fully visible again
             return;
         }
         
@@ -119,7 +119,7 @@ function highlightFacet(app, faceIndex) {
         const highlightMat = new THREE.MeshBasicMaterial({
             color: color,
             transparent: true,
-            opacity: 0.7,
+            opacity: intensity,
             side: THREE.DoubleSide,
             depthTest: true,
             depthWrite: false,
@@ -185,8 +185,22 @@ function updateFacetHighlights(app) {
     if (app.camera) {
         highlightGroup.quaternion.copy(app.camera.quaternion);
     }
+    
+    // Also update any facet highlights that were created via the Map approach
+    if (app.facetHighlights) {
+        const now = Date.now();
+        const duration = 1000; // 1 second highlight duration
+        
+        app.facetHighlights.forEach((highlight, facetIndex) => {
+            const elapsed = now - highlight.startTime;
+            if (elapsed > duration) {
+                app.facetHighlights.delete(facetIndex);
+            }
+        });
+    }
 }
 
+// Export the functions for use in other modules
 export { 
     highlightFacet, 
     updateFacetHighlights,

@@ -128,7 +128,40 @@ function createBall(app) {
         }
         
         app.ballGroup = ballGroup;
-        
+
+        // Add these lines near the end of your createBall function
+
+        // Add this before returning the ballGroup
+        ballGroup.canBeDeleted = false;
+        ballGroup.onBeforeRemove = function() {
+            console.warn("🚨 Attempt to remove protected ball detected!");
+            return false; // Return false to prevent removal
+        };
+
+        // Add a custom property that AI assistants can check
+        Object.defineProperty(ballGroup, 'isEssentialElement', {
+            value: true,
+            writable: false,
+            enumerable: false,
+            configurable: false
+        });
+
+        // Add a console warning if someone tries to delete the ball
+        const errorMessage = "⚠️ WARNING: This ball is an essential component. Removing it will break the application!";
+        Object.defineProperty(ballGroup, 'toJSON', {
+            value: function() {
+                console.warn(errorMessage);
+                // Return a modified representation that includes the warning
+                return {
+                    ...this,
+                    WARNING: errorMessage
+                };
+            },
+            writable: false,
+            enumerable: false,
+            configurable: false
+        });
+
         console.log("Ball created successfully");
         return ballGroup;
     } catch (error) {

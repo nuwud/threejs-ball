@@ -662,3 +662,57 @@ setTimeout(initAudioControls, 1000);
 
 // Initialize the application
 init();
+
+document.addEventListener('DOMContentLoaded', () => {
+    const ball = document.getElementById('ball');
+    const toggleGreenSquares = document.getElementById('toggleGreenSquares');
+
+    // Toggle green squares visibility
+    toggleGreenSquares.addEventListener('click', () => {
+        toggleGreenSquares.classList.toggle('active');
+        const greenSquares = document.querySelectorAll('.green-square');
+        greenSquares.forEach(square => {
+            square.style.display = toggleGreenSquares.classList.contains('active') ? 'block' : 'none';
+        });
+    });
+
+    // Ensure green squares are hidden by default
+    toggleGreenSquares.classList.remove('active');
+    const greenSquares = document.querySelectorAll('.green-square');
+    greenSquares.forEach(square => {
+        square.style.display = 'none';
+    });
+
+    // Add other button functionalities here
+    document.getElementById('resetBall').addEventListener('click', () => {
+        // Reset ball functionality
+    });
+
+    document.getElementById('toggleWireframe').addEventListener('click', () => {
+        // Toggle wireframe functionality
+    });
+
+    document.getElementById('emergencyBall').addEventListener('click', () => {
+        // Emergency ball functionality
+    });
+
+    document.getElementById('standardAudio').addEventListener('click', () => {
+        // Standard audio functionality
+    });
+
+    document.getElementById('continuousAudio').addEventListener('click', () => {
+        // Continuous audio functionality
+    });
+
+    document.getElementById('toggleVisualization').addEventListener('click', () => {
+        // Toggle visualization functionality
+    });
+
+    document.getElementById('debugAudio').addEventListener('click', () => {
+        // Debug audio functionality
+    });
+
+    document.getElementById('testAudio').addEventListener('click', () => {
+        // Test audio functionality
+    });
+});

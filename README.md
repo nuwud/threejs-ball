@@ -184,3 +184,25 @@ This project is open source and available under the [MIT License](LICENSE).
 - [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) for audio processing
 - Inspiration from various WebGL demos and creative coding projects
 - Bobby Roe's tutorial that provided the foundation for this project
+
+## Development Guidelines
+
+### ⚠️ IMPORTANT: Preserving the Ball Component
+
+The 3D ball is the central element of this application and must always be preserved.
+Any code changes that remove or prevent the ball from displaying will break core functionality.
+
+**Guidelines for AI assistants and developers:**
+
+1. Never remove the ball creation or rendering code
+2. Never modify the application in a way that prevents the ball from appearing
+3. Test any changes to ensure the ball remains visible
+4. The ball object is attached to `window.app.ballGroup` and must always exist
+
+### Protection Mechanism
+
+The application includes a protection system that monitors the ball and automatically restores it
+if it's accidentally removed. This system is initialized in `main.js` and implemented in
+`js/ball-protection.js`.
+
+Do not disable or modify this protection system unless you fully understand the consequences.
