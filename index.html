@@ -63,12 +63,19 @@
   
   <!-- Status Indicator -->
   <div id="status-indicator"></div>
+
+  <!-- New Controls -->
+  <div class="controls">
+    <button id="toggleSpikyMode" onclick="window.appControls && window.appControls.toggleSpikyMode && window.appControls.toggleSpikyMode()">Toggle Spiky Mode</button>
+    <button id="toggleFacetHighlight" onclick="window.appControls && window.appControls.toggleFacetHighlighting && window.appControls.toggleFacetHighlighting()">Toggle Facet Highlighting</button>
+    <button id="toggleTrail" onclick="window.appControls && window.appControls.toggleTrailEffect && window.appControls.toggleTrailEffect()">Toggle Motion Trail</button>
+  </div>
   
-  <!-- Quick-Fix Audio Script - Added BEFORE main.js -->
-  <script type="text/javascript" src="quick-fix.js"></script>
-  
-  <!-- Main entry point script -->
+  <!-- Main entry point script (use the js/main.js version) -->
   <script type="module" src="js/main.js"></script>
+  
+  <!-- Debug script to help diagnose issues -->
+  <script src="debug.js"></script>
   
   <!-- Menu Toggle Script -->
   <script>
@@ -239,6 +246,31 @@
     
     #btn-audio-test:hover {
       background-color: #885588;
+    }
+    
+    /* Style for the new controls */
+    .controls {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 100;
+    }
+    
+    .controls button {
+      padding: 8px 16px;
+      background-color: #2a4494;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .controls button:hover {
+      background-color: #3a5494;
     }
   </style>
 </body>

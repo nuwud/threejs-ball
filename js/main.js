@@ -29,6 +29,10 @@ import {
     createBlackholeEffect,
     removeMagneticTrail
 } from './effects/index.js';
+import { updateFacetHighlights } from './effects/facet.js';
+import { createTrailEffect, updateTrailEffect } from './effects/trail.js';
+import { applySpikyEffect } from './effects/spiky.js';
+import { resetDeformation } from './effects/deformation.js';
 
 // All imports are now at the top of the file
 
@@ -59,7 +63,9 @@ window.app = {
     touchPoint: null,
     rainbowSoundPlaying: false,
     clock: new THREE.Clock(),
-    audioInitialized: false
+    audioInitialized: false,
+    enableFacetHighlighting: false,
+    trailEffect: null
 };
 
 // Global app controls - exposed for UI buttons
@@ -105,73 +111,108 @@ window.appControls = {
         } else {
             console.warn("Audio context not available");
         }
+    },
+    toggleSpikyMode: function() {
+        // Toggle spikiness between 0 and 0.5
+        window.app.spikiness = window.app.spikiness > 0 ? 0 : 0.5;
+        
+        if (window.app.spikiness > 0) {
+            applySpikyEffect(window.app, window.app.spikiness);
+            console.log("Spiky mode activated:", window.app.spikiness);
+        } else {
+            resetDeformation(window.app, 0.5);
+            console.log("Spiky mode deactivated");
+        }
+        
+        return window.app.spikiness > 0;
+    },
+    
+    toggleFacetHighlighting: function() {
+        window.app.enableFacetHighlighting = !window.app.enableFacetHighlighting;
+        console.log("Facet highlighting:", window.app.enableFacetHighlighting);
+        return window.app.enableFacetHighlighting;
+    },
+    
+    toggleTrailEffect: function() {
+        if (window.app.trailEffect) {
+            window.app.scene.remove(window.app.trailEffect);
+            window.app.trailEffect = null;
+            console.log("Trail effect deactivated");
+            return false;
+        } else {
+            window.app.trailEffect = createTrailEffect(window.app);
+            console.log("Trail effect activated");
+            return true;
+        }
     }
 };
 
 // Initialize the application
 function init() {
+    console.log("Initializing application...");
+
     // Set up renderer
     const w = window.innerWidth;
     const h = window.innerHeight;
     window.app.renderer = setupRenderer(w, h);
     document.body.appendChild(window.app.renderer.domElement);
     console.log("Renderer added to DOM");
-    
+
     // Create scene
     window.app.scene = createScene();
     console.log("Scene created");
-    
+
     // Create camera
     window.app.camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
     window.app.camera.position.set(0, 0, 2);
     window.app.camera.add(listener);
     console.log("Camera created");
-    
+
     // Create lights
     const hemilight = new THREE.HemisphereLight(0xffffff, 0x000000, 1);
     hemilight.position.set(0, 1, 0).normalize();
     window.app.scene.add(hemilight);
-    
+
     const light = new THREE.DirectionalLight(0xffffff, 1);
     light.position.set(1, 1, 1).normalize();
     window.app.scene.add(light);
-    
+
     const light2 = new THREE.DirectionalLight(0xffffff, 1);
     light2.position.set(-1, -1, -1).normalize();
     window.app.scene.add(light2);
-    
+
     const pointLight = new THREE.PointLight(0xFFFFFF, 1, 5);
     pointLight.position.set(0, 0, 2);
     window.app.scene.add(pointLight);
     window.app.scene.userData.pointLight = pointLight;
-    
+
     console.log("Lights set up");
-    
+
     // Add event listener for window resize
     window.addEventListener('resize', onWindowResize);
     console.log("Resize handler set up");
-    
+
     // Create the ball
     createBall(window.app);
     console.log("Ball created");
-    
+
     // Set up event listeners for interactivity
     setupEventListeners(window.app);
     console.log("Event listeners set up");
-    
+
     // Initialize audio on first user interaction
     document.addEventListener('click', initOnFirstClick, { once: true });
     document.addEventListener('mousedown', initOnFirstClick, { once: true });
     document.addEventListener('touchstart', initOnFirstClick, { once: true });
     document.addEventListener('keydown', initOnFirstClick, { once: true });
-    
+
     // Start animation loop
     animate();
     console.log("Animation loop started");
-    
+
     // Add debug button for audio testing
     addDebugButton();
-    
+
     console.log("Application initialized successfully");
 }
 
@@ -213,6 +254,30 @@ function animate() {
             updateRainbowMode(window.app);
         } catch (e) { console.error("Error in rainbow mode:", e); }
         
+        // Add these new updates with proper safety checks:
+        if (window.app.trailEffect) {
+            try {
+                updateTrailEffect(window.app);
+            } catch (e) { 
+                console.error("Error in trail effect:", e);
+                // Clean up failed trail effect to prevent future errors
+                if (window.app.trailEffect && window.app.scene) {
+                    window.app.scene.remove(window.app.trailEffect);
+                    window.app.trailEffect = null;
+                }
+            }
+        }
+        
+        if (window.app.enableFacetHighlighting) {
+            try {
+                updateFacetHighlights(window.app);
+            } catch (e) { 
+                console.error("Error in facet highlights:", e);
+                // Disable facet highlighting to prevent future errors
+                window.app.enableFacetHighlighting = false;
+            }
+        }
+
         // Update audio visualization if available
         if (window.app.audioContext && window.app.analyser) {
             try {

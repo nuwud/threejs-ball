@@ -5,7 +5,7 @@ import {
     playToneForPosition, 
     playFacetSound, 
     playClickSound, 
-    playReleaseSound 
+    playReleaseSound
 } from './audio/core.js';
 import { applyDeformation, resetDeformation } from './ball.js';
 import { createGradientTexture, updateGradientColors } from './effects/gradients.js';
@@ -17,28 +17,12 @@ import {
     createBlackholeEffect,
     toggleRainbowMode
 } from './effects/index.js';
+import { highlightFacet, getPositionInFacet, updateFacetHighlights } from './effects/facet.js';
 
 // Simplified throttle function without time-based throttling
 function throttle(fn, delay, options = {}) {
     return function(...args) {
         return fn.apply(this, args);
-    };
-}
-
-/**
- * Get normalized position within a facet
- * @param {Object} intersect - Intersection data from raycaster
- * @returns {Object} Normalized u,v coordinates (0-1) within the facet
- */
-function getPositionInFacet(intersect) {
-    if (!intersect || !intersect.uv) {
-        return { u: 0.5, v: 0.5 }; // Default to center if no UV
-    }
-    
-    // Return UV coordinates normalized to the facet
-    return {
-        u: intersect.uv.x,
-        v: intersect.uv.y
     };
 }
 
@@ -118,19 +102,24 @@ function getFacetIndex(intersectPoint) {
 
 // Function to handle mouse/touch movement for interaction
 function onPointerMove(event, app) {
+    if (!app || !app.mouse) return;
+    
     // Calculate mouse position in normalized device coordinates
     // (-1 to +1) for both components
     const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
     const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
     
     // Calculate mouse movement distance since last update
-    if (app.lastMousePosition.x !== undefined) {
+    if (app.lastMousePosition && app.lastMousePosition.x !== undefined) {
         const dx = mouseX - app.lastMousePosition.x;
         const dy = mouseY - app.lastMousePosition.y;
         app.mouseMovementDistance = Math.sqrt(dx * dx + dy * dy);
     }
     
     // Update last mouse position
+    if (!app.lastMousePosition) {
+        app.lastMousePosition = new THREE.Vector2();
+    }
     app.lastMousePosition.x = mouseX;
     app.lastMousePosition.y = mouseY;
     
@@ -138,11 +127,14 @@ function onPointerMove(event, app) {
     app.mouse.x = mouseX;
     app.mouse.y = mouseY;
     
+    // Safety check for raycaster and camera
+    if (!app.raycaster || !app.camera) return;
+    
     // Update the raycaster with the new mouse position
     app.raycaster.setFromCamera(app.mouse, app.camera);
     
     // Move the point light to follow the mouse for attractive highlights
-    const pointLight = app.scene.userData.pointLight;
+    const pointLight = app.scene?.userData?.pointLight;
     if (pointLight) {
         pointLight.position.set(app.mouse.x * 3, app.mouse.y * 3, 2);
     }
@@ -161,7 +153,9 @@ function onPointerMove(event, app) {
             
             // Change wireframe color smoothly to magenta
             const wireMat = app.ballGroup.userData.wireMat;
-            wireMat.color.set(0xFF00FF);
+            if (wireMat) {
+                wireMat.color.set(0xFF00FF);
+            }
             
             // Smoothly change gradient colors for hover state
             updateGradientColors(app, '#FF77FF', '#AA55FF', '#55FFFF');
@@ -184,7 +178,6 @@ function onPointerMove(event, app) {
         // Get the normalized position within the facet for continuous sound
         const positionInFacet = getPositionInFacet(intersects[0]);
         
-        // IMPORTANT: Always play the sounds for continuous feedback
         // Always play a positional sound based on mouse coords 
         playToneForPosition(app, app.mouse.x, app.mouse.y);
             
@@ -193,13 +186,18 @@ function onPointerMove(event, app) {
         
         // Update last facet index
         app.lastFacetIndex = facetIndex;
+
+        // Add facet detection
+        detectFacetChange(app, intersects);
     } else {
         if (app.isHovered) {
             document.body.style.cursor = 'default';
             
             // Reset wireframe color smoothly to cyan
-            const wireMat = app.ballGroup.userData.wireMat;
-            wireMat.color.set(0x00FFFF);
+            const wireMat = app.ballGroup?.userData?.wireMat;
+            if (wireMat) {
+                wireMat.color.set(0x00FFFF);
+            }
             
             // Reset gradient colors
             updateGradientColors(app, '#FF00FF', '#8800FF', '#00FFFF');
@@ -214,15 +212,17 @@ function onPointerMove(event, app) {
     }
     
     // Handle dragging
-    if (app.isDragging) {
+    if (app.isDragging && app.previousMousePosition) {
         const deltaMove = {
             x: event.clientX - app.previousMousePosition.x,
             y: event.clientY - app.previousMousePosition.y
         };
         
         // Rotate the ball based on mouse movement
-        app.ballGroup.rotation.y += deltaMove.x * 0.01;
-        app.ballGroup.rotation.x += deltaMove.y * 0.01;
+        if (app.ballGroup) {
+            app.ballGroup.rotation.y += deltaMove.x * 0.01;
+            app.ballGroup.rotation.x += deltaMove.y * 0.01;
+        }
         
         app.previousMousePosition = {
             x: event.clientX,
@@ -232,6 +232,8 @@ function onPointerMove(event, app) {
 }
 
 function onPointerDown(event, app) {
+    if (!app) return;
+    
     // Make sure audio is initialized on first user interaction
     ensureAudioInitialized(app);
     
@@ -245,6 +247,8 @@ function onPointerDown(event, app) {
     if (app.controls) app.controls.enabled = false;
     
     // Check if we're clicking on the ball
+    if (!app.raycaster || !app.mouse || !app.camera) return;
+    
     app.raycaster.setFromCamera(app.mouse, app.camera);
     const mesh = app.ballGroup?.userData?.mesh;
     if (!mesh) return;
@@ -279,6 +283,8 @@ function onPointerDown(event, app) {
 }
 
 function onPointerUp(app) {
+    if (!app) return;
+    
     app.isDragging = false;
     
     // Re-enable orbit controls
@@ -298,6 +304,8 @@ function onPointerUp(app) {
 
 // Handle mouse wheel scroll
 function onMouseWheel(event, app) {
+    if (!app) return;
+    
     // Only affect the ball if we're hovering over it
     if (app.isHovered) {
         // Prevent default scroll behavior
@@ -337,4 +345,55 @@ function onMouseWheel(event, app) {
     }
 }
 
-export { setupEventListeners };
+/**
+ * Detect when the pointer moves to a new facet
+ */
+function detectFacetChange(app, intersects) {
+    // Safety check
+    if (!app || !intersects || !Array.isArray(intersects) || intersects.length === 0) {
+        return false;
+    }
+    
+    // Only proceed if facet highlighting is enabled
+    if (app.enableFacetHighlighting) {
+        const intersect = intersects[0];
+        if (intersect && intersect.face) {
+            const faceIndex = intersect.faceIndex;
+            
+            // Only trigger when crossing to a new facet
+            if (app.lastFacetIndex !== faceIndex) {
+                const oldFacetIndex = app.lastFacetIndex;
+                app.lastFacetIndex = faceIndex;
+                
+                try {
+                    // Get position within the facet for better audio mapping
+                    const positionInFacet = getPositionInFacet(intersect);
+                    
+                    // Emit facet-change event for audio and visual feedback
+                    if (app.ballGroup && app.ballGroup.emit) {
+                        app.ballGroup.emit('facetChange', { 
+                            oldFacet: oldFacetIndex,
+                            newFacet: faceIndex,
+                            point: intersect.point,
+                            position: positionInFacet
+                        });
+                    }
+                    
+                    // Highlight the facet visually
+                    highlightFacet(app, faceIndex);
+                    
+                    // Generate facet-specific sound with louder volume
+                    playFacetSound(app, faceIndex, positionInFacet);
+                    
+                } catch (error) {
+                    console.error("Error in facet change detection:", error);
+                }
+                
+                return true; // Facet changed
+            }
+        }
+    }
+    return false; // No facet change
+}
+
+export { setupEventListeners, detectFacetChange, updateFacetHighlights };

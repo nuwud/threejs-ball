@@ -419,6 +419,95 @@ export function playFacetSound(app, facetIndex, position = null) {
 }
 
 /**
+ * Enhanced facet sound with more musical characteristics
+ * @param {Object} app - Application context
+ * @param {number} frequency - Base frequency for the note
+ * @param {number} harmonicContent - Amount of harmonic content (1-4)
+ * @param {number} release - Release time in seconds
+ */
+function playEnhancedFacetSound(app, frequency, harmonicContent, release) {
+    if (!app.audioContext) return;
+    
+    // Create oscillator for the main tone
+    const oscillator = app.audioContext.createOscillator();
+    oscillator.type = 'sine';
+    oscillator.frequency.value = frequency;
+    
+    // Create gain node for envelope
+    const gainNode = app.audioContext.createGain();
+    gainNode.gain.value = 0.3; // Lower volume for pleasant sound
+    
+    // Connect oscillator to gain
+    oscillator.connect(gainNode);
+    
+    // Add harmonic content for richer sound
+    const harmonics = [];
+    for (let i = 1; i <= harmonicContent; i++) {
+        const harmonic = app.audioContext.createOscillator();
+        const harmonicGain = app.audioContext.createGain();
+        
+        // Higher harmonics have less volume
+        harmonicGain.gain.value = 0.1 / i;
+        
+        // Set harmonic frequency
+        harmonic.frequency.value = frequency * (i + 1);
+        
+        // Connect harmonic oscillator to its gain node
+        harmonic.connect(harmonicGain);
+        
+        // Connect to main gain node
+        harmonicGain.connect(gainNode);
+        
+        // Start harmonic oscillator
+        harmonic.start();
+        
+        // Store for later stopping
+        harmonics.push({
+            oscillator: harmonic,
+            gain: harmonicGain
+        });
+    }
+    
+    // Add slight detuning for richer sound
+    oscillator.detune.value = Math.random() * 10 - 5;
+    
+    // Connect to reverb if available
+    if (app.reverbNode) {
+        const dryWetMix = app.audioContext.createGain();
+        dryWetMix.gain.value = 0.3; // 30% wet signal
+        gainNode.connect(dryWetMix);
+        dryWetMix.connect(app.reverbNode);
+        app.reverbNode.connect(app.audioContext.destination);
+    }
+    
+    // Connect to destination
+    gainNode.connect(app.audioContext.destination);
+    
+    // Start oscillator
+    oscillator.start();
+    
+    // Apply envelope for pleasant sound
+    gainNode.gain.setValueAtTime(0, app.audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.3, app.audioContext.currentTime + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, app.audioContext.currentTime + release);
+    
+    // Stop oscillator after release
+    oscillator.stop(app.audioContext.currentTime + release + 0.1);
+    
+    // Stop harmonics
+    harmonics.forEach(h => {
+        h.oscillator.stop(app.audioContext.currentTime + release + 0.1);
+    });
+    
+    // Emit audio event for visualization
+    app.ballGroup.emit('audioPlayed', {
+        frequency,
+        intensity: harmonicContent / 4,
+        duration: release
+    });
+}
+
+/**
  * Play a sound when clicking
  * @param {Object} app - Application context
  */
@@ -596,3 +685,8 @@ export function getAudioStatus() {
         inFailureMode: circuitBreaker ? circuitBreaker.isInFailureMode() : false
     };
 }
+
+export { 
+    // ...existing exports...
+    playEnhancedFacetSound 
+};
