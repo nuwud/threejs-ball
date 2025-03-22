@@ -1446,3 +1446,26 @@ export function debugAudioSystem(app) {
     
     console.groupEnd();
 }
+
+// Add a property to track the visibility state
+let greenSquaresVisible = false;
+
+// Function to toggle the visibility of green squares
+function toggleGreenSquares() {
+    greenSquaresVisible = !greenSquaresVisible;
+    const greenSquares = document.querySelectorAll('.green-square');
+    greenSquares.forEach(square => {
+        square.style.display = greenSquaresVisible ? 'block' : 'none';
+    });
+}
+
+// Add a button to the UI to control the visibility
+const toggleButton = document.createElement('button');
+toggleButton.innerText = 'Toggle Green Squares';
+toggleButton.addEventListener('click', toggleGreenSquares);
+document.body.appendChild(toggleButton);
+
+// Ensure green squares are hidden by default
+document.addEventListener('DOMContentLoaded', () => {
+    toggleGreenSquares();
+});
