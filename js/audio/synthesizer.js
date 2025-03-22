@@ -32,6 +32,8 @@ export class SoundSynthesizer {
         this.analyser = null;
         this.analyserData = null;
         this.activeSounds = new Set();
+        this._activeTones = {}; // For tracking tone objects
+        this.specialSoundIds = {}; // For tracking special sounds
     }
     
     /**
@@ -152,8 +154,10 @@ export class SoundSynthesizer {
             oscillator.connect(gainNode);
             gainNode.connect(masterGain);
             
-            // Track this sound in active sounds
+            // Generate a unique ID for this sound
             const soundId = Date.now() + '-' + Math.floor(Math.random() * 10000);
+            
+            // Track this sound ID in the active sounds set
             this.activeSounds.add(soundId);
             
             // Start oscillator
@@ -172,22 +176,24 @@ export class SoundSynthesizer {
             gainNode.gain.setValueAtTime(volume, startTime + duration - releaseTime);
             gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
             
-            // Clean up automatically after sound completes
-            setTimeout(() => {
-                try {
-                    oscillator.stop();
-                    oscillator.disconnect();
-                    gainNode.disconnect();
-                    nodePool.release(gainNode);
-                } catch (e) {
-                    // Ignore cleanup errors
-                }
-                
-                this.activeSounds.delete(soundId);
-            }, (duration + 0.1) * 1000);
+            // For non-looping sounds, schedule cleanup
+            if (!options.loop) {
+                setTimeout(() => {
+                    try {
+                        oscillator.stop();
+                        oscillator.disconnect();
+                        gainNode.disconnect();
+                        nodePool.release(gainNode);
+                    } catch (e) {
+                        // Ignore cleanup errors
+                    }
+                    
+                    this.activeSounds.delete(soundId);
+                }, (duration + 0.1) * 1000);
+            }
             
-            // Provide control object
-            return {
+            // Create the tone control object
+            const toneObj = {
                 id: soundId,
                 
                 stop: () => {
@@ -196,9 +202,12 @@ export class SoundSynthesizer {
                         oscillator.disconnect();
                         gainNode.disconnect();
                         nodePool.release(gainNode);
+                        
+                        // Clean up tracking
                         this.activeSounds.delete(soundId);
+                        delete this._activeTones[soundId];
                     } catch (e) {
-                        // Ignore stop errors
+                        console.warn('Error stopping tone:', e);
                     }
                 },
                 
@@ -216,6 +225,11 @@ export class SoundSynthesizer {
                 
                 isActive: true
             };
+            
+            // Store the tone object in our tracking collection
+            this._activeTones[soundId] = toneObj;
+            
+            return toneObj;
         } catch (error) {
             console.error('Error creating tone:', error);
             recordAudioFailure();
@@ -226,52 +240,118 @@ export class SoundSynthesizer {
     /**
      * Play a special sound effect
      * @param {string} type - Type of sound effect to play
-     * @param {Object} options - Sound options
+     * @param {boolean} loop - Whether to loop the sound
      * @returns {boolean} Whether the sound was played
      */
-    playSpecialSound(type, options = {}) {
+    playSpecialSound(type, loop = false) {
         const audioContext = getAudioContext();
         if (!audioContext) return false;
+        
+        // Store the sound type for tracking
+        if (!this.specialSoundIds) {
+            this.specialSoundIds = {};
+        }
+        
+        // Stop existing sound of this type if it's playing
+        this.stopSpecialSound(type);
+        
+        let sound = null;
         
         switch (type) {
             case 'spike':
                 // Create a spike sound
-                this.createTone({
+                sound = this.createTone({
                     frequency: 220,
                     type: 'sawtooth',
-                    duration: 0.2,
+                    duration: loop ? 10.0 : 0.2, // Long duration if looped
                     volume: 0.3,
                     attack: 0.001,
-                    release: 0.1
+                    release: 0.1,
+                    loop: loop
                 });
-                return true;
+                break;
                 
             case 'rainbow':
                 // Create a rainbow activation sound
-                this.createTone({
+                sound = this.createTone({
                     frequency: 880,
                     type: 'sine',
-                    duration: 0.5,
+                    duration: loop ? 10.0 : 0.5, // Long duration if looped
                     volume: 0.4,
                     attack: 0.05,
-                    release: 0.2
+                    release: 0.2,
+                    loop: loop
                 });
-                return true;
+                break;
                 
             case 'explosion':
                 // Create an explosion sound
-                this.createTone({
+                sound = this.createTone({
                     frequency: 100,
                     type: 'square',
-                    duration: 0.3,
+                    duration: loop ? 10.0 : 0.3, // Long duration if looped
                     volume: 0.5,
                     attack: 0.001,
-                    release: 0.2
+                    release: 0.2,
+                    loop: loop
                 });
-                return true;
+                break;
                 
             default:
                 return false;
+        }
+        
+        // If sound was created successfully, store its ID for tracking
+        if (sound && sound.id) {
+            this.specialSoundIds[type] = sound.id;
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Stop a special sound effect
+     * @param {string} type - Type of sound effect to stop
+     * @returns {boolean} Whether the sound was stopped
+     */
+    stopSpecialSound(type) {
+        // Early return if no special sounds or this type isn't tracked
+        if (!this.specialSoundIds || !this.specialSoundIds[type]) {
+            return false;
+        }
+        
+        try {
+            // Get the sound ID for this type
+            const soundId = this.specialSoundIds[type];
+            
+            // Check if this sound ID is still in our active sounds
+            if (this.activeSounds.has(soundId)) {
+                // Simply mark the sound as no longer special
+                this.activeSounds.delete(soundId);
+                
+                // Look for this tone in any active sounds
+                Object.keys(this._activeTones || {}).forEach(toneId => {
+                    if (toneId === soundId && this._activeTones[toneId]) {
+                        try {
+                            // Call the stop method on the tone object
+                            this._activeTones[toneId].stop();
+                            delete this._activeTones[toneId];
+                        } catch (e) {
+                            console.warn('Error stopping tone:', e);
+                        }
+                    }
+                });
+            }
+            
+            // Clean up tracking
+            delete this.specialSoundIds[type];
+            return true;
+        } catch (error) {
+            console.error(`Error stopping special sound '${type}':`, error);
+            // Clean up tracking even on error
+            delete this.specialSoundIds[type];
+            return false;
         }
     }
     

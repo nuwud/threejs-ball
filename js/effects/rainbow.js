@@ -60,12 +60,20 @@ function toggleRainbowMode(app) {
     
     // Handle sound based on mode
     if (app.soundSynth) {
-        if (app.isRainbowMode) {
-            app.soundSynth.playSpecialSound('rainbow', true);
-            app.rainbowSoundPlaying = true;
-        } else {
-            app.soundSynth.stopSpecialSound('rainbow');
-            app.rainbowSoundPlaying = false;
+        try {
+            if (app.isRainbowMode) {
+                app.soundSynth.playSpecialSound('rainbow', true);
+                app.rainbowSoundPlaying = true;
+            } else {
+                // Check if stopSpecialSound method exists
+                if (typeof app.soundSynth.stopSpecialSound === 'function') {
+                    app.soundSynth.stopSpecialSound('rainbow');
+                }
+                app.rainbowSoundPlaying = false;
+            }
+        } catch (e) {
+            console.error('Error handling rainbow sound:', e);
+            app.rainbowSoundPlaying = app.isRainbowMode; // Keep the flag in sync with mode
         }
     }
     
