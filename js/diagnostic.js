@@ -65,11 +65,62 @@ function createDiagnosticPanel() {
     skipAudioButton.onclick = skipAudio;
     buttonContainer.appendChild(skipAudioButton);
     
+    // Reset audio button
+    const resetAudioButton = document.createElement('button');
+    resetAudioButton.textContent = 'Reset Audio';
+    resetAudioButton.style.padding = '5px';
+    resetAudioButton.style.backgroundColor = '#444400';
+    resetAudioButton.style.color = '#FFFFFF';
+    resetAudioButton.style.border = 'none';
+    resetAudioButton.style.cursor = 'pointer';
+    resetAudioButton.onclick = resetAudio;
+    buttonContainer.appendChild(resetAudioButton);
+    
     // Add panel to body
     document.body.appendChild(panel);
     
     console.log("Diagnostic panel created");
     return panel;
+}
+
+// Get comprehensive audio system status
+function getAudioStatus() {
+    const status = {
+        initialized: false,
+        audioContextState: 'N/A',
+        activeNodes: 0,
+        qualityLevel: 'N/A',
+        soundsPerSecond: 0,
+        inFailureMode: false
+    };
+    
+    if (!window.app) return status;
+    
+    // Basic info
+    status.initialized = window.app.audioInitialized || false;
+    
+    // Audio context state
+    if (window.app.audioContext) {
+        status.audioContextState = window.app.audioContext.state;
+    }
+    
+    // Try to get additional info if available
+    if (window.app.audio) {
+        if (window.app.audio.activeNodes) {
+            status.activeNodes = window.app.audio.activeNodes;
+        }
+        if (window.app.audio.qualityLevel) {
+            status.qualityLevel = window.app.audio.qualityLevel;
+        }
+        if (window.app.audio.soundsPerSecond) {
+            status.soundsPerSecond = window.app.audio.soundsPerSecond;
+        }
+        if (window.app.audio.inFailureMode !== undefined) {
+            status.inFailureMode = window.app.audio.inFailureMode;
+        }
+    }
+    
+    return status;
 }
 
 // Update diagnostic info
@@ -118,17 +169,30 @@ function updateDiagnostics() {
     }
     html += '</div>';
     
-    // Audio
+    // Audio - Enhanced with more detailed information
     html += '<div style="margin-bottom: 10px;">';
     html += '<strong>Audio:</strong> ' + (window.app.audioInitialized ? 'YES' : 'NO') + '<br>';
+    
+    // Add detailed audio diagnostics
+    const audioStatus = getAudioStatus();
     if (window.app.audioContext) {
-        html += 'Context State: ' + window.app.audioContext.state + '<br>';
+        html += 'Context State: ' + audioStatus.audioContextState + '<br>';
     }
     if (window.app.soundSynth) {
         html += 'Synthesizer: YES<br>';
     } else {
         html += 'Synthesizer: NO<br>';
     }
+    
+    // Add new audio diagnostic info
+    html += 'Active Nodes: ' + audioStatus.activeNodes + '<br>';
+    html += 'Quality Level: ' + audioStatus.qualityLevel + '<br>';
+    html += 'Sounds/Second: ' + audioStatus.soundsPerSecond + '<br>';
+    
+    if (audioStatus.inFailureMode) {
+        html += '<span style="color: #FF5555;">AUDIO FAILURE MODE</span><br>';
+    }
+    
     html += '</div>';
     
     // Effects
@@ -194,6 +258,36 @@ function forceRender() {
 function skipAudio() {
     console.log("Skipping audio initialization");
     window.app.audioInitialized = true;
+}
+
+// Reset audio system
+function resetAudio() {
+    console.log("Attempting to reset audio system");
+    
+    if (!window.app) {
+        console.error("App not available, cannot reset audio");
+        return;
+    }
+    
+    // Resume audio context if suspended
+    if (window.app.audioContext && window.app.audioContext.state === 'suspended') {
+        window.app.audioContext.resume()
+            .then(() => console.log("Audio context resumed"))
+            .catch(err => console.error("Failed to resume audio context:", err));
+    }
+    
+    // Attempt to reset any failure modes
+    if (window.app.audio && typeof window.app.audio.reset === 'function') {
+        window.app.audio.reset();
+        console.log("Audio system reset called");
+    } else {
+        console.log("No audio.reset() method available");
+    }
+    
+    // Force audio initialization flag
+    window.app.audioInitialized = true;
+    
+    console.log("Audio system reset complete");
 }
 
 // Initialize diagnostics

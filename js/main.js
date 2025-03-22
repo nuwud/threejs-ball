@@ -8,8 +8,15 @@ import {
     setupAudioAnalyzer, 
     createAudioVisualization, 
     updateAudioVisualization,
-    SoundSynthesizer
+    SoundSynthesizer,
+    getSynthesizer,
+    createBallSoundEffects
 } from './audio/index.js';
+import { 
+    playFacetSound,
+    playClickSound,
+    playReleaseSound
+} from './audio/core.js';
 import { createBall, updateBallScale, updateBallRotation, updateBallPosition, resetBall } from './ball.js';
 import { setupEventListeners } from './events.js';
 import { 
@@ -19,33 +26,9 @@ import {
     updateRainbowMode,
     createParticleExplosion,
     createMagneticTrail,
-    createBlackholeEffect
+    createBlackholeEffect,
+    removeMagneticTrail
 } from './effects/index.js';
-
-// Define missing functions
-function playFacetSound(app, facetIndex) {
-    if (app.soundSynth) {
-        app.soundSynth.playFacetSound(facetIndex);
-    }
-}
-
-function playClickSound(app) {
-    if (app.soundSynth) {
-        app.soundSynth.playClickSound();
-    }
-}
-
-function playReleaseSound(app) {
-    if (app.soundSynth) {
-        app.soundSynth.playReleaseSound();
-    }
-}
-
-function ensureAudioInitialized(app) {
-    if (!app.audioInitialized) {
-        initOnFirstClick();
-    }
-}
 
 // All imports are now at the top of the file
 
@@ -92,10 +75,7 @@ window.appControls = {
         if (window.app.isMagneticMode) {
             createMagneticTrail(window.app);
         } else {
-            // This function is referenced but may not be implemented yet
-            if (typeof removeMagneticTrail === 'function') {
-                removeMagneticTrail(window.app);
-            }
+            removeMagneticTrail(window.app);
         }
         console.log("Magnetic mode:", window.app.isMagneticMode);
         return window.app.isMagneticMode;
@@ -118,10 +98,12 @@ window.appControls = {
             initOnFirstClick();
         }
         
-        if (window.app.soundSynth) {
-            // Play a test sound
-            window.app.soundSynth.playClickSound();
+        // Use the core audio functions directly
+        if (window.app.audioContext) {
+            playClickSound(window.app);
             console.log("Test sound played");
+        } else {
+            console.warn("Audio context not available");
         }
     }
 };
@@ -272,6 +254,21 @@ function initOnFirstClick() {
                         createAudioVisualization(window.app);
                         console.log("Audio visualization created");
                         
+                        // Initialize synthesizer if needed
+                        try {
+                            // Get the synthesizer instance
+                            window.app.soundSynth = getSynthesizer();
+                            
+                            // Setup ball sound effects
+                            if (window.app.soundSynth && window.app.ballGroup) {
+                                const soundEffects = createBallSoundEffects(window.app.ballGroup);
+                                soundEffects.setupBallEvents();
+                                console.log("Ball sound effects initialized");
+                            }
+                        } catch (synthError) {
+                            console.warn("Error initializing synthesizer:", synthError);
+                        }
+                        
                         // Resume audio context if needed
                         if (window.app.audioContext && window.app.audioContext.state === 'suspended') {
                             window.app.audioContext.resume().then(() => {
@@ -314,16 +311,27 @@ function addDebugButton() {
     
     button.addEventListener('click', () => {
         // Ensure audio is initialized
-        ensureAudioInitialized(window.app);
-        
-        // Play test sound
-        if (window.app.soundSynth) {
-            window.app.soundSynth.playClickSound();
-            console.log("Test sound played");
+        if (!window.app.audioInitialized) {
+            initOnFirstClick();
+            
+            // Add a small delay to allow audio to initialize
+            setTimeout(() => {
+                playTestSound();
+            }, 500);
         } else {
-            console.warn("Sound synthesizer not available");
+            playTestSound();
         }
     });
+    
+    function playTestSound() {
+        // Direct play using core audio functions
+        if (window.app.audioContext) {
+            playClickSound(window.app);
+            console.log("Test sound played");
+        } else {
+            console.warn("Audio context not available");
+        }
+    }
     
     document.body.appendChild(button);
 }

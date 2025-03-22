@@ -2,6 +2,32 @@
 import * as THREE from 'three';
 import { createGradientTexture } from './effects/gradients.js';
 
+// Ball event system for audio and other triggers
+class BallEventEmitter {
+    constructor() {
+        this.events = {};
+    }
+    
+    addEventListener(event, callback) {
+        if (!this.events[event]) {
+            this.events[event] = [];
+        }
+        this.events[event].push(callback);
+    }
+    
+    removeEventListener(event, callback) {
+        if (this.events[event]) {
+            this.events[event] = this.events[event].filter(cb => cb !== callback);
+        }
+    }
+    
+    emit(event, data) {
+        if (this.events[event]) {
+            this.events[event].forEach(callback => callback(data));
+        }
+    }
+}
+
 // Create the 3D ball
 function createBall(app) {
     // Create an icosahedron with subdivision level 4 for smooth deformation
@@ -50,6 +76,12 @@ function createBall(app) {
     const ballGroup = new THREE.Group();
     ballGroup.add(mesh);
     ballGroup.add(wireMesh);
+    
+    // Add event emitter capabilities to the ball group
+    const eventEmitter = new BallEventEmitter();
+    ballGroup.addEventListener = eventEmitter.addEventListener.bind(eventEmitter);
+    ballGroup.removeEventListener = eventEmitter.removeEventListener.bind(eventEmitter);
+    ballGroup.emit = eventEmitter.emit.bind(eventEmitter);
     
     // Store the original vertex positions for deformation
     const positions = geo.attributes.position.array.slice();
@@ -142,6 +174,9 @@ function applyDeformation(app, point, intensity, radius) {
     if (wireMesh && wireMesh.geometry) {
         wireMesh.geometry = new THREE.EdgesGeometry(mesh.geometry);
     }
+    
+    // Emit deformation event for audio feedback
+    app.ballGroup.emit('deformation', { intensity, radius, point });
 }
 
 // Gradually reset deformation
@@ -189,6 +224,9 @@ function resetDeformation(app, speed) {
         if (wireMesh && wireMesh.geometry) {
             wireMesh.geometry = new THREE.EdgesGeometry(mesh.geometry);
         }
+        
+        // Emit reset event with progress information
+        app.ballGroup.emit('deformationReset', { speed, progress: speed });
     }
 }
 
@@ -200,6 +238,11 @@ function updateBallScale(app) {
     // Apply scale to the ball group
     if (app.ballGroup) {
         app.ballGroup.scale.set(app.currentScale, app.currentScale, app.currentScale);
+    }
+    
+    // Emit scale change event if significant
+    if (Math.abs(app.currentScale - app.targetScale) > 0.01) {
+        app.ballGroup.emit('scaleChange', { scale: app.currentScale });
     }
 }
 
@@ -226,6 +269,12 @@ function updateBallPosition(app) {
         // Apply position with smoothing
         app.ballGroup.position.x += (newX - app.ballGroup.position.x) * 0.05;
         app.ballGroup.position.y += (newY - app.ballGroup.position.y) * 0.05;
+        
+        // Emit subtle movement event for gentle audio feedback
+        const movement = Math.abs(newX) + Math.abs(newY);
+        if (movement > 0.01) {
+            app.ballGroup.emit('move', { intensity: movement * 10 });
+        }
     }
 }
 
@@ -270,6 +319,9 @@ function resetBall(app) {
     if (app.soundSynth) {
         app.soundSynth.stopAllSounds();
     }
+    
+    // Emit reset event
+    app.ballGroup.emit('reset', { complete: true });
     
     console.log("Ball reset to original state");
 }

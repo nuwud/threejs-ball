@@ -18,24 +18,59 @@ import {
     toggleRainbowMode
 } from './effects/index.js';
 
+// Simplified throttle function without time-based throttling
+function throttle(fn, delay, options = {}) {
+    return function(...args) {
+        return fn.apply(this, args);
+    };
+}
+
+/**
+ * Get normalized position within a facet
+ * @param {Object} intersect - Intersection data from raycaster
+ * @returns {Object} Normalized u,v coordinates (0-1) within the facet
+ */
+function getPositionInFacet(intersect) {
+    if (!intersect || !intersect.uv) {
+        return { u: 0.5, v: 0.5 }; // Default to center if no UV
+    }
+    
+    // Return UV coordinates normalized to the facet
+    return {
+        u: intersect.uv.x,
+        v: intersect.uv.y
+    };
+}
+
 // Set up event listeners
 function setupEventListeners(app) {
     console.log("Setting up event listeners...");
     
-    // Add event listeners for mouse/touch
-    window.addEventListener('mousemove', e => onPointerMove(e, app));
+    // Initialize the lastFacetSoundTime property
+    app.lastFacetSoundTime = {};
+    app.lastMousePosition = new THREE.Vector2();
+    app.mouseMovementDistance = 0;
+    
+    // Add event listeners for mouse/touch WITHOUT throttling
+    const pointerMove = onPointerMove;
+    
+    window.addEventListener('mousemove', e => pointerMove(e, app));
     window.addEventListener('mousedown', e => onPointerDown(e, app));
     window.addEventListener('mouseup', () => onPointerUp(app));
     window.addEventListener('wheel', e => onMouseWheel(e, app), { passive: false });
+    
     window.addEventListener('touchmove', e => {
         e.preventDefault();
-        onPointerMove(e.touches[0], app);
+        pointerMove(e.touches[0], app);
     }, { passive: false });
+    
     window.addEventListener('touchstart', e => {
         e.preventDefault();
         onPointerDown(e.touches[0], app);
     }, { passive: false });
+    
     window.addEventListener('touchend', () => onPointerUp(app));
+    
     window.addEventListener('contextmenu', e => {
         e.preventDefault();
         // Right-click trigger explosion
@@ -75,12 +110,33 @@ function setupEventListeners(app) {
     console.log("Event listeners set up successfully");
 }
 
+// Check which facet (triangle) is clicked
+function getFacetIndex(intersectPoint) {
+    // Get the face at the intersection point
+    return intersectPoint.faceIndex;
+}
+
 // Function to handle mouse/touch movement for interaction
 function onPointerMove(event, app) {
     // Calculate mouse position in normalized device coordinates
     // (-1 to +1) for both components
-    app.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    app.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+    const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+    
+    // Calculate mouse movement distance since last update
+    if (app.lastMousePosition.x !== undefined) {
+        const dx = mouseX - app.lastMousePosition.x;
+        const dy = mouseY - app.lastMousePosition.y;
+        app.mouseMovementDistance = Math.sqrt(dx * dx + dy * dy);
+    }
+    
+    // Update last mouse position
+    app.lastMousePosition.x = mouseX;
+    app.lastMousePosition.y = mouseY;
+    
+    // Store normalized device coordinates in app
+    app.mouse.x = mouseX;
+    app.mouse.y = mouseY;
     
     // Update the raycaster with the new mouse position
     app.raycaster.setFromCamera(app.mouse, app.camera);
@@ -122,20 +178,21 @@ function onPointerMove(event, app) {
         // Check which facet was hit
         const facetIndex = getFacetIndex(intersects[0]);
         
-        // Only trigger sound when crossing facet boundaries
-        if (facetIndex !== app.lastFacetIndex) {
-            // Initialize audio on first interaction
-            ensureAudioInitialized(app);
+        // Initialize audio on first interaction
+        ensureAudioInitialized(app);
+        
+        // Get the normalized position within the facet for continuous sound
+        const positionInFacet = getPositionInFacet(intersects[0]);
+        
+        // IMPORTANT: Always play the sounds for continuous feedback
+        // Always play a positional sound based on mouse coords 
+        playToneForPosition(app, app.mouse.x, app.mouse.y);
             
-            // Play a facet-specific sound
-            playFacetSound(app, facetIndex);
-            
-            // Also play a positional sound based on mouse coords
-            playToneForPosition(app, app.mouse.x, app.mouse.y);
-            
-            // Update last facet index
-            app.lastFacetIndex = facetIndex;
-        }
+        // Play a facet-specific sound
+        playFacetSound(app, facetIndex, positionInFacet);
+        
+        // Update last facet index
+        app.lastFacetIndex = facetIndex;
     } else {
         if (app.isHovered) {
             document.body.style.cursor = 'default';
@@ -172,12 +229,6 @@ function onPointerMove(event, app) {
             y: event.clientY
         };
     }
-}
-
-// Check which facet (triangle) is clicked
-function getFacetIndex(intersectPoint) {
-    // Get the face at the intersection point
-    return intersectPoint.faceIndex;
 }
 
 function onPointerDown(event, app) {

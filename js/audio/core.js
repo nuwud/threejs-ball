@@ -1,289 +1,598 @@
-// audio/core.js - Core audio system functionality
-import * as THREE from 'three';
-import { SoundSynthesizer } from './synthesizer.js';
+/**
+ * core.js
+ * Core audio system functionality for the Three.js Interactive Ball
+ * Handles AudioContext initialization and management
+ * MODIFIED: Removed throttling for continuous audio experience
+ */
 
-// Create an audio listener for 3D audio
-const listener = new THREE.AudioListener();
+import { AudioNodePool } from './audio-node-pool.js';
+import { SoundScheduler } from './sound-scheduler.js';
+import { AudioCircuitBreaker } from './audio-circuit-breaker.js';
+import { initializeSoundBuffers } from './sound-buffers.js';
 
-// Setup audio system
-function setupAudio(app) {
+// Core audio context and management
+let audioContext = null;
+let initialized = false;
+let masterGain = null;
+
+// Audio system components
+let nodePool = null;
+let soundScheduler = null;
+let circuitBreaker = null;
+
+// Event callbacks
+const callbacks = {
+    onInitialized: null,
+    onError: null,
+    onQualityChanged: null
+};
+
+/**
+ * Register event callbacks
+ * @param {Object} newCallbacks - Callback functions
+ */
+export function registerCallbacks(newCallbacks) {
+    Object.assign(callbacks, newCallbacks);
+}
+
+/**
+ * Initialize the audio system
+ * Returns a promise that resolves when audio is ready
+ */
+export async function initializeAudio() {
+    if (initialized) return true;
+
     try {
-        // Initialize Web Audio API
-        app.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        
-        // Make sure to resume the AudioContext on first user interaction
-        if (app.audioContext.state === 'suspended') {
-            app.audioContext.resume().then(() => {
-                console.log("AudioContext successfully resumed");
-            }).catch(err => {
-                console.error("Failed to resume AudioContext:", err);
-            });
+        // Create audio context
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Modern browsers require user interaction to start audio
+        if (audioContext.state === 'suspended') {
+            console.log('Audio is suspended, waiting for user interaction');
+
+            const resumeAudio = async () => {
+                if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
+            };
+
+            document.addEventListener('click', resumeAudio);
+            document.addEventListener('touchstart', resumeAudio);
+        }
+
+        // Create master gain node
+        masterGain = audioContext.createGain();
+        masterGain.gain.value = 0.8; // Default volume at 80%
+        masterGain.connect(audioContext.destination);
+
+        // Initialize audio system components
+        nodePool = new AudioNodePool(audioContext, 24);
+        soundScheduler = new SoundScheduler(60); // Increased for continuous sound
+        circuitBreaker = new AudioCircuitBreaker();
+
+        // Initialize each component
+        if (typeof nodePool.initialize === 'function') {
+            nodePool.initialize();
         }
         
-        // Create sound synthesizer
-        app.soundSynth = new SoundSynthesizer(app.audioContext);
+        if (typeof soundScheduler.initialize === 'function') {
+            soundScheduler.initialize();
+        }
         
-        console.log("Audio system initialized");
-        return app.soundSynth;
-    } catch (e) {
-        console.error("Web Audio API not supported:", e);
-        return null;
-    }
-}
+        if (typeof circuitBreaker.initialize === 'function') {
+            circuitBreaker.initialize();
+        }
 
-// Initialize Web Audio API synthesizer and effects
-function initAudioEffects(app) {
-    if (!app.audioContext) {
-        try {
-            app.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            
-            // Resume the AudioContext (needed in some browsers like Chrome)
-            if (app.audioContext.state === 'suspended') {
-                const resumeAudio = function() {
-                    if (app.audioContext.state === 'suspended') {
-                        app.audioContext.resume().then(() => {
-                            console.log("AudioContext successfully resumed");
-                            
-                            // Remove the event listeners once audio is resumed
-                            document.removeEventListener('click', resumeAudio);
-                            document.removeEventListener('touchstart', resumeAudio);
-                            document.removeEventListener('mousedown', resumeAudio);
-                            document.removeEventListener('keydown', resumeAudio);
-                        }).catch(err => {
-                            console.error("Failed to resume AudioContext:", err);
-                        });
-                    }
-                };
+        // Set up quality change handling
+        circuitBreaker.registerCallbacks({
+            onQualityChange: (quality) => {
+                console.log(`Audio quality changed to: ${quality}`);
                 
-                // Add event listeners for user interactions
-                document.addEventListener('click', resumeAudio);
-                document.addEventListener('touchstart', resumeAudio);
-                document.addEventListener('mousedown', resumeAudio);
-                document.addEventListener('keydown', resumeAudio);
+                // Update sound scheduler based on quality level, but keep high numbers
+                if (quality === 'high') {
+                    soundScheduler.maxSoundsPerSecond = 60;
+                } else if (quality === 'medium') {
+                    soundScheduler.maxSoundsPerSecond = 40;
+                } else {
+                    soundScheduler.maxSoundsPerSecond = 30;
+                }
+                
+                // Trigger callback if registered
+                if (callbacks.onQualityChanged) {
+                    callbacks.onQualityChanged(quality);
+                }
             }
-            
-            // Create our synthesizer
-            app.soundSynth = new SoundSynthesizer(app.audioContext);
-            
-            console.log("Audio effects initialized");
-        } catch (e) {
-            console.error("Web Audio API not supported:", e);
-        }
-    }
-}
-
-// Map a value to a frequency range (for mouse movement)
-function mapToFrequency(value, min, max, freqMin = 220, freqMax = 880) {
-    return freqMin + ((value - min) / (max - min)) * (freqMax - freqMin);
-}
-
-// Play a tone based on position
-function playToneForPosition(app, x, y) {
-    if (!app.soundSynth) return;
-    
-    // Ensure the audio context is running
-    if (app.audioContext && app.audioContext.state === 'suspended') {
-        app.audioContext.resume().catch(err => {
-            console.error("Failed to resume AudioContext:", err);
         });
-    }
-    
-    // Use the improved synthesizer for position-based sounds
-    app.soundSynth.playPositionSound(x, y);
-}
 
-// Play a sound when crossing facet boundaries
-function playFacetSound(app, facetIndex) {
-    if (!app.soundSynth) return;
-    
-    // Ensure the audio context is running
-    if (app.audioContext && app.audioContext.state === 'suspended') {
-        app.audioContext.resume().catch(err => {
-            console.error("Failed to resume AudioContext:", err);
-        });
-    }
-    
-    // Play a facet-specific sound with a medium intensity
-    app.soundSynth.playFacetSound(facetIndex, 0.7);
-}
-
-// Play a click sound
-function playClickSound(app) {
-    if (!app.soundSynth) return;
-    
-    // Ensure the audio context is running
-    if (app.audioContext && app.audioContext.state === 'suspended') {
-        app.audioContext.resume().catch(err => {
-            console.error("Failed to resume AudioContext:", err);
-        });
-    }
-    
-    // Play a pleasant chord
-    app.soundSynth.playClickSound();
-}
-
-// Play a release sound
-function playReleaseSound(app) {
-    if (!app.soundSynth) return;
-    
-    // Ensure the audio context is running
-    if (app.audioContext && app.audioContext.state === 'suspended') {
-        app.audioContext.resume().catch(err => {
-            console.error("Failed to resume AudioContext:", err);
-        });
-    }
-    
-    // Play a different chord
-    app.soundSynth.playReleaseSound();
-}
-
-// Stop playing the tone
-function stopTone(app) {
-    if (!app.soundSynth) return;
-    
-    // Stop all currently playing sounds
-    app.soundSynth.stopAllSounds();
-}
-
-// Create an audio analyzer to visualize sound
-function setupAudioAnalyzer(app) {
-    if (!app.audioContext) return;
-    
-    // Create an analyzer node
-    app.analyser = app.audioContext.createAnalyser();
-    app.analyser.fftSize = 256;
-    app.bufferLength = app.analyser.frequencyBinCount;
-    app.audioDataArray = new Uint8Array(app.bufferLength);
-    
-    // Connect analyzer to the audio context
-    if (app.soundSynth && app.soundSynth.masterGain) {
-        app.soundSynth.masterGain.connect(app.analyser);
-    }
-    
-    console.log("Audio analyzer set up");
-}
-
-// Create visualization for sound
-function createAudioVisualization(app) {
-    if (!app.audioContext) return;
-    
-    // Create a circle of small cubes around the ball
-    const visualizationGroup = new THREE.Group();
-    const cubeCount = 32;
-    const radius = 2;
-    
-    for (let i = 0; i < cubeCount; i++) {
-        const angle = (i / cubeCount) * Math.PI * 2;
-        const cube = new THREE.Mesh(
-            new THREE.BoxGeometry(0.1, 0.1, 0.1),
-            new THREE.MeshBasicMaterial({
-                color: 0xFFFFFF,
-                transparent: true,
-                opacity: 0.8
-            })
-        );
+        initialized = true;
+        console.log('Audio system initialized successfully');
         
-        cube.position.set(
-            Math.cos(angle) * radius,
-            Math.sin(angle) * radius,
-            0
-        );
-        
-        visualizationGroup.add(cube);
-    }
-    
-    app.scene.add(visualizationGroup);
-    
-    // Store it for updates
-    app.scene.userData.audioVisualization = visualizationGroup;
-}
-
-// Update audio visualization
-function updateAudioVisualization(app) {
-    if (!app.audioContext || !app.scene.userData.audioVisualization) return;
-    
-    // Get frequency data
-    if (!app.analyser || !app.audioDataArray) return;
-    
-    // Get frequency data
-    app.analyser.getByteFrequencyData(app.audioDataArray);
-    
-    // Update visualization cubes
-    const visualization = app.scene.userData.audioVisualization;
-    const cubes = visualization.children;
-    
-    for (let i = 0; i < cubes.length; i++) {
-        const cube = cubes[i];
-        
-        // Map frequency bin to cube
-        const frequencyBin = Math.floor((i / cubes.length) * app.audioDataArray.length);
-        const value = app.audioDataArray[frequencyBin] / 255; // Normalize to 0-1
-        
-        // Scale cube based on frequency value
-        cube.scale.y = 0.1 + value * 2;
-        
-        // Position the cube
-        cube.position.y = Math.sin((i / cubes.length) * Math.PI * 2) * 2 + (value * 0.5);
-        
-        // Color based on frequency (optional)
-        cube.material.color.setHSL(i / cubes.length, 0.8, 0.5 + value * 0.5);
-    }
-}
-
-// Test audio functionality to make sure it's working
-function testAudio(app) {
-    if (!app.audioContext || !app.soundSynth) {
-        console.warn("Cannot test audio: AudioContext or SoundSynthesizer not available");
-        return;
-    }
-    
-    console.log("Testing audio functionality...");
-    
-    // Play a test sound to verify audio is working
-    const testNote = 440; // A4 note
-    app.soundSynth.playWarmPad(testNote, 0.5);
-    
-    console.log("Audio test completed");
-}
-
-// Ensure audio is properly initialized
-function ensureAudioInitialized(app) {
-    if (!app.audioContext || !app.soundSynth) {
-        console.log("Initializing audio on demand");
-        setupAudio(app);
-        setupAudioAnalyzer(app);
-        
-        if (app.audioContext && app.audioContext.state === 'suspended') {
-            app.audioContext.resume().then(() => {
-                console.log("AudioContext resumed successfully");
-                testAudio(app);
-            }).catch(err => {
-                console.error("Failed to resume AudioContext:", err);
-            });
-        } else {
-            testAudio(app);
+        if (callbacks.onInitialized) {
+            callbacks.onInitialized();
         }
         
         return true;
+    } catch (error) {
+        console.error('Failed to initialize audio system:', error);
+        initialized = false;
+        
+        if (callbacks.onError) {
+            callbacks.onError(error);
+        }
+        
+        return false;
     }
-    
-    return false;
 }
 
-// Export functions and objects
-export {
-    listener,
-    setupAudio,
-    initAudioEffects,
-    mapToFrequency,
-    playToneForPosition,
-    playFacetSound,
-    playClickSound,
-    playReleaseSound,
-    stopTone,
-    setupAudioAnalyzer,
-    createAudioVisualization, 
-    updateAudioVisualization,
-    testAudio,
-    ensureAudioInitialized
-};
+/**
+ * Clean up audio resources
+ * Call when shutting down the application
+ */
+export function disposeAudio() {
+    if (!initialized) return;
+
+    try {
+        // Clean up components
+        if (soundScheduler && typeof soundScheduler.dispose === 'function') {
+            soundScheduler.dispose();
+        }
+        
+        if (nodePool && typeof nodePool.releaseAll === 'function') {
+            nodePool.releaseAll();
+        }
+
+        // Disconnect master gain
+        if (masterGain) {
+            masterGain.disconnect();
+        }
+
+        // Close audio context
+        if (audioContext && audioContext.state !== 'closed') {
+            audioContext.close();
+        }
+
+        // Reset state
+        audioContext = null;
+        masterGain = null;
+        nodePool = null;
+        soundScheduler = null;
+        circuitBreaker = null;
+        initialized = false;
+
+        console.log('Audio system resources released');
+    } catch (error) {
+        console.error('Error disposing audio system:', error);
+    }
+}
+
+/**
+ * Set master volume
+ * @param {number} volume - Volume level (0.0 to 1.0)
+ */
+export function setMasterVolume(volume) {
+    if (!initialized || !masterGain) return;
+
+    const safeVolume = Math.max(0, Math.min(1, volume));
+    masterGain.gain.value = safeVolume;
+}
+
+/**
+ * Get the audio context
+ * @returns {AudioContext|null} The audio context or null if not initialized
+ */
+export function getAudioContext() {
+    return audioContext;
+}
+
+/**
+ * Get the master gain node
+ * @returns {GainNode|null} The master gain node or null if not initialized
+ */
+export function getMasterGain() {
+    return masterGain;
+}
+
+/**
+ * Get the node pool
+ * @returns {AudioNodePool|null} The node pool or null if not initialized
+ */
+export function getNodePool() {
+    return nodePool;
+}
+
+/**
+ * Get the sound scheduler
+ * @returns {SoundScheduler|null} The sound scheduler or null if not initialized
+ */
+export function getSoundScheduler() {
+    return soundScheduler;
+}
+
+/**
+ * Get the circuit breaker
+ * @returns {AudioCircuitBreaker|null} The circuit breaker or null if not initialized
+ */
+export function getCircuitBreaker() {
+    return circuitBreaker;
+}
+
+/**
+ * Check if audio system is initialized
+ * @returns {boolean} Whether the audio system is initialized
+ */
+export function isInitialized() {
+    return initialized;
+}
+
+/**
+ * Ensures audio is initialized before using audio functions
+ * @param {Object} app - Application context
+ * @returns {Promise<boolean>} - Whether initialization was successful
+ */
+export async function ensureAudioInitialized(app) {
+    if (!initialized) {
+        const success = await initializeAudio();
+
+        // Store audio context reference in app for convenience
+        if (success && app) {
+            app.audioContext = audioContext;
+        }
+
+        return success;
+    }
+    return true;
+}
+
+/**
+ * Play a tone based on x,y position
+ * @param {Object} app - Application context
+ * @param {number} x - X coordinate (-1 to 1)
+ * @param {number} y - Y coordinate (-1 to 1)
+ */
+export function playToneForPosition(app, x, y) {
+    if (!initialized) {
+        console.warn('Audio not initialized, cannot play tone');
+        return;
+    }
+
+    // Removed throttling check for continuous audio
+
+    try {
+        // Normalize coordinates to 0-1 range
+        const normX = (x + 1) / 2;
+        const normY = (y + 1) / 2;
+
+        // Map x to frequency (e.g., 220Hz to 880Hz)
+        const frequency = 220 + normX * 660;
+
+        // Map y to volume (0.1 to 0.5) - lower volume for positional sounds
+        const volume = 0.05 + normY * 0.2;
+
+        // Create a new oscillator each time (don't reuse from pool)
+        const oscillatorNode = audioContext.createOscillator();
+        
+        // Get a gain node from the pool
+        let gainNode;
+        if (nodePool && typeof nodePool.acquire === 'function') {
+            gainNode = nodePool.acquire('gain');
+        } else {
+            gainNode = audioContext.createGain();
+        }
+
+        // Configure oscillator
+        oscillatorNode.type = 'sine';
+        oscillatorNode.frequency.value = frequency;
+
+        // Set volume
+        gainNode.gain.value = 0;
+
+        // Connect nodes
+        oscillatorNode.connect(gainNode);
+        gainNode.connect(masterGain);
+
+        // Start oscillator
+        oscillatorNode.start();
+
+        // Ramp up volume
+        gainNode.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 0.01);
+
+        // Ramp down and stop after a short duration
+        gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.1);
+
+        // Schedule cleanup
+        setTimeout(() => {
+            try {
+                oscillatorNode.stop();
+                oscillatorNode.disconnect();
+                gainNode.disconnect();
+                
+                // Return gain node to pool if possible
+                if (nodePool && typeof nodePool.release === 'function') {
+                    nodePool.release(gainNode);
+                }
+            } catch (cleanupError) {
+                console.warn('Error during audio cleanup:', cleanupError);
+            }
+        }, 150);
+
+        // Record successful sound trigger
+        if (soundScheduler && typeof soundScheduler.recordSoundPlayed === 'function') {
+            soundScheduler.recordSoundPlayed();
+        }
+    } catch (error) {
+        console.error('Error playing tone for position:', error);
+        
+        // Record failure if circuit breaker exists
+        if (circuitBreaker && typeof circuitBreaker.recordFailure === 'function') {
+            circuitBreaker.recordFailure();
+        }
+    }
+}
+
+/**
+ * Play a facet sound when a facet is touched
+ * @param {Object} app - Application context
+ * @param {number} facetIndex - Index of the facet
+ * @param {Object} position - Optional normalized position within facet
+ */
+export function playFacetSound(app, facetIndex, position = null) {
+    if (!initialized) return;
+
+    try {
+        // Get normalized position (default to center)
+        const pos = position || { u: 0.5, v: 0.5 };
+        
+        // Use facet index to select different sound characteristics
+        const baseFreq = 220 + (facetIndex % 12) * 50;
+        
+        // Vary frequency based on position within facet (subtle variation)
+        const freqVariation = 30 * (pos.u - 0.5); // +/- 15 Hz based on horizontal position
+        
+        // Calculate final frequency including variation
+        const frequency = baseFreq + freqVariation;
+
+        // Removed throttling check for continuous audio
+
+        // Always create a new oscillator for each sound
+        const oscillatorNode = audioContext.createOscillator();
+        const gainNode = nodePool.acquire('gain');
+
+        if (!gainNode) {
+            console.warn('Could not acquire gain node for facet sound');
+            return;
+        }
+
+        // Configure sound - change oscillator type based on facet index
+        // This creates distinct timbres for different facets
+        const oscillatorTypes = ['sine', 'triangle', 'square', 'sawtooth'];
+        oscillatorNode.type = oscillatorTypes[facetIndex % oscillatorTypes.length];
+        
+        // Add some variation based on facet index
+        const detune = (facetIndex * 7) % 100 - 50; // -50 to +50 cents
+        oscillatorNode.detune.value = detune;
+        
+        // Base frequency with variation
+        oscillatorNode.frequency.value = frequency;
+
+        // Connect nodes
+        oscillatorNode.connect(gainNode);
+        gainNode.connect(masterGain);
+
+        // Start with zero gain to avoid clicks
+        gainNode.gain.value = 0;
+
+        // Start the oscillator
+        oscillatorNode.start();
+
+        // Envelope shape - SHORTER duration for more responsive sound
+        const now = audioContext.currentTime;
+        
+        // Faster attack (5ms)
+        gainNode.gain.linearRampToValueAtTime(0.3, now + 0.005);
+        
+        // Shorter sustain (50ms)
+        gainNode.gain.linearRampToValueAtTime(0.2, now + 0.05);
+        
+        // Quick release (50ms)
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.1);
+
+        // Shorter timeout for cleanup (150ms)
+        setTimeout(() => {
+            try {
+                oscillatorNode.stop();
+                oscillatorNode.disconnect();
+                gainNode.disconnect();
+                nodePool.release(gainNode);
+            } catch (e) {
+                console.warn('Error in audio cleanup:', e);
+            }
+        }, 150);
+
+        // Record successful sound trigger with facet index
+        if (soundScheduler && typeof soundScheduler.recordSoundPlayed === 'function') {
+            soundScheduler.recordSoundPlayed(facetIndex);
+        }
+    } catch (error) {
+        console.error('Error playing facet sound:', error);
+        recordAudioFailure();
+    }
+}
+
+/**
+ * Play a sound when clicking
+ * @param {Object} app - Application context
+ */
+export function playClickSound(app) {
+    if (!initialized) return;
+
+    try {
+        // Removed throttling check for continuous audio
+
+        // Always create a new oscillator (don't reuse from pool)
+        const oscillatorNode = audioContext.createOscillator();
+        const filterNode = nodePool.acquire('biquadFilter');
+        const gainNode = nodePool.acquire('gain');
+
+        if (!filterNode || !gainNode) {
+            console.warn('Could not acquire audio nodes for click sound');
+            return;
+        }
+
+        // Configure nodes
+        oscillatorNode.type = 'square';
+        oscillatorNode.frequency.value = 80;
+
+        filterNode.type = 'lowpass';
+        filterNode.frequency.value = 1000;
+        filterNode.Q.value = 5;
+
+        gainNode.gain.value = 0;
+
+        // Connect nodes
+        oscillatorNode.connect(filterNode);
+        filterNode.connect(gainNode);
+        gainNode.connect(masterGain);
+
+        // Start oscillator
+        oscillatorNode.start();
+
+        // Click envelope
+        gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.005);
+        gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.1);
+
+        // Pitch drop for click effect
+        oscillatorNode.frequency.exponentialRampToValueAtTime(40, audioContext.currentTime + 0.1);
+
+        // Schedule cleanup
+        setTimeout(() => {
+            try {
+                oscillatorNode.stop();
+                oscillatorNode.disconnect();
+                filterNode.disconnect();
+                gainNode.disconnect();
+                nodePool.release(filterNode);
+                nodePool.release(gainNode);
+            } catch (e) {
+                console.warn('Error in audio cleanup:', e);
+            }
+        }, 150);
+
+        // Record successful sound trigger
+        if (soundScheduler && typeof soundScheduler.recordSoundPlayed === 'function') {
+            soundScheduler.recordSoundPlayed();
+        }
+    } catch (error) {
+        console.error('Error playing click sound:', error);
+        recordAudioFailure();
+    }
+}
+
+/**
+ * Play a sound when releasing
+ * @param {Object} app - Application context
+ */
+export function playReleaseSound(app) {
+    if (!initialized) return;
+
+    try {
+        // Removed throttling check for continuous audio
+
+        // Always create a new oscillator (don't reuse from pool)
+        const oscillatorNode = audioContext.createOscillator();
+        const gainNode = nodePool.acquire('gain');
+
+        if (!gainNode) {
+            console.warn('Could not acquire audio nodes for release sound');
+            return;
+        }
+
+        // Configure nodes
+        oscillatorNode.type = 'sine';
+        oscillatorNode.frequency.value = 440;
+
+        gainNode.gain.value = 0;
+
+        // Connect nodes
+        oscillatorNode.connect(gainNode);
+        gainNode.connect(masterGain);
+
+        // Start oscillator
+        oscillatorNode.start();
+
+        // Release envelope - shorter and lighter than click
+        gainNode.gain.linearRampToValueAtTime(0.15, audioContext.currentTime + 0.01);
+        gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.08);
+
+        // Pitch rise for release effect
+        oscillatorNode.frequency.exponentialRampToValueAtTime(880, audioContext.currentTime + 0.08);
+
+        // Schedule cleanup
+        setTimeout(() => {
+            try {
+                oscillatorNode.stop();
+                oscillatorNode.disconnect();
+                gainNode.disconnect();
+                nodePool.release(gainNode);
+            } catch (e) {
+                console.warn('Error in audio cleanup:', e);
+            }
+        }, 100);
+
+        // Record successful sound trigger
+        if (soundScheduler && typeof soundScheduler.recordSoundPlayed === 'function') {
+            soundScheduler.recordSoundPlayed();
+        }
+    } catch (error) {
+        console.error('Error playing release sound:', error);
+        recordAudioFailure();
+    }
+}
+
+/**
+ * Record a failure in the audio system
+ * Will trigger the circuit breaker to degrade quality if needed
+ */
+export function recordAudioFailure() {
+    if (circuitBreaker) {
+        circuitBreaker.recordFailure();
+    }
+}
+
+/**
+ * Suspend audio processing (for example when tab is not visible)
+ */
+export function suspendAudio() {
+    if (audioContext && audioContext.state === 'running') {
+        audioContext.suspend();
+    }
+}
+
+/**
+ * Resume audio processing
+ */
+export function resumeAudio() {
+    if (audioContext && audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+}
+
+/**
+ * Get audio system status
+ * @returns {Object} Status information about the audio system
+ */
+export function getAudioStatus() {
+    if (!initialized) {
+        return { initialized: false };
+    }
+
+    return {
+        initialized: true,
+        audioContextState: audioContext ? audioContext.state : 'unavailable',
+        audioContextSampleRate: audioContext ? audioContext.sampleRate : 0,
+        masterVolume: masterGain ? masterGain.gain.value : 0,
+        activeNodes: nodePool ? nodePool.getActiveCount() : 0,
+        qualityLevel: circuitBreaker ? circuitBreaker.getQualityLevel() : 'unknown',
+        soundsPerSecond: soundScheduler ? soundScheduler.getStatus().maxSoundsPerSecond : 0,
+        inFailureMode: circuitBreaker ? circuitBreaker.isInFailureMode() : false
+    };
+}

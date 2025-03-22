@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Interactive 3D Ball with Three.js</title>
+  <title>Direct Sound Fix - Three.js Ball</title>
   <link rel="stylesheet" href="styles/styles.css" />
   <link rel="icon" href="favicon.ico" type="image/x-icon">
   <script type="importmap">
@@ -14,8 +14,59 @@
       }
     }
   </script>
+  
+  <style>
+    #direct-fix-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 15px;
+      background: linear-gradient(to right, #00aa00, #00cc00);
+      color: white;
+      text-align: center;
+      font-weight: bold;
+      font-size: 24px;
+      z-index: 100;
+      text-shadow: 0 0 5px black;
+    }
+    
+    #instructions h2 {
+      color: #00aa00;
+    }
+    
+    #instructions h3 {
+      color: #009900;
+    }
+    
+    #instructions strong {
+      color: #008800;
+    }
+    
+    #direct-fix-notes {
+      background-color: #e6ffe6;
+      border: 1px solid #00aa00;
+      border-radius: 5px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    
+    .effect-button {
+      background-color: #00aa00;
+    }
+    
+    .effect-button:hover {
+      background-color: #008800;
+    }
+  </style>
+  
+  <!-- Direct Sound Fix - Place BEFORE any scripts -->
+  <script type="text/javascript" src="direct-sound-fix.js"></script>
 </head>
 <body>
+  <!-- Banner -->
+  <div id="direct-fix-banner">DIRECT SOUND FIX - TRULY CONTINUOUS AUDIO</div>
+  
   <!-- Hamburger Menu -->
   <div class="hamburger-menu" id="menu-btn">
     <span></span>
@@ -23,24 +74,28 @@
   
   <!-- Instructions Panel -->
   <div id="instructions">
-    <h2>Interactive 3D Ball</h2>
+    <h2>Direct Sound Fix</h2>
     
-    <h3>Basic Interactions</h3>
+    <div id="direct-fix-notes">
+      <p>This version completely overrides the audio throttling at its source by:</p>
+      <ol>
+        <li><strong>Replacing the mousemove event handler</strong> with an unthrottled version</li>
+        <li><strong>Creating direct audio functions</strong> that bypass the scheduler</li>
+        <li><strong>Forcing sound to play on every mouse movement</strong> without conditions</li>
+        <li><strong>Using longer sound durations</strong> for better continuity</li>
+      </ol>
+    </div>
+    
+    <h3>For Best Results:</h3>
+    <p>Move your mouse <strong>very slowly</strong> across the ball to create a truly continuous sound experience.</p>
+    
+    <h3>Technical Notes</h3>
     <ul>
-      <li><strong>Hover:</strong> Move your mouse over the ball to create dents and hear warm pad sounds</li>
-      <li><strong>Click & Drag:</strong> Rotate the ball in any direction</li>
-      <li><strong>Cross Facet Boundaries:</strong> Hear unique crunchy sonic textures for each facet</li>
+      <li>Previous fixes failed because they didn't target the actual throttling mechanism in the original event handler</li>
+      <li>This version bypasses the original event code completely</li>
+      <li>Each sound now has a longer duration for better overlap</li>
+      <li>No throttling or conditionals of any kind are used</li>
     </ul>
-    
-    <h3>Special Effects</h3>
-    <ul>
-      <li><strong>Double-Click:</strong> Toggle rainbow mode with color cycling</li>
-      <li><strong>Mouse Wheel:</strong> Create spiky deformations</li>
-      <li><strong>Right-Click:</strong> Particle explosion effect</li>
-    </ul>
-    
-    <h3>Sound Experience</h3>
-    <p>Each triangle facet produces a unique sound with its own timbre. The hover movement creates warm musical tones that change with cursor position.</p>
     
     <!-- Effect Controls -->
     <h3>Effect Controls</h3>
@@ -51,21 +106,10 @@
       <button class="effect-button" id="btn-explosion">Explosion</button>
       <button class="effect-button" id="btn-reset">Reset Ball</button>
     </div>
-    
-    <!-- Audio Controls -->
-    <h3>Audio Controls</h3>
-    <div class="button-container">
-      <button class="effect-button audio-button" id="btn-audio-standard">Standard Audio</button>
-      <button class="effect-button audio-button" id="btn-audio-continuous">Continuous Audio Mode</button>
-      <button class="effect-button audio-button" id="btn-audio-test">Test Audio</button>
-    </div>
   </div>
   
   <!-- Status Indicator -->
   <div id="status-indicator"></div>
-  
-  <!-- Quick-Fix Audio Script - Added BEFORE main.js -->
-  <script type="text/javascript" src="quick-fix.js"></script>
   
   <!-- Main entry point script -->
   <script type="module" src="js/main.js"></script>
@@ -75,13 +119,15 @@
     document.addEventListener('DOMContentLoaded', () => {
       const menuBtn = document.getElementById('menu-btn');
       const instructions = document.getElementById('instructions');
+      const banner = document.getElementById('direct-fix-banner');
       
+      // Menu toggle
       menuBtn.addEventListener('click', () => {
         menuBtn.classList.toggle('open');
         instructions.classList.toggle('open');
       });
       
-      // Close instructions when clicking outside (but not on the ball)
+      // Close instructions when clicking outside
       document.addEventListener('click', (e) => {
         if (!instructions.contains(e.target) && 
             e.target !== menuBtn && 
@@ -92,19 +138,30 @@
         }
       });
       
+      // Fade banner after 10 seconds
+      setTimeout(() => {
+        banner.style.transition = 'opacity 2s';
+        banner.style.opacity = '0.3';
+        
+        // Show on hover
+        banner.addEventListener('mouseenter', () => {
+          banner.style.opacity = '1';
+        });
+        
+        banner.addEventListener('mouseleave', () => {
+          banner.style.opacity = '0.3';
+        });
+      }, 10000);
+      
       // Add event listeners for effect buttons
       const buttons = {
         rainbow: document.getElementById('btn-rainbow'),
         magnetic: document.getElementById('btn-magnetic'),
         blackhole: document.getElementById('btn-blackhole'),
         explosion: document.getElementById('btn-explosion'),
-        reset: document.getElementById('btn-reset'),
-        audioStandard: document.getElementById('btn-audio-standard'),
-        audioContinuous: document.getElementById('btn-audio-continuous'),
-        audioTest: document.getElementById('btn-audio-test')
+        reset: document.getElementById('btn-reset')
       };
       
-      // We'll define these functions in main.js and make them globally available
       if (buttons.rainbow) {
         buttons.rainbow.addEventListener('click', () => {
           if (window.appControls && window.appControls.toggleRainbowMode) {
@@ -150,54 +207,6 @@
         });
       }
       
-      // Add event listeners for audio control buttons
-      if (buttons.audioStandard) {
-        buttons.audioStandard.addEventListener('click', () => {
-          // Toggle audio mode to standard
-          if (window.audioSystem && window.audioSystem.soundScheduler) {
-            // Reset to standard settings
-            if (window.audioSystem.soundScheduler.setContinuousMode) {
-              window.audioSystem.soundScheduler.setContinuousMode(false);
-            }
-            window.audioSystem.soundScheduler.maxSoundsPerSecond = 20;
-            showStatus('Standard Audio Mode Activated');
-          } else {
-            showStatus('Audio system not fully initialized');
-          }
-        });
-      }
-      
-      if (buttons.audioContinuous) {
-        buttons.audioContinuous.addEventListener('click', () => {
-          // Toggle audio mode to continuous
-          if (window.audioSystem && window.audioSystem.soundScheduler) {
-            // Enable continuous mode
-            if (window.audioSystem.soundScheduler.setContinuousMode) {
-              window.audioSystem.soundScheduler.setContinuousMode(true);
-            }
-            window.audioSystem.soundScheduler.maxSoundsPerSecond = 30;
-            showStatus('Continuous Audio Mode Activated');
-          } else if (window.enableContinuousSoundMode && window.app) {
-            window.enableContinuousSoundMode(window.app);
-            showStatus('Continuous Audio Mode Activated');
-          } else {
-            showStatus('Audio system not fully initialized');
-          }
-        });
-      }
-      
-      if (buttons.audioTest) {
-        buttons.audioTest.addEventListener('click', () => {
-          // Play test sound
-          if (window.appControls && window.appControls.playSound) {
-            window.appControls.playSound();
-            showStatus('Test Sound Played');
-          } else {
-            showStatus('Audio test function not available');
-          }
-        });
-      }
-      
       // Status indicator function
       function showStatus(message) {
         const statusIndicator = document.getElementById('status-indicator');
@@ -212,34 +221,12 @@
       
       // Make showStatus available globally
       window.showStatus = showStatus;
+      
+      // Show welcome message
+      setTimeout(() => {
+        showStatus('DIRECT SOUND FIX ACTIVE - Move the mouse SLOWLY for best results!');
+      }, 2000);
     });
   </script>
-  
-  <style>
-    /* Add styles for audio buttons */
-    .audio-button {
-      background-color: #2a4494;
-    }
-    
-    .audio-button:hover {
-      background-color: #3a5494;
-    }
-    
-    #btn-audio-continuous {
-      background-color: #447744;
-    }
-    
-    #btn-audio-continuous:hover {
-      background-color: #558855;
-    }
-    
-    #btn-audio-test {
-      background-color: #774477;
-    }
-    
-    #btn-audio-test:hover {
-      background-color: #885588;
-    }
-  </style>
 </body>
 </html>
