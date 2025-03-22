@@ -147,73 +147,207 @@ window.appControls = {
     }
 };
 
+/**
+ * Create a simpler emergency ball if the main ball creation fails
+ * This ensures users always see something rather than an empty scene
+ */
+function createEmergencyBall() {
+    console.log("Creating emergency ball...");
+    
+    if (!window.app || !window.app.scene) {
+        console.error("Cannot create emergency ball: app or scene missing");
+        return;
+    }
+    
+    try {
+        // Create a simple sphere with fewer segments
+        const geometry = new THREE.SphereGeometry(1, 16, 16);
+        
+        // Create a simple material (no complex textures or effects)
+        const material = new THREE.MeshBasicMaterial({
+            color: 0x8866ff,
+            wireframe: false
+        });
+        
+        // Create wireframe material
+        const wireMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            wireframe: true
+        });
+        
+        // Create meshes
+        const mesh = new THREE.Mesh(geometry, material);
+        const wireMesh = new THREE.Mesh(geometry, wireMaterial);
+        
+        // Create group to hold both meshes
+        const ballGroup = new THREE.Group();
+        ballGroup.add(mesh);
+        ballGroup.add(wireMesh);
+        
+        // Store references in userData
+        ballGroup.userData = {
+            mesh: mesh,
+            wireMesh: wireMesh,
+            mat: material,
+            wireMat: wireMaterial,
+            geo: geometry,
+            isEmergencyBall: true,
+            originalPositions: geometry.attributes.position.array.slice()
+        };
+        
+        // Add to scene
+        window.app.scene.add(ballGroup);
+        window.app.ballGroup = ballGroup;
+        
+        // Add emit function for compatibility with event system
+        ballGroup.emit = function(eventName, data) {
+            console.log(`Ball event: ${eventName}`, data);
+        };
+        
+        console.log("Emergency ball created successfully");
+        
+        // Show status message to user
+        if (window.showStatus) {
+            window.showStatus("Using simplified ball model");
+        }
+        
+        return ballGroup;
+    } catch (error) {
+        console.error("Failed to create emergency ball:", error);
+        return null;
+    }
+}
+
 // Initialize the application
 function init() {
     console.log("Initializing application...");
 
-    // Set up renderer
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    window.app.renderer = setupRenderer(w, h);
-    document.body.appendChild(window.app.renderer.domElement);
-    console.log("Renderer added to DOM");
+    try {
+        // Set up renderer
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        window.app.renderer = setupRenderer(w, h);
+        document.body.appendChild(window.app.renderer.domElement);
+        console.log("Renderer added to DOM");
 
-    // Create scene
-    window.app.scene = createScene();
-    console.log("Scene created");
+        // Create scene
+        window.app.scene = createScene();
+        console.log("Scene created");
 
-    // Create camera
-    window.app.camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
-    window.app.camera.position.set(0, 0, 2);
-    window.app.camera.add(listener);
-    console.log("Camera created");
+        // Create camera
+        window.app.camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
+        window.app.camera.position.set(0, 0, 2);
+        window.app.camera.add(listener);
+        console.log("Camera created");
 
-    // Create lights
-    const hemilight = new THREE.HemisphereLight(0xffffff, 0x000000, 1);
-    hemilight.position.set(0, 1, 0).normalize();
-    window.app.scene.add(hemilight);
+        // Create lights
+        const hemilight = new THREE.HemisphereLight(0xffffff, 0x000000, 1);
+        hemilight.position.set(0, 1, 0).normalize();
+        window.app.scene.add(hemilight);
 
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(1, 1, 1).normalize();
-    window.app.scene.add(light);
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(1, 1, 1).normalize();
+        window.app.scene.add(light);
 
-    const light2 = new THREE.DirectionalLight(0xffffff, 1);
-    light2.position.set(-1, -1, -1).normalize();
-    window.app.scene.add(light2);
+        const light2 = new THREE.DirectionalLight(0xffffff, 1);
+        light2.position.set(-1, -1, -1).normalize();
+        window.app.scene.add(light2);
 
-    const pointLight = new THREE.PointLight(0xFFFFFF, 1, 5);
-    pointLight.position.set(0, 0, 2);
-    window.app.scene.add(pointLight);
-    window.app.scene.userData.pointLight = pointLight;
+        const pointLight = new THREE.PointLight(0xFFFFFF, 1, 5);
+        pointLight.position.set(0, 0, 2);
+        window.app.scene.add(pointLight);
+        window.app.scene.userData.pointLight = pointLight;
 
-    console.log("Lights set up");
+        console.log("Lights set up");
 
-    // Add event listener for window resize
-    window.addEventListener('resize', onWindowResize);
-    console.log("Resize handler set up");
+        // Add event listener for window resize
+        window.addEventListener('resize', onWindowResize);
+        console.log("Resize handler set up");
 
-    // Create the ball
-    createBall(window.app);
-    console.log("Ball created");
+        // Try to create the ball
+        try {
+            console.log("Attempting to create ball...");
+            const ball = createBall(window.app);
+            console.log("Ball creation result:", ball ? "Success" : "Failed");
+            
+            // If ball creation failed, create emergency ball
+            if (!ball || !window.app.ballGroup) {
+                console.warn("Ball not created successfully, trying emergency ball");
+                createEmergencyBall();
+            }
+        } catch (ballError) {
+            console.error("Error creating ball:", ballError);
+            createEmergencyBall();
+        }
 
-    // Set up event listeners for interactivity
-    setupEventListeners(window.app);
-    console.log("Event listeners set up");
-
-    // Initialize audio on first user interaction
-    document.addEventListener('click', initOnFirstClick, { once: true });
-    document.addEventListener('mousedown', initOnFirstClick, { once: true });
-    document.addEventListener('touchstart', initOnFirstClick, { once: true });
-    document.addEventListener('keydown', initOnFirstClick, { once: true });
-
-    // Start animation loop
-    animate();
-    console.log("Animation loop started");
-
-    // Add debug button for audio testing
-    addDebugButton();
-
-    console.log("Application initialized successfully");
+        // Set up event listeners for interactivity
+        setupEventListeners(window.app);
+        console.log("Event listeners set up");
+        
+        // Initialize audio on first user interaction
+        document.addEventListener('click', initOnFirstClick, { once: true });
+        document.addEventListener('mousedown', initOnFirstClick, { once: true });
+        document.addEventListener('touchstart', initOnFirstClick, { once: true });
+        document.addEventListener('keydown', initOnFirstClick, { once: true });
+        
+        // Start animation loop
+        animate();
+        console.log("Animation loop started");
+        
+        // Add debug button for audio testing
+        addDebugButton();
+        
+        console.log("Application initialized successfully");
+    } catch (error) {
+        console.error("Error initializing application:", error);
+        
+        // Try to recover with minimal initialization
+        try {
+            if (!window.app.renderer) {
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                window.app.renderer = new THREE.WebGLRenderer({ antialias: true });
+                window.app.renderer.setSize(w, h);
+                document.body.appendChild(window.app.renderer.domElement);
+            }
+            
+            if (!window.app.scene) {
+                window.app.scene = new THREE.Scene();
+                window.app.scene.background = new THREE.Color(0x000000);
+            }
+            
+            if (!window.app.camera) {
+                window.app.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                window.app.camera.position.z = 2;
+            }
+            
+            if (!window.app.ballGroup) {
+                createEmergencyBall();
+            }
+            
+            // Start minimal animation loop
+            function minimalAnimate() {
+                requestAnimationFrame(minimalAnimate);
+                
+                // Rotate ball if it exists
+                if (window.app.ballGroup) {
+                    window.app.ballGroup.rotation.y += 0.01;
+                }
+                
+                // Render
+                window.app.renderer.render(window.app.scene, window.app.camera);
+            }
+            
+            minimalAnimate();
+            console.log("Minimal fallback initialization completed");
+            
+            if (window.showStatus) {
+                window.showStatus("Running in fallback mode");
+            }
+        } catch (fallbackError) {
+            console.error("Critical failure in fallback:", fallbackError);
+        }
+    }
 }
 
 // Function to handle window resize
@@ -232,10 +366,18 @@ function animate() {
     requestAnimationFrame(animate);
     
     try {
-        // Update ball animations
-        updateBallScale(window.app);
-        updateBallRotation(window.app);
-        updateBallPosition(window.app);
+        // Update ball animations if ball exists
+        if (window.app.ballGroup) {
+            try {
+                updateBallScale(window.app);
+                updateBallRotation(window.app);
+                updateBallPosition(window.app);
+            } catch (ballError) {
+                console.error("Error updating ball:", ballError);
+                // At least make it rotate
+                window.app.ballGroup.rotation.y += 0.01;
+            }
+        }
         
         // Update special effects - wrap in try/catch to prevent one effect from breaking everything
         try {
