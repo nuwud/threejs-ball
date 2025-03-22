@@ -5,7 +5,8 @@ import {
     playToneForPosition, 
     playFacetSound, 
     playClickSound, 
-    playReleaseSound
+    playReleaseSound,
+    playEnhancedFacetSound
 } from './audio/core.js';
 import { applyDeformation, resetDeformation } from './ball.js';
 import { createGradientTexture, updateGradientColors } from './effects/gradients.js';
@@ -393,6 +394,27 @@ function detectFacetChange(app, intersects) {
             }
         }
     }
+    return false; // No facet change
+}
+
+function handleIntersection(app, intersects) {
+    // Safety check
+    if (!app || !intersects || !Array.isArray(intersects) || intersects.length === 0) {
+        return false;
+    }
+    
+    // Replace the original sound playing code with enhanced version
+    if (intersects.length > 0) {
+        const facet = {
+            index: intersects[0].faceIndex,
+            object: intersects[0].object
+        };
+        // Use the enhanced sound function instead of the original one
+        playEnhancedFacetSound(app, facet);
+        
+        // ...rest of the handler...
+    }
+    
     return false; // No facet change
 }
 

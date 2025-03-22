@@ -8,15 +8,9 @@ import {
     setupAudioAnalyzer, 
     createAudioVisualization, 
     updateAudioVisualization,
-    SoundSynthesizer,
     getSynthesizer,
     createBallSoundEffects
 } from './audio/index.js';
-import { 
-    playFacetSound,
-    playClickSound,
-    playReleaseSound
-} from './audio/core.js';
 import { createBall, updateBallScale, updateBallRotation, updateBallPosition, resetBall } from './ball.js';
 import { setupEventListeners } from './events.js';
 import { 
@@ -34,7 +28,25 @@ import { createTrailEffect, updateTrailEffect } from './effects/trail.js';
 import { applySpikyEffect } from './effects/spiky.js';
 import { resetDeformation } from './effects/deformation.js';
 
-// All imports are now at the top of the file
+// Audio core imports - keep these intact
+import { 
+    playFacetSound,
+    playClickSound,
+    playReleaseSound,
+    soundManager, 
+    enableContinuousSoundMode
+} from './audio/core.js';
+
+// Make soundManager globally available
+window.soundManager = soundManager;
+
+// Dynamically load debugAudioSystem but don't let it break the main app
+window.debugAudioSystem = null;
+import('./audio/core.js').then(module => {
+    if (module.debugAudioSystem) {
+        window.debugAudioSystem = module.debugAudioSystem;
+    }
+}).catch(e => console.warn("Could not load debug audio system:", e));
 
 console.log("Initializing application...");
 
@@ -154,9 +166,16 @@ window.appControls = {
 function createEmergencyBall() {
     console.log("Creating emergency ball...");
     
-    if (!window.app || !window.app.scene) {
-        console.error("Cannot create emergency ball: app or scene missing");
-        return;
+    if (!window.app) {
+        console.error("Cannot create emergency ball: app object missing");
+        return null;
+    }
+    
+    // Make sure we have a scene - create one if it doesn't exist
+    if (!window.app.scene) {
+        console.warn("Scene not found, creating a new scene for emergency ball");
+        window.app.scene = new THREE.Scene();
+        window.app.scene.background = new THREE.Color(0x000033); // Dark blue background
     }
     
     try {
@@ -205,6 +224,13 @@ function createEmergencyBall() {
         };
         
         console.log("Emergency ball created successfully");
+        
+        // Make sure we have a camera
+        if (!window.app.camera) {
+            console.warn("Camera not found, creating a new camera for emergency ball");
+            window.app.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            window.app.camera.position.z = 2;
+        }
         
         // Show status message to user
         if (window.showStatus) {
@@ -263,6 +289,19 @@ function init() {
         // Add event listener for window resize
         window.addEventListener('resize', onWindowResize);
         console.log("Resize handler set up");
+
+        // Initialize soundManager early and attach to window.app
+        if (soundManager && !window.app.soundManager) {
+            window.app.soundManager = soundManager;
+            if (typeof soundManager.init === 'function') {
+                try {
+                    soundManager.init();
+                    console.log("Sound manager initialized early");
+                } catch (e) {
+                    console.warn("Early sound manager initialization failed:", e);
+                }
+            }
+        }
 
         // Try to create the ball
         try {
@@ -445,6 +484,22 @@ function initOnFirstClick() {
         // Set a flag to prevent infinite loops if audio initialization fails
         window.app.audioInitialized = true;
         
+        // Ensure soundManager is attached to app
+        if (!window.app.soundManager && soundManager) {
+            window.app.soundManager = soundManager;
+            console.log("Sound manager attached to app");
+        }
+        
+        // Initialize soundManager if not already done
+        if (window.app.soundManager && typeof window.app.soundManager.init === 'function' && !window.app.soundManager.initialized) {
+            try {
+                window.app.soundManager.init();
+                console.log("Sound manager initialized");
+            } catch (e) {
+                console.error("Failed to initialize sound manager:", e);
+            }
+        }
+        
         // Setup audio systems with timeouts to prevent blocking
         setTimeout(() => {
             try {
@@ -542,6 +597,68 @@ function addDebugButton() {
     
     document.body.appendChild(button);
 }
+
+// Add this to your initialization code to handle the new UI controls
+function initAudioControls() {
+    const audioEnabledCheckbox = document.getElementById('audio-enabled');
+    const continuousModeCheckbox = document.getElementById('continuous-mode');
+    const visualizationCheckbox = document.getElementById('visualization');
+    const volumeSlider = document.getElementById('volume');
+    
+    // Check if elements exist in the DOM
+    if (!audioEnabledCheckbox || !continuousModeCheckbox || 
+        !visualizationCheckbox || !volumeSlider) {
+        console.warn("Audio control elements not found in DOM");
+        return;
+    }
+    
+    // Set initial states - WITH NULL CHECKS
+    audioEnabledCheckbox.checked = true;
+    continuousModeCheckbox.checked = true;
+    visualizationCheckbox.checked = true;
+    
+    // Initialize master volume - WITH NULL CHECKS
+    if (window.app && window.app.soundManager && window.app.soundManager.masterGain) {
+        volumeSlider.value = window.app.soundManager.masterGain.gain.value * 100;
+    } else {
+        volumeSlider.value = 70; // Default value
+    }
+    
+    // Add event listeners
+    audioEnabledCheckbox.addEventListener('change', (e) => {
+        if (!window.app || !window.app.soundManager || !window.app.soundManager.masterGain) return;
+        
+        if (e.target.checked) {
+            window.app.soundManager.masterGain.gain.value = volumeSlider.value / 100;
+        } else {
+            window.app.soundManager.masterGain.gain.value = 0;
+        }
+    });
+    
+    continuousModeCheckbox.addEventListener('change', (e) => {
+        if (window.app) {
+            window.app.continuousSoundEnabled = e.target.checked;
+        }
+    });
+    
+    visualizationCheckbox.addEventListener('change', (e) => {
+        if (window.app && window.app.audioVisualization) {
+            window.app.audioVisualization.enabled = e.target.checked;
+        }
+    });
+    
+    volumeSlider.addEventListener('input', (e) => {
+        if (!window.app || !window.app.soundManager || !window.app.soundManager.masterGain) return;
+        
+        if (audioEnabledCheckbox.checked) {
+            window.app.soundManager.masterGain.gain.value = e.target.value / 100;
+        }
+    });
+}
+
+// Don't call initAudioControls immediately - call it after a delay
+// to ensure the DOM elements are loaded
+setTimeout(initAudioControls, 1000); 
 
 // Initialize the application
 init();

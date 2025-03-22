@@ -71,13 +71,74 @@
     <button id="toggleTrail" onclick="window.appControls && window.appControls.toggleTrailEffect && window.appControls.toggleTrailEffect()">Toggle Motion Trail</button>
   </div>
   
-  <!-- Main entry point script (use the js/main.js version) -->
+  <!-- Add this to your HTML, likely near other UI controls -->
+  <div class="audio-controls">
+    <div class="control-group">
+      <label for="audio-enabled">Audio Enabled</label>
+      <input type="checkbox" id="audio-enabled" checked>
+    </div>
+    
+    <div class="control-group">
+      <label for="continuous-mode">Continuous Mode</label>
+      <input type="checkbox" id="continuous-mode" checked>
+    </div>
+    
+    <div class="control-group">
+      <label for="visualization">Visualization</label>
+      <input type="checkbox" id="visualization" checked>
+    </div>
+    
+    <div class="control-group">
+      <label for="volume">Volume</label>
+      <input type="range" id="volume" min="0" max="100" value="70">
+    </div>
+  </div>
+  
+  <div class="audio-debug-panel">
+    <button id="btn-standard-audio">Standard Audio</button>
+    <button id="btn-continuous-audio">Continuous Audio</button>
+    <button id="btn-audio-visualization">Toggle Visualization</button>
+    <div class="volume-control">
+      <label for="volume-slider">Volume:</label>
+      <input id="volume-slider" type="range" min="0" max="100" value="70">
+    </div>
+    <button id="btn-audio-debug" onclick="debugAudio()">Debug Audio</button>
+  </div>
+
+  <!-- Main entry point script -->
   <script type="module" src="js/main.js"></script>
   
-  <!-- Debug script to help diagnose issues -->
-  <script src="debug.js"></script>
+  <!-- Debug script to help diagnose issues - but DON'T auto-initialize it -->
+  <script type="module">
+    import { initDebug } from './debug.js';
+    
+    // Make debug initialization available on window
+    window.initDebug = initDebug;
+    
+    // Add a button to manually initialize debug
+    const debugButton = document.createElement('button');
+    debugButton.textContent = 'Debug Tools';
+    debugButton.style.position = 'fixed';
+    debugButton.style.top = '10px';
+    debugButton.style.left = '10px';
+    debugButton.style.zIndex = '1000';
+    debugButton.style.background = '#4466aa';
+    debugButton.style.color = 'white';
+    debugButton.style.border = 'none';
+    debugButton.style.borderRadius = '4px';
+    debugButton.style.padding = '8px 16px';
+    debugButton.style.cursor = 'pointer';
+    
+    debugButton.onclick = function() {
+      initDebug();
+    };
+    
+    // Add button to DOM after a delay
+    setTimeout(() => {
+      document.body.appendChild(debugButton);
+    }, 2000);
+  </script>
   
-  <!-- Menu Toggle Script -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const menuBtn = document.getElementById('menu-btn');
@@ -220,6 +281,34 @@
       // Make showStatus available globally
       window.showStatus = showStatus;
     });
+
+    // Simplified debug function that works with both approaches
+    function debugAudio() {
+      if (window.app) {
+        if (window.debugAudioSystem) {
+          // Use the globally available function that was set by either main.js or debug.js
+          window.debugAudioSystem(window.app);
+        } else {
+          // Dynamic import fallback
+          import('./js/audio/core.js')
+            .then(module => {
+              if (module.debugAudioSystem) {
+                module.debugAudioSystem(window.app);
+              } else {
+                console.log("debugAudioSystem not exported from module");
+                console.log("Audio state:", 
+                  window.app.audioContext ? "Context exists" : "No context",
+                  window.app.soundManager ? "Manager exists" : "No manager");
+              }
+            })
+            .catch(err => {
+              console.error("Error importing audio core:", err);
+            });
+        }
+      } else {
+        console.log("App not initialized yet");
+      }
+    }
   </script>
   
   <style>
@@ -271,6 +360,76 @@
     
     .controls button:hover {
       background-color: #3a5494;
+    }
+
+    /* Add styles for audio controls */
+    .audio-controls {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 1000;
+    }
+    
+    .control-group {
+      margin-bottom: 10px;
+    }
+    
+    .control-group label {
+      display: block;
+      color: white;
+      margin-bottom: 5px;
+    }
+    
+    .control-group input[type="checkbox"] {
+      margin-right: 5px;
+    }
+    
+    .control-group input[type="range"] {
+      width: 100%;
+    }
+
+    /* Add styles for debug panel */
+    .audio-debug-panel {
+      position: fixed;
+      bottom: 80px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 1000;
+    }
+    
+    .audio-debug-panel button {
+      display: block;
+      width: 100%;
+      margin-bottom: 5px;
+      padding: 5px;
+      background: #4466aa;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    
+    .audio-debug-panel button:hover {
+      background: #5577bb;
+    }
+    
+    .volume-control {
+      margin: 10px 0;
+    }
+    
+    .volume-control label {
+      display: block;
+      color: white;
+      margin-bottom: 5px;
+    }
+    
+    .volume-control input {
+      width: 100%;
     }
   </style>
 </body>
