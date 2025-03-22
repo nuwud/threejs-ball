@@ -8,11 +8,8 @@ import {
     setupAudioAnalyzer, 
     createAudioVisualization, 
     updateAudioVisualization,
-    playFacetSound,
-    playClickSound,
-    playReleaseSound,
-    ensureAudioInitialized
-} from './audio/core.js';
+    SoundSynthesizer
+} from './audio/index.js';
 import { createBall, updateBallScale, updateBallRotation, updateBallPosition, resetBall } from './ball.js';
 import { setupEventListeners } from './events.js';
 import { 
@@ -24,6 +21,33 @@ import {
     createMagneticTrail,
     createBlackholeEffect
 } from './effects/index.js';
+
+// Define missing functions
+function playFacetSound(app, facetIndex) {
+    if (app.soundSynth) {
+        app.soundSynth.playFacetSound(facetIndex);
+    }
+}
+
+function playClickSound(app) {
+    if (app.soundSynth) {
+        app.soundSynth.playClickSound();
+    }
+}
+
+function playReleaseSound(app) {
+    if (app.soundSynth) {
+        app.soundSynth.playReleaseSound();
+    }
+}
+
+function ensureAudioInitialized(app) {
+    if (!app.audioInitialized) {
+        initOnFirstClick();
+    }
+}
+
+// All imports are now at the top of the file
 
 console.log("Initializing application...");
 
@@ -184,24 +208,41 @@ function onWindowResize() {
 function animate() {
     requestAnimationFrame(animate);
     
-    // Update ball animations
-    updateBallScale(window.app);
-    updateBallRotation(window.app);
-    updateBallPosition(window.app);
-    
-    // Update special effects
-    updateParticleExplosion(window.app);
-    updateMagneticParticles(window.app);
-    updateBlackholeEffect(window.app);
-    updateRainbowMode(window.app);
-    
-    // Update audio visualization if available
-    if (window.app.audioContext && window.app.analyser) {
-        updateAudioVisualization(window.app);
+    try {
+        // Update ball animations
+        updateBallScale(window.app);
+        updateBallRotation(window.app);
+        updateBallPosition(window.app);
+        
+        // Update special effects - wrap in try/catch to prevent one effect from breaking everything
+        try {
+            updateParticleExplosion(window.app);
+        } catch (e) { console.error("Error in particle explosion:", e); }
+        
+        try {
+            updateMagneticParticles(window.app);
+        } catch (e) { console.error("Error in magnetic particles:", e); }
+        
+        try {
+            updateBlackholeEffect(window.app);
+        } catch (e) { console.error("Error in blackhole effect:", e); }
+        
+        try {
+            updateRainbowMode(window.app);
+        } catch (e) { console.error("Error in rainbow mode:", e); }
+        
+        // Update audio visualization if available
+        if (window.app.audioContext && window.app.analyser) {
+            try {
+                updateAudioVisualization(window.app);
+            } catch (e) { console.error("Error in audio visualization:", e); }
+        }
+        
+        // Render the scene
+        window.app.renderer.render(window.app.scene, window.app.camera);
+    } catch (error) {
+        console.error("Error in animation loop:", error);
     }
-    
-    // Render the scene
-    window.app.renderer.render(window.app.scene, window.app.camera);
 }
 
 // Initialize audio on first user interaction
@@ -212,31 +253,47 @@ function initOnFirstClick() {
         
         console.log("Initializing audio on first user interaction");
         
-        setupAudio(window.app);
-        setupAudioAnalyzer(window.app);
-        
-        // Create audio visualizations
-        createAudioVisualization(window.app);
-        
-        if (window.app.audioContext && window.app.audioContext.state === 'suspended') {
-            window.app.audioContext.resume().then(() => {
-                console.log("AudioContext resumed successfully");
-                
-                // Play a test sound to verify that audio is working
-                if (window.app.soundSynth) {
-                    setTimeout(() => {
-                        window.app.soundSynth.playWarmPad(440, 0.5);
-                    }, 500);
-                }
-            }).catch(err => {
-                console.error("Failed to resume AudioContext:", err);
-            });
-        }
-        
+        // Set a flag to prevent infinite loops if audio initialization fails
         window.app.audioInitialized = true;
-        console.log("Audio effects initialized");
+        
+        // Setup audio systems with timeouts to prevent blocking
+        setTimeout(() => {
+            try {
+                setupAudio(window.app);
+                console.log("Audio setup complete");
+                
+                // Setup analyzer after short delay
+                setTimeout(() => {
+                    try {
+                        setupAudioAnalyzer(window.app);
+                        console.log("Audio analyzer setup complete");
+                        
+                        // Create audio visualizations
+                        createAudioVisualization(window.app);
+                        console.log("Audio visualization created");
+                        
+                        // Resume audio context if needed
+                        if (window.app.audioContext && window.app.audioContext.state === 'suspended') {
+                            window.app.audioContext.resume().then(() => {
+                                console.log("AudioContext resumed successfully");
+                            }).catch(err => {
+                                console.error("Failed to resume AudioContext:", err);
+                            });
+                        }
+                    } catch (analyzerError) {
+                        console.error("Error setting up audio analyzer:", analyzerError);
+                    }
+                }, 100);
+            } catch (setupError) {
+                console.error("Error in audio setup:", setupError);
+            }
+        }, 100);
+        
+        console.log("Audio initialization scheduled");
     } catch (error) {
         console.error("Error initializing audio:", error);
+        // Mark as initialized even if it fails to prevent retries
+        window.app.audioInitialized = true;
     }
 }
 

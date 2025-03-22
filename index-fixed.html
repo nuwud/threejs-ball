@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive 3D Ball with Three.js</title>
+  <link rel="stylesheet" href="styles/styles.css" />
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- Hamburger Menu -->
+  <div class="hamburger-menu" id="menu-btn">
+    <span></span>
+  </div>
+  
+  <!-- Instructions Panel -->
+  <div id="instructions">
+    <h2>Interactive 3D Ball</h2>
+    
+    <h3>Basic Interactions</h3>
+    <ul>
+      <li><strong>Hover:</strong> Move your mouse over the ball to create dents and hear warm pad sounds</li>
+      <li><strong>Click & Drag:</strong> Rotate the ball in any direction</li>
+      <li><strong>Cross Facet Boundaries:</strong> Hear unique crunchy sonic textures for each facet</li>
+    </ul>
+    
+    <h3>Special Effects</h3>
+    <ul>
+      <li><strong>Double-Click:</strong> Toggle rainbow mode with color cycling</li>
+      <li><strong>Mouse Wheel:</strong> Create spiky deformations</li>
+      <li><strong>Right-Click:</strong> Particle explosion effect</li>
+    </ul>
+    
+    <h3>Sound Experience</h3>
+    <p>Each triangle facet produces a unique sound with its own timbre. The hover movement creates warm musical tones that change with cursor position.</p>
+    
+    <!-- Effect Controls -->
+    <h3>Effect Controls</h3>
+    <div class="button-container">
+      <button class="effect-button" id="btn-rainbow">Rainbow Mode</button>
+      <button class="effect-button" id="btn-magnetic">Magnetic Effect</button>
+      <button class="effect-button" id="btn-blackhole">Blackhole</button>
+      <button class="effect-button" id="btn-explosion">Explosion</button>
+      <button class="effect-button" id="btn-reset">Reset Ball</button>
+    </div>
+  </div>
+  
+  <!-- Status Indicator -->
+  <div id="status-indicator"></div>
+  
+  <!-- Debug and error handler script -->
+  <script>
+    // Error monitoring to help diagnose issues
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      console.error(`Error: ${msg} at ${url}:${lineNo}:${columnNo}`);
+      
+      // Show in status indicator
+      const statusIndicator = document.getElementById('status-indicator');
+      if (statusIndicator) {
+        statusIndicator.textContent = `Error: ${msg}`;
+        statusIndicator.style.backgroundColor = "rgba(255, 0, 0, 0.7)";
+        statusIndicator.classList.add('visible');
+        
+        // Hide after 3 seconds
+        setTimeout(() => {
+          statusIndicator.classList.remove('visible');
+        }, 3000);
+      }
+      
+      return false; // Let default error handling continue
+    };
+    
+    // Global app object for error recovery
+    window.app = window.app || {
+      audioInitialized: false,
+      audioInitializationFailed: false,
+      isRainbowMode: false,
+      isMagneticMode: false
+    };
+    
+    // Safer initialization function
+    function safeInitApp() {
+      // Check for required dependencies
+      if (typeof THREE === 'undefined') {
+        console.error("THREE.js library not loaded");
+        return;
+      }
+      
+      console.log("Starting initialization...");
+      
+      // Safer module loading
+      import('./js/main.js')
+        .then(() => {
+          console.log("Main module loaded successfully");
+        })
+        .catch(err => {
+          console.error("Failed to load main module:", err);
+          
+          // Try fallback
+          console.log("Trying fallback initialization...");
+          import('./quick-fix.js')
+            .then(() => {
+              console.log("Fallback loaded successfully");
+            })
+            .catch(fallbackErr => {
+              console.error("Fallback also failed:", fallbackErr);
+              
+              // Show error to user
+              const statusIndicator = document.getElementById('status-indicator');
+              if (statusIndicator) {
+                statusIndicator.textContent = "Failed to initialize application. Check console for details.";
+                statusIndicator.style.backgroundColor = "rgba(255, 0, 0, 0.7)";
+                statusIndicator.classList.add('visible');
+              }
+            });
+        });
+    }
+    
+    // Start when DOM is ready
+    document.addEventListener('DOMContentLoaded', safeInitApp);
+  </script>
+  
+  <!-- Main entry point script -->
+  <script type="module" src="js/main.js"></script>
+  
+  <!-- Menu Toggle Script -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const menuBtn = document.getElementById('menu-btn');
+      const instructions = document.getElementById('instructions');
+      
+      menuBtn.addEventListener('click', () => {
+        menuBtn.classList.toggle('open');
+        instructions.classList.toggle('open');
+      });
+      
+      // Close instructions when clicking outside (but not on the ball)
+      document.addEventListener('click', (e) => {
+        if (!instructions.contains(e.target) && 
+            e.target !== menuBtn && 
+            !menuBtn.contains(e.target) &&
+            !e.target.closest('canvas')) {
+          instructions.classList.remove('open');
+          menuBtn.classList.remove('open');
+        }
+      });
+      
+      // Add event listeners for effect buttons
+      const buttons = {
+        rainbow: document.getElementById('btn-rainbow'),
+        magnetic: document.getElementById('btn-magnetic'),
+        blackhole: document.getElementById('btn-blackhole'),
+        explosion: document.getElementById('btn-explosion'),
+        reset: document.getElementById('btn-reset')
+      };
+      
+      // We'll define these functions in main.js and make them globally available
+      if (buttons.rainbow) {
+        buttons.rainbow.addEventListener('click', () => {
+          if (window.appControls && window.appControls.toggleRainbowMode) {
+            window.appControls.toggleRainbowMode();
+            showStatus('Rainbow Mode ' + (window.app.isRainbowMode ? 'Activated' : 'Deactivated'));
+          }
+        });
+      }
+      
+      if (buttons.magnetic) {
+        buttons.magnetic.addEventListener('click', () => {
+          if (window.appControls && window.appControls.toggleMagneticMode) {
+            window.appControls.toggleMagneticMode();
+            showStatus('Magnetic Effect ' + (window.app.isMagneticMode ? 'Activated' : 'Deactivated'));
+          }
+        });
+      }
+      
+      if (buttons.blackhole) {
+        buttons.blackhole.addEventListener('click', () => {
+          if (window.appControls && window.appControls.createBlackholeEffect) {
+            window.appControls.createBlackholeEffect();
+            showStatus('Blackhole Effect Activated');
+          }
+        });
+      }
+      
+      if (buttons.explosion) {
+        buttons.explosion.addEventListener('click', () => {
+          if (window.appControls && window.appControls.createExplosion) {
+            window.appControls.createExplosion();
+            showStatus('Explosion Effect Activated');
+          }
+        });
+      }
+      
+      if (buttons.reset) {
+        buttons.reset.addEventListener('click', () => {
+          if (window.appControls && window.appControls.resetBall) {
+            window.appControls.resetBall();
+            showStatus('Ball Reset to Default State');
+          }
+        });
+      }
+      
+      // Status indicator function
+      function showStatus(message) {
+        const statusIndicator = document.getElementById('status-indicator');
+        statusIndicator.textContent = message;
+        statusIndicator.classList.add('visible');
+        
+        // Hide after 2 seconds
+        setTimeout(() => {
+          statusIndicator.classList.remove('visible');
+        }, 2000);
+      }
+      
+      // Make showStatus available globally
+      window.showStatus = showStatus;
+    });
+  </script>
+</body>
+</html>

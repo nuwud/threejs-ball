@@ -1,76 +1,329 @@
-import * as THREE from "three";
+// diagnostic.js - For troubleshooting problems with the app
+console.log("Loading diagnostic tools...");
 
-// Diagnostic function to check for errors
-function runDiagnostics() {
-    console.log("======= THREE.js BALL DIAGNOSTICS =======");
+// Add this to your HTML for debugging
+// <script src="js/diagnostic.js"></script>
+
+// Create a diagnostics panel
+function createDiagnosticPanel() {
+    // Create panel container
+    const panel = document.createElement('div');
+    panel.id = 'diagnostic-panel';
+    panel.style.position = 'fixed';
+    panel.style.top = '10px';
+    panel.style.right = '10px';
+    panel.style.width = '300px';
+    panel.style.padding = '10px';
+    panel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    panel.style.color = '#00FF00';
+    panel.style.border = '1px solid #00FF00';
+    panel.style.fontFamily = 'monospace';
+    panel.style.fontSize = '12px';
+    panel.style.zIndex = '10000';
+    panel.style.overflowY = 'auto';
+    panel.style.maxHeight = '80vh';
     
-    // Check THREE.js loaded properly
-    console.log("THREE.js version:", THREE.REVISION);
+    // Create header
+    const header = document.createElement('div');
+    header.textContent = 'Diagnostics';
+    header.style.borderBottom = '1px solid #00FF00';
+    header.style.marginBottom = '10px';
+    header.style.paddingBottom = '5px';
+    panel.appendChild(header);
     
-    // Check if the ball exists in the scene
-    if (window.app && window.app.ballGroup) {
-        console.log("Ball exists:", true);
-        console.log("Ball position:", window.app.ballGroup.position);
-        console.log("Ball userData:", window.app.ballGroup.userData);
-        
-        // Check if the mesh and wireframe exist
-        if (window.app.ballGroup.children.length > 0) {
-            console.log("Ball children count:", window.app.ballGroup.children.length);
-            window.app.ballGroup.children.forEach((child, index) => {
-                console.log(`Child ${index} type:`, child.type);
-            });
-        } else {
-            console.error("Ball has no children!");
-        }
-    } else {
-        console.error("Ball not found in scene!");
-    }
+    // Create content container
+    const content = document.createElement('div');
+    content.id = 'diagnostic-content';
+    panel.appendChild(content);
     
-    // Check audio initialization
-    if (window.app.audioContext) {
-        console.log("Audio context initialized:", true);
-        console.log("Sound synthesizer exists:", window.app.soundSynth ? true : false);
-    } else {
-        console.warn("Audio context not initialized yet. (This is normal before first interaction)");
-    }
+    // Add buttons
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.marginTop = '10px';
+    panel.appendChild(buttonContainer);
     
-    // Check event listeners
-    if (window.app.mouse) {
-        console.log("Mouse tracking initialized:", true);
-    } else {
-        console.error("Mouse tracking not initialized!");
-    }
+    // Force render button
+    const renderButton = document.createElement('button');
+    renderButton.textContent = 'Force Render';
+    renderButton.style.marginRight = '5px';
+    renderButton.style.padding = '5px';
+    renderButton.style.backgroundColor = '#004400';
+    renderButton.style.color = '#FFFFFF';
+    renderButton.style.border = 'none';
+    renderButton.style.cursor = 'pointer';
+    renderButton.onclick = forceRender;
+    buttonContainer.appendChild(renderButton);
     
-    // Check raycaster
-    if (window.app.raycaster) {
-        console.log("Raycaster initialized:", true);
-    } else {
-        console.error("Raycaster not initialized!");
-    }
+    // Skip audio button
+    const skipAudioButton = document.createElement('button');
+    skipAudioButton.textContent = 'Skip Audio';
+    skipAudioButton.style.marginRight = '5px';
+    skipAudioButton.style.padding = '5px';
+    skipAudioButton.style.backgroundColor = '#440000';
+    skipAudioButton.style.color = '#FFFFFF';
+    skipAudioButton.style.border = 'none';
+    skipAudioButton.style.cursor = 'pointer';
+    skipAudioButton.onclick = skipAudio;
+    buttonContainer.appendChild(skipAudioButton);
     
-    // Check for event handler properties
-    console.log("Event handlers setup:", {
-        isDragging: typeof window.app.isDragging !== 'undefined',
-        isHovered: typeof window.app.isHovered !== 'undefined',
-        touchPoint: typeof window.app.touchPoint !== 'undefined',
-        lastFacetIndex: typeof window.app.lastFacetIndex !== 'undefined'
-    });
+    // Add panel to body
+    document.body.appendChild(panel);
     
-    // Check special effects flags
-    console.log("Effects flags:", {
-        isRainbowMode: window.app.isRainbowMode,
-        isMagneticMode: window.app.isMagneticMode,
-        spikiness: window.app.spikiness
-    });
-    
-    console.log("====== END DIAGNOSTICS ======");
+    console.log("Diagnostic panel created");
+    return panel;
 }
 
-// Run diagnostics after a short delay to ensure everything has loaded
-setTimeout(runDiagnostics, 2000);
+// Update diagnostic info
+function updateDiagnostics() {
+    if (!window.app) {
+        console.error("App not initialized yet");
+        return;
+    }
+    
+    const content = document.getElementById('diagnostic-content');
+    if (!content) return;
+    
+    let html = '';
+    
+    // Renderer
+    html += '<div style="margin-bottom: 10px;">';
+    html += '<strong>Renderer:</strong> ' + (window.app.renderer ? 'YES' : 'NO') + '<br>';
+    if (window.app.renderer) {
+        html += 'Size: ' + window.app.renderer.getSize().width + 'x' + window.app.renderer.getSize().height + '<br>';
+    }
+    html += '</div>';
+    
+    // Scene
+    html += '<div style="margin-bottom: 10px;">';
+    html += '<strong>Scene:</strong> ' + (window.app.scene ? 'YES' : 'NO') + '<br>';
+    if (window.app.scene) {
+        html += 'Objects: ' + window.app.scene.children.length + '<br>';
+    }
+    html += '</div>';
+    
+    // Camera
+    html += '<div style="margin-bottom: 10px;">';
+    html += '<strong>Camera:</strong> ' + (window.app.camera ? 'YES' : 'NO') + '<br>';
+    if (window.app.camera) {
+        html += 'Position: ' + vec3ToString(window.app.camera.position) + '<br>';
+    }
+    html += '</div>';
+    
+    // Ball
+    html += '<div style="margin-bottom: 10px;">';
+    html += '<strong>Ball:</strong> ' + (window.app.ballGroup ? 'YES' : 'NO') + '<br>';
+    if (window.app.ballGroup) {
+        html += 'Children: ' + window.app.ballGroup.children.length + '<br>';
+        html += 'Position: ' + vec3ToString(window.app.ballGroup.position) + '<br>';
+        html += 'Rotation: ' + vec3ToString(window.app.ballGroup.rotation) + '<br>';
+    }
+    html += '</div>';
+    
+    // Audio
+    html += '<div style="margin-bottom: 10px;">';
+    html += '<strong>Audio:</strong> ' + (window.app.audioInitialized ? 'YES' : 'NO') + '<br>';
+    if (window.app.audioContext) {
+        html += 'Context State: ' + window.app.audioContext.state + '<br>';
+    }
+    if (window.app.soundSynth) {
+        html += 'Synthesizer: YES<br>';
+    } else {
+        html += 'Synthesizer: NO<br>';
+    }
+    html += '</div>';
+    
+    // Effects
+    html += '<div style="margin-bottom: 10px;">';
+    html += '<strong>Effects:</strong><br>';
+    html += 'Rainbow Mode: ' + (window.app.isRainbowMode ? 'ON' : 'OFF') + '<br>';
+    html += 'Magnetic Mode: ' + (window.app.isMagneticMode ? 'ON' : 'OFF') + '<br>';
+    html += '</div>';
+    
+    // Interaction
+    html += '<div style="margin-bottom: 10px;">';
+    html += '<strong>Interaction:</strong><br>';
+    html += 'Mouse: ' + vec2ToString(window.app.mouse) + '<br>';
+    html += 'Dragging: ' + (window.app.isDragging ? 'YES' : 'NO') + '<br>';
+    html += 'Hovered: ' + (window.app.isHovered ? 'YES' : 'NO') + '<br>';
+    html += '</div>';
+    
+    content.innerHTML = html;
+}
 
-// Create global access for debugging in console
-window.runDiagnostics = runDiagnostics;
+// Helper for vector display
+function vec3ToString(vec) {
+    if (!vec) return 'NULL';
+    return 'X: ' + vec.x.toFixed(2) + ', Y: ' + vec.y.toFixed(2) + ', Z: ' + vec.z.toFixed(2);
+}
 
-// Export the diagnostic function for importing in other files
-export { runDiagnostics };
+function vec2ToString(vec) {
+    if (!vec) return 'NULL';
+    return 'X: ' + vec.x.toFixed(2) + ', Y: ' + vec.y.toFixed(2);
+}
+
+// Force a render
+function forceRender() {
+    if (!window.app || !window.app.renderer || !window.app.scene || !window.app.camera) {
+        console.error("Cannot force render - missing components");
+        return;
+    }
+    
+    console.log("Forcing render...");
+    
+    // Create a minimal scene if needed
+    if (!window.app.scene.children.length) {
+        console.log("Creating minimal scene");
+        
+        // Create a simple box
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        const cube = new THREE.Mesh(geometry, material);
+        window.app.scene.add(cube);
+        
+        // Position camera
+        if (window.app.camera && window.app.camera.position.z === 0) {
+            window.app.camera.position.z = 5;
+        }
+    }
+    
+    // Force render
+    window.app.renderer.render(window.app.scene, window.app.camera);
+    console.log("Render forced");
+}
+
+// Skip audio initialization
+function skipAudio() {
+    console.log("Skipping audio initialization");
+    window.app.audioInitialized = true;
+}
+
+// Initialize diagnostics
+function initDiagnostics() {
+    console.log("Initializing diagnostics");
+    
+    // Create panel
+    const panel = createDiagnosticPanel();
+    
+    // Update diagnostics regularly
+    setInterval(updateDiagnostics, 1000);
+    
+    // Override console methods for logging to panel
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+    const originalConsoleWarn = console.warn;
+    
+    console.log = function() {
+        originalConsoleLog.apply(console, arguments);
+        addLogMessage('log', arguments);
+    };
+    
+    console.error = function() {
+        originalConsoleError.apply(console, arguments);
+        addLogMessage('error', arguments);
+    };
+    
+    console.warn = function() {
+        originalConsoleWarn.apply(console, arguments);
+        addLogMessage('warn', arguments);
+    };
+    
+    // Create log container
+    const logContainer = document.createElement('div');
+    logContainer.id = 'diagnostic-logs';
+    logContainer.style.marginTop = '20px';
+    logContainer.style.borderTop = '1px solid #00FF00';
+    logContainer.style.paddingTop = '10px';
+    logContainer.style.maxHeight = '200px';
+    logContainer.style.overflowY = 'auto';
+    panel.appendChild(logContainer);
+    
+    // Add heading
+    const logHeading = document.createElement('div');
+    logHeading.textContent = 'Console Logs';
+    logHeading.style.marginBottom = '5px';
+    logContainer.appendChild(logHeading);
+    
+    // Create log content
+    const logContent = document.createElement('div');
+    logContent.id = 'diagnostic-log-content';
+    logContainer.appendChild(logContent);
+    
+    console.log("Diagnostics initialized");
+}
+
+// Add a log message to the panel
+function addLogMessage(type, args) {
+    const logContent = document.getElementById('diagnostic-log-content');
+    if (!logContent) return;
+    
+    // Create log entry
+    const entry = document.createElement('div');
+    entry.style.marginBottom = '2px';
+    entry.style.wordBreak = 'break-word';
+    
+    // Set color based on type
+    if (type === 'error') {
+        entry.style.color = '#FF5555';
+    } else if (type === 'warn') {
+        entry.style.color = '#FFFF55';
+    } else {
+        entry.style.color = '#AAFFAA';
+    }
+    
+    // Build message
+    let message = '';
+    for (let i = 0; i < args.length; i++) {
+        if (typeof args[i] === 'object') {
+            try {
+                message += JSON.stringify(args[i]) + ' ';
+            } catch (e) {
+                message += args[i] + ' ';
+            }
+        } else {
+            message += args[i] + ' ';
+        }
+    }
+    
+    // Add timestamp
+    const now = new Date();
+    const timestamp = now.getHours().toString().padStart(2, '0') + ':' +
+                     now.getMinutes().toString().padStart(2, '0') + ':' +
+                     now.getSeconds().toString().padStart(2, '0');
+    
+    entry.textContent = `[${timestamp}] ${message}`;
+    
+    // Add to log content
+    logContent.insertBefore(entry, logContent.firstChild);
+    
+    // Limit number of entries
+    while (logContent.children.length > 50) {
+        logContent.removeChild(logContent.lastChild);
+    }
+}
+
+// Listen for app initialization
+document.addEventListener('DOMContentLoaded', function() {
+    // Wait for app to be created
+    const checkForApp = setInterval(function() {
+        if (window.app) {
+            clearInterval(checkForApp);
+            console.log("App detected, initializing diagnostics");
+            initDiagnostics();
+        }
+    }, 500);
+    
+    // Fallback in case app isn't created
+    setTimeout(function() {
+        if (!window.app) {
+            console.error("App not detected after timeout");
+            window.app = {
+                scene: null,
+                camera: null,
+                renderer: null,
+                audioInitialized: false
+            };
+            initDiagnostics();
+        }
+    }, 5000);
+});
+
+console.log("Diagnostic tools loaded");

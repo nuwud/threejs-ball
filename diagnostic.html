@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive 3D Ball - Diagnostic Mode</title>
+  <link rel="stylesheet" href="styles/styles.css" />
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+      }
+    }
+  </script>
+  <style>
+    /* Additional styles for diagnostic mode */
+    body::before {
+      content: "DIAGNOSTIC MODE";
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(255, 0, 0, 0.7);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-family: sans-serif;
+      font-size: 12px;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <!-- Hamburger Menu -->
+  <div class="hamburger-menu" id="menu-btn">
+    <span></span>
+  </div>
+  
+  <!-- Instructions Panel -->
+  <div id="instructions">
+    <h2>Interactive 3D Ball (Diagnostic Mode)</h2>
+    
+    <h3>Basic Interactions</h3>
+    <ul>
+      <li><strong>Hover:</strong> Move your mouse over the ball to create dents and hear warm pad sounds</li>
+      <li><strong>Click & Drag:</strong> Rotate the ball in any direction</li>
+      <li><strong>Cross Facet Boundaries:</strong> Hear unique crunchy sonic textures for each facet</li>
+    </ul>
+    
+    <h3>Special Effects</h3>
+    <ul>
+      <li><strong>Double-Click:</strong> Toggle rainbow mode with color cycling</li>
+      <li><strong>Mouse Wheel:</strong> Create spiky deformations</li>
+      <li><strong>Right-Click:</strong> Particle explosion effect</li>
+    </ul>
+    
+    <h3>Sound Experience</h3>
+    <p>Each triangle facet produces a unique sound with its own timbre. The hover movement creates warm musical tones that change with cursor position.</p>
+    
+    <!-- Effect Controls -->
+    <h3>Effect Controls</h3>
+    <div class="button-container">
+      <button class="effect-button" id="btn-rainbow">Rainbow Mode</button>
+      <button class="effect-button" id="btn-magnetic">Magnetic Effect</button>
+      <button class="effect-button" id="btn-blackhole">Blackhole</button>
+      <button class="effect-button" id="btn-explosion">Explosion</button>
+      <button class="effect-button" id="btn-reset">Reset Ball</button>
+    </div>
+    
+    <h3>Diagnostic Controls</h3>
+    <div class="button-container">
+      <button class="effect-button" id="btn-skip-audio">Skip Audio</button>
+      <button class="effect-button" id="btn-force-render">Force Render</button>
+      <button class="effect-button" id="btn-show-errors">Show Errors</button>
+    </div>
+  </div>
+  
+  <!-- Status Indicator -->
+  <div id="status-indicator"></div>
+
+  <!-- Load diagnostic script first -->
+  <script src="js/diagnostic.js"></script>
+  
+  <!-- Main entry point script -->
+  <script type="module" src="js/main.js"></script>
+  
+  <!-- Menu Toggle Script -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const menuBtn = document.getElementById('menu-btn');
+      const instructions = document.getElementById('instructions');
+      
+      menuBtn.addEventListener('click', () => {
+        menuBtn.classList.toggle('open');
+        instructions.classList.toggle('open');
+      });
+      
+      // Open instructions by default in diagnostic mode
+      setTimeout(() => {
+        menuBtn.classList.add('open');
+        instructions.classList.add('open');
+      }, 1000);
+      
+      // Close instructions when clicking outside (but not on the ball)
+      document.addEventListener('click', (e) => {
+        if (!instructions.contains(e.target) && 
+            e.target !== menuBtn && 
+            !menuBtn.contains(e.target) &&
+            !e.target.closest('canvas')) {
+          instructions.classList.remove('open');
+          menuBtn.classList.remove('open');
+        }
+      });
+      
+      // Diagnostic buttons
+      const skipAudioBtn = document.getElementById('btn-skip-audio');
+      if (skipAudioBtn) {
+        skipAudioBtn.addEventListener('click', () => {
+          if (window.app) {
+            window.app.audioInitialized = true;
+            console.log("Audio initialization skipped");
+            showStatus("Audio initialization skipped");
+          }
+        });
+      }
+      
+      const forceRenderBtn = document.getElementById('btn-force-render');
+      if (forceRenderBtn) {
+        forceRenderBtn.addEventListener('click', () => {
+          if (window.app && window.app.renderer && window.app.scene && window.app.camera) {
+            window.app.renderer.render(window.app.scene, window.app.camera);
+            console.log("Forced render");
+            showStatus("Forced render executed");
+          } else {
+            console.error("Cannot force render - missing components");
+            showStatus("Cannot force render - missing components", true);
+          }
+        });
+      }
+      
+      const showErrorsBtn = document.getElementById('btn-show-errors');
+      if (showErrorsBtn) {
+        showErrorsBtn.addEventListener('click', () => {
+          // Try to generate detailed diagnostic info
+          if (window.app) {
+            console.log("App state:", JSON.stringify({
+              hasScene: !!window.app.scene,
+              hasCamera: !!window.app.camera,
+              hasRenderer: !!window.app.renderer,
+              hasBallGroup: !!window.app.ballGroup,
+              audioInitialized: window.app.audioInitialized,
+              hasAudioContext: !!window.app.audioContext
+            }));
+            
+            // If renderer exists, check if it's in the DOM
+            if (window.app.renderer) {
+              const canvas = window.app.renderer.domElement;
+              const isInDOM = document.body.contains(canvas);
+              console.log("Renderer canvas in DOM:", isInDOM);
+              
+              // Check canvas size
+              console.log("Canvas size:", canvas.width, "x", canvas.height);
+            }
+            
+            showStatus("Diagnostic info logged to console");
+          } else {
+            console.error("App not initialized");
+            showStatus("App not initialized", true);
+          }
+        });
+      }
+      
+      // Status indicator function
+      function showStatus(message, isError = false) {
+        const statusIndicator = document.getElementById('status-indicator');
+        statusIndicator.textContent = message;
+        statusIndicator.classList.add('visible');
+        
+        if (isError) {
+          statusIndicator.style.backgroundColor = "rgba(255, 0, 0, 0.7)";
+        } else {
+          statusIndicator.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+        }
+        
+        // Hide after 3 seconds
+        setTimeout(() => {
+          statusIndicator.classList.remove('visible');
+        }, 3000);
+      }
+      
+      // Make showStatus available globally
+      window.showStatus = showStatus;
+    });
+  </script>
+</body>
+</html>
