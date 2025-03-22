@@ -9,6 +9,7 @@ import { AudioNodePool } from './audio-node-pool.js';
 import { SoundScheduler } from './sound-scheduler.js';
 import { AudioCircuitBreaker } from './audio-circuit-breaker.js';
 import { initializeSoundBuffers } from './sound-buffers.js';
+import * as THREE from 'three';
 
 // Core audio context and management
 let audioContext = null;
@@ -425,7 +426,7 @@ export function playFacetSound(app, facetIndex, position = null) {
  * @param {number} harmonicContent - Amount of harmonic content (1-4)
  * @param {number} release - Release time in seconds
  */
-function playEnhancedFacetSound(app, frequency, harmonicContent, release) {
+export function playEnhancedFacetSound(app, frequency, harmonicContent, release) {
     if (!app.audioContext) return;
     
     // Create oscillator for the main tone
@@ -686,7 +687,252 @@ export function getAudioStatus() {
     };
 }
 
-export { 
-    // ...existing exports...
-    playEnhancedFacetSound 
+/**
+ * Function to initialize continuous mode for fluid audio experiences
+ * @param {Object} app - Application context
+ */
+export function enableContinuousSoundMode(app) {
+    try {
+        // Get sound scheduler
+        const soundScheduler = app.soundScheduler || 
+            (window.audioSystem && window.audioSystem.soundScheduler) ||
+            getSoundScheduler();
+        
+        if (!soundScheduler) {
+            console.warn('Sound scheduler not available');
+            return false;
+        }
+        
+        // Enable continuous mode for fluid sound experience
+        if (typeof soundScheduler.setContinuousMode === 'function') {
+            soundScheduler.setContinuousMode(true);
+            console.log('Continuous sound mode enabled');
+        }
+        
+        // Increase max sounds per second for better experience
+        soundScheduler.maxSoundsPerSecond = 30;
+        
+        // Get circuit breaker to reduce sensitivity
+        const circuitBreaker = app.circuitBreaker || 
+            (window.audioSystem && window.audioSystem.circuitBreaker) ||
+            getCircuitBreaker();
+            
+        if (circuitBreaker) {
+            // Reset circuit breaker to ensure we start fresh
+            if (typeof circuitBreaker.initialize === 'function') {
+                circuitBreaker.initialize();
+            }
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Error enabling continuous sound mode:', error);
+        return false;
+    }
+}
+
+/**
+ * Create a noise generator
+ * @param {AudioContext} context - The audio context
+ * @returns {AudioBufferSourceNode} - The noise generator
+ */
+export function createNoiseGenerator(context) {
+    const audioCtx = context || audioContext;
+    if (!audioCtx) return null;
+    
+    // Create audio buffer for noise
+    const bufferSize = 2 * audioCtx.sampleRate;
+    const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    
+    // Fill the buffer with noise
+    for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+    }
+    
+    // Create buffer source
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = noiseBuffer;
+    noise.loop = true;
+    noise.start();
+    
+    return noise;
+}
+
+// Create a listener for positional audio
+let listener = null;
+
+/**
+ * Get or create a THREE.AudioListener
+ * @returns {THREE.AudioListener} The audio listener
+ */
+export function getListener() {
+    if (!listener && typeof THREE !== 'undefined') {
+        listener = new THREE.AudioListener();
+    }
+    return listener;
+}
+
+/**
+ * Sound manager for handling 3D sound effects
+ */
+export const soundManager = {
+    sounds: {},
+    
+    // Initialize all sounds
+    init: function() {
+        if (!listener) getListener();
+        
+        // Create sound effects
+        this.createSound('hover', 'https://assets.codepen.io/729648/hover.mp3');
+        this.createSound('click', 'https://assets.codepen.io/729648/click.mp3');
+        this.createSound('explosion', 'https://assets.codepen.io/729648/explosion.mp3');
+        this.createSound('spike', 'https://assets.codepen.io/729648/spike.mp3');
+        this.createSound('rainbow', 'https://assets.codepen.io/729648/rainbow.mp3');
+        this.createSound('blackhole', 'https://assets.codepen.io/729648/blackhole.mp3');
+        this.createSound('magnetic', 'https://assets.codepen.io/729648/magnetic.mp3');
+        
+        // Create positional sounds (these will come from the ball's location)
+        this.createPositionalSound('deform', 'https://assets.codepen.io/729648/deform.mp3');
+    },
+    
+    // Create a global sound
+    createSound: function(name, url) {
+        if (!listener) getListener();
+        const sound = new THREE.Audio(listener);
+        
+        // Load a sound and set it as the Audio object's buffer
+        const audioLoader = new THREE.AudioLoader();
+        audioLoader.load(url, function(buffer) {
+            sound.setBuffer(buffer);
+            sound.setVolume(0.5);
+        });
+        
+        this.sounds[name] = sound;
+    },
+    
+    // Create a positional sound
+    createPositionalSound: function(name, url) {
+        if (!listener) getListener();
+        const sound = new THREE.PositionalAudio(listener);
+        
+        // Load a sound and set it as the Audio object's buffer
+        const audioLoader = new THREE.AudioLoader();
+        audioLoader.load(url, function(buffer) {
+            sound.setBuffer(buffer);
+            sound.setRefDistance(3); // The distance at which the volume reduction starts
+            sound.setVolume(0.5);
+        });
+        
+        this.sounds[name] = sound;
+    },
+    
+    // Play a sound
+    play: function(name, loop = false) {
+        const sound = this.sounds[name];
+        if (sound && sound.buffer) {
+            // Don't restart if it's already playing
+            if (!sound.isPlaying) {
+                sound.setLoop(loop);
+                sound.play();
+            }
+        }
+    },
+    
+    // Stop a sound
+    stop: function(name) {
+        const sound = this.sounds[name];
+        if (sound && sound.isPlaying) {
+            sound.stop();
+        }
+    },
+    
+    // Attach a positional sound to an object
+    attachToObject: function(name, object) {
+        const sound = this.sounds[name];
+        if (sound && !object.children.includes(sound)) {
+            object.add(sound);
+        }
+    },
+    
+    // Set the frequency of an oscillator
+    setFrequency: function(name, value) {
+        const sound = this.sounds[name];
+        if (sound && sound.source && sound.source.frequency) {
+            sound.source.frequency.value = value;
+        }
+    }
 };
+
+/**
+ * Create visualization for sound
+ * @param {Object} app - The application context
+ */
+export function createAudioVisualization(app) {
+    if (!app.audioContext) return;
+    
+    // Create a circle of small cubes around the ball
+    const visualizationGroup = new THREE.Group();
+    const cubeCount = 32;
+    const radius = 2;
+    
+    for (let i = 0; i < cubeCount; i++) {
+        const angle = (i / cubeCount) * Math.PI * 2;
+        const cube = new THREE.Mesh(
+            new THREE.BoxGeometry(0.1, 0.1, 0.1),
+            new THREE.MeshBasicMaterial({
+                color: 0xFFFFFF,
+                transparent: true,
+                opacity: 0.8
+            })
+        );
+        
+        cube.position.set(
+            Math.cos(angle) * radius,
+            Math.sin(angle) * radius,
+            0
+        );
+        
+        visualizationGroup.add(cube);
+    }
+    
+    app.scene.add(visualizationGroup);
+    
+    // Store it for updates
+    app.scene.userData.audioVisualization = visualizationGroup;
+}
+
+/**
+ * Update audio visualization
+ * @param {Object} app - The application context
+ */
+export function updateAudioVisualization(app) {
+    if (!app.audioContext || !app.scene.userData.audioVisualization) return;
+    
+    // Get frequency data
+    if (!app.analyser || !app.audioDataArray) return;
+    
+    // Get frequency data
+    app.analyser.getByteFrequencyData(app.audioDataArray);
+    
+    // Update visualization cubes
+    const visualization = app.scene.userData.audioVisualization;
+    const cubes = visualization.children;
+    
+    for (let i = 0; i < cubes.length; i++) {
+        const cube = cubes[i];
+        
+        // Map frequency bin to cube
+        const frequencyBin = Math.floor((i / cubes.length) * app.audioDataArray.length);
+        const value = app.audioDataArray[frequencyBin] / 255; // Normalize to 0-1
+        
+        // Scale cube based on frequency value
+        cube.scale.y = 0.1 + value * 2;
+        
+        // Position the cube
+        cube.position.y = Math.sin((i / cubes.length) * Math.PI * 2) * 2 + (value * 0.5);
+        
+        // Color based on frequency (optional)
+        cube.material.color.setHSL(i / cubes.length, 0.8, 0.5 + value * 0.5);
+    }
+}

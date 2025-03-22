@@ -1,5 +1,9 @@
 // effects.js - Handles visual effects for the 3D ball
 import * as THREE from 'three';
+import { createParticleExplosion, updateParticleExplosion } from './effects/explosion.js';
+import { createTrailEffect, updateTrailEffect } from './effects/trail.js';
+import { highlightFacet, updateFacetHighlights } from './effects/facet.js';
+import { createGradientTexture, updateGradientColors } from './effects/gradients.js';
 
 // Global variables for storing effect elements
 let magneticParticles = [];
@@ -578,5 +582,10 @@ export {
     removeBlackholeEffect,
     updateBlackholeEffect,
     updateRainbowMode,
-    createGradientTexture
+    createGradientTexture,
+    createTrailEffect,
+    updateTrailEffect,
+    highlightFacet,
+    updateFacetHighlights,
+    updateGradientColors
 };
