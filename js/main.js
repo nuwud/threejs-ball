@@ -28,6 +28,16 @@ import { createTrailEffect, updateTrailEffect } from './effects/trail.js';
 import { applySpikyEffect } from './effects/spiky.js';
 import { resetDeformation } from './effects/deformation.js';
 
+// Import enhanced visualization safely with try/catch
+let createEnhancedVisualization = null;
+try {
+    import('./audio/enhanced-visualization.js').then(module => {
+        createEnhancedVisualization = module.createEnhancedVisualization;
+    }).catch(e => console.warn("Enhanced visualization not available:", e));
+} catch (e) {
+    console.warn("Error importing enhanced visualization:", e);
+}
+
 // Audio core imports - keep these intact
 import { 
     playFacetSound,
@@ -77,7 +87,10 @@ window.app = {
     clock: new THREE.Clock(),
     audioInitialized: false,
     enableFacetHighlighting: false,
-    trailEffect: null
+    trailEffect: null,
+    // Add visualization placeholders
+    audioVisualization: null,
+    enhancedVisualization: null
 };
 
 // Global app controls - exposed for UI buttons
@@ -303,7 +316,7 @@ function init() {
             }
         }
 
-        // Try to create the ball
+        // Try to create the ball - THIS IS THE CRITICAL PART
         try {
             console.log("Attempting to create ball...");
             const ball = createBall(window.app);
@@ -313,6 +326,10 @@ function init() {
             if (!ball || !window.app.ballGroup) {
                 console.warn("Ball not created successfully, trying emergency ball");
                 createEmergencyBall();
+            } else {
+                console.log("Ball created successfully with properties:", 
+                    Object.keys(ball).join(", "),
+                    "userData properties:", Object.keys(ball.userData).join(", "));
             }
         } catch (ballError) {
             console.error("Error creating ball:", ballError);
@@ -335,6 +352,12 @@ function init() {
         
         // Add debug button for audio testing
         addDebugButton();
+        
+        // Initialize audio controls
+        setTimeout(initAudioControls, 1000);
+        
+        // Call onAppInitialized AFTER basic setup is complete
+        onAppInitialized(window.app);
         
         console.log("Application initialized successfully");
     } catch (error) {
@@ -556,6 +579,43 @@ function initOnFirstClick() {
     }
 }
 
+// After app is initialized
+function onAppInitialized(app) {
+    console.log("Running post-initialization tasks...");
+    
+    try {
+        // Initialize the enhanced visualization if available
+        if (createEnhancedVisualization && typeof createEnhancedVisualization === 'function') {
+            try {
+                app.enhancedVisualization = createEnhancedVisualization(app);
+                console.log("Enhanced visualization created");
+            } catch (e) {
+                console.warn("Error creating enhanced visualization:", e);
+            }
+        }
+        
+        // Initialize new UI system if available
+        try {
+            // Try to dynamically import UI integration to avoid hard dependency
+            import('./ui-integration.js')
+                .then(module => {
+                    if (module.default && typeof module.default === 'function') {
+                        module.default(app);
+                        console.log("UI integration initialized");
+                    }
+                })
+                .catch(error => {
+                    console.warn("UI integration module not found or failed to load:", error);
+                });
+        } catch (e) {
+            console.warn("Error initializing UI system:", e);
+        }
+        
+    } catch (error) {
+        console.error("Error in post-initialization:", error);
+    }
+}
+
 // For debugging: add a button to test audio
 function addDebugButton() {
     const button = document.createElement('button');
@@ -656,63 +716,87 @@ function initAudioControls() {
     });
 }
 
-// Don't call initAudioControls immediately - call it after a delay
-// to ensure the DOM elements are loaded
-setTimeout(initAudioControls, 1000); 
-
 // Initialize the application
 init();
 
-document.addEventListener('DOMContentLoaded', () => {
-    const ball = document.getElementById('ball');
-    const toggleGreenSquares = document.getElementById('toggleGreenSquares');
+// Add a debugging function to globals
+window.debugBall = function() {
+    console.group("Ball Debug Information:");
+    if (!window.app || !window.app.ballGroup) {
+        console.log("Ball not found in app state");
+        console.groupEnd();
+        return;
+    }
+    
+    const ball = window.app.ballGroup;
+    console.log("Ball exists:", !!ball);
+    console.log("Ball children count:", ball.children ? ball.children.length : 0);
+    console.log("Ball has userData:", !!ball.userData);
+    
+    if (ball.userData) {
+        console.log("Ball userData properties:", Object.keys(ball.userData).join(", "));
+        console.log("Ball has mesh:", !!ball.userData.mesh);
+        console.log("Ball has wireMesh:", !!ball.userData.wireMesh);
+        console.log("Ball has material:", !!ball.userData.mat);
+        console.log("Ball has wireframe material:", !!ball.userData.wireMat);
+        console.log("Ball has geometry:", !!ball.userData.geo);
+    }
+    
+    console.log("Ball in scene:", window.app.scene.children.includes(ball));
+    console.log("Ball can emit events:", typeof ball.emit === 'function');
+    console.log("Ball position:", JSON.stringify(ball.position));
+    console.log("Ball rotation:", JSON.stringify(ball.rotation));
+    console.log("Ball scale:", JSON.stringify(ball.scale));
+    
+    console.groupEnd();
+};
 
-    // Toggle green squares visibility
-    toggleGreenSquares.addEventListener('click', () => {
-        toggleGreenSquares.classList.toggle('active');
-        const greenSquares = document.querySelectorAll('.green-square');
-        greenSquares.forEach(square => {
-            square.style.display = toggleGreenSquares.classList.contains('active') ? 'block' : 'none';
-        });
-    });
-
-    // Ensure green squares are hidden by default
-    toggleGreenSquares.classList.remove('active');
-    const greenSquares = document.querySelectorAll('.green-square');
-    greenSquares.forEach(square => {
-        square.style.display = 'none';
-    });
-
-    // Add other button functionalities here
-    document.getElementById('resetBall').addEventListener('click', () => {
-        // Reset ball functionality
-    });
-
-    document.getElementById('toggleWireframe').addEventListener('click', () => {
-        // Toggle wireframe functionality
-    });
-
-    document.getElementById('emergencyBall').addEventListener('click', () => {
-        // Emergency ball functionality
-    });
-
-    document.getElementById('standardAudio').addEventListener('click', () => {
-        // Standard audio functionality
-    });
-
-    document.getElementById('continuousAudio').addEventListener('click', () => {
-        // Continuous audio functionality
-    });
-
-    document.getElementById('toggleVisualization').addEventListener('click', () => {
-        // Toggle visualization functionality
-    });
-
-    document.getElementById('debugAudio').addEventListener('click', () => {
-        // Debug audio functionality
-    });
-
-    document.getElementById('testAudio').addEventListener('click', () => {
-        // Test audio functionality
-    });
+// Add debug keyboard shortcut - press Ctrl+Alt+B to debug ball
+document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'b') {
+        window.debugBall();
+    }
 });
+
+// Add a recovery function
+window.fixBrokenBall = function() {
+    if (!window.app || !window.app.scene) {
+        console.error("App or scene not initialized");
+        return false;
+    }
+    
+    // If ball exists but is broken, try to remove it first
+    if (window.app.ballGroup) {
+        try {
+            window.app.scene.remove(window.app.ballGroup);
+            window.app.ballGroup = null;
+            console.log("Removed broken ball");
+        } catch (e) {
+            console.warn("Error removing broken ball:", e);
+        }
+    }
+    
+    // Create a new ball
+    try {
+        const newBall = createBall(window.app);
+        
+        if (newBall) {
+            console.log("New ball created successfully");
+            return true;
+        } else {
+            console.log("Creating normal ball failed, trying emergency ball");
+            const emergencyBall = createEmergencyBall();
+            return !!emergencyBall;
+        }
+    } catch (e) {
+        console.error("Error creating replacement ball:", e);
+        return false;
+    }
+};
+
+// Make functions available globally for debug
+window.resetBall = function() {
+    if (window.appControls && window.appControls.resetBall) {
+        window.appControls.resetBall();
+    }
+};

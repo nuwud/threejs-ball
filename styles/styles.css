@@ -1,263 +1,352 @@
 /* General styles */
-body {
-    font-family: 'Arial', sans-serif;
-    background-color: #1e1e1e;
-    color: #ffffff;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    overflow: hidden;
+:root {
+  --menu-bg-dark: rgba(40, 40, 40, 0.8);
+  --menu-bg-light: rgba(70, 70, 70, 0.7);
+  --menu-gradient: linear-gradient(to right, var(--menu-bg-dark), var(--menu-bg-light));
+  --menu-text: #f0f0f0;
+  --menu-accent: #00DFDF;
+  --menu-border: rgba(0, 223, 223, 0.3);
+  --toggle-off: #555;
+  --toggle-on: #00DFDF;
+  --button-bg: rgba(0, 0, 0, 0.4);
+  --button-hover: rgba(0, 223, 223, 0.2);
+  --warning-color: #ff5252;
 }
 
-/* Hamburger Menu Styles */
+body {
+  font-family: 'Arial', sans-serif;
+  background-color: #1e1e1e;
+  color: var(--menu-text);
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Hamburger Menu - Clean and minimal in top right */
 .hamburger-menu {
-    position: absolute;
-    top: 15px;
-    left: 15px;
-    width: 40px;
-    height: 40px;
-    background-color: rgba(0, 0, 0, 0.7);
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    z-index: 200;
-    transition: transform 0.3s ease;
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  z-index: 1000;
+  transition: background-color 0.3s ease;
 }
 
 .hamburger-menu:hover {
-    transform: scale(1.1);
+  background-color: rgba(0, 0, 0, 0.7);
 }
 
 .hamburger-menu span {
-    position: relative;
-    width: 20px;
-    height: 2px;
-    background-color: #00FFFF;
-    transition: all 0.3s ease;
+  display: block;
+  width: 24px;
+  height: 2px;
+  background-color: var(--menu-accent);
+  margin: 2px 0;
+  transition: all 0.3s ease;
 }
 
-.hamburger-menu span::before,
-.hamburger-menu span::after {
-    content: '';
-    position: absolute;
-    width: 20px;
-    height: 2px;
-    background-color: #00FFFF;
-    transition: all 0.3s ease;
+/* Menu Panel - Slide in from right */
+.menu-panel {
+  position: fixed;
+  top: 0;
+  right: -350px; /* Hidden by default */
+  width: 350px;
+  height: 100vh;
+  background: var(--menu-gradient);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: -5px 0 15px rgba(0, 0, 0, 0.3);
+  transition: right 0.3s ease;
+  z-index: 999;
+  overflow-y: auto;
+  box-sizing: border-box;
+  border-left: 1px solid var(--menu-border);
 }
 
-.hamburger-menu span::before {
-    transform: translateY(-6px);
+.menu-panel.open {
+  right: 0;
 }
 
-.hamburger-menu span::after {
-    transform: translateY(6px);
+/* Menu header */
+.menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid var(--menu-border);
 }
 
-/* Open state of hamburger */
-.hamburger-menu.open span {
-    background-color: transparent;
+.menu-header h2 {
+  margin: 0;
+  color: var(--menu-accent);
+  font-size: 1.5rem;
+  font-weight: 500;
 }
 
-.hamburger-menu.open span::before {
-    transform: translateY(0) rotate(45deg);
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--menu-text);
+  font-size: 24px;
+  cursor: pointer;
+  transition: color 0.3s ease;
 }
 
-.hamburger-menu.open span::after {
-    transform: translateY(0) rotate(-45deg);
+.close-btn:hover {
+  color: var(--menu-accent);
 }
 
-/* Instructions Panel */
-#instructions {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 300px;
-    background-color: rgba(0, 5, 20, 0.85);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    color: white;
-    font-family: 'Arial', sans-serif;
-    padding: 20px;
-    border-right: 1px solid rgba(0, 255, 255, 0.3);
-    height: 100vh;
-    box-sizing: border-box;
-    overflow-y: auto;
-    transform: translateX(-100%);
-    transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
-    z-index: 100;
+/* Menu sections */
+.menu-section {
+  padding: 15px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-#instructions.open {
-    transform: translateX(0);
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+.menu-section h3 {
+  margin: 0 0 15px 0;
+  color: var(--menu-accent);
+  font-size: 1.1rem;
+  font-weight: 400;
 }
 
-#instructions h2 {
-    margin-top: 0;
-    color: #00FFFF;
-    font-size: 1.5rem;
-    border-bottom: 1px solid rgba(0, 255, 255, 0.5);
-    padding-bottom: 10px;
+/* Menu items with toggles */
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
-#instructions h3 {
-    color: #FF77FF;
-    margin-top: 20px;
-    margin-bottom: 10px;
-    font-size: 1.2rem;
+.menu-item span {
+  font-size: 0.95rem;
 }
 
-#instructions p {
-    line-height: 1.5;
-    margin-bottom: 15px;
-    font-size: 0.95rem;
+/* Toggle switch styling */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
 }
 
-#instructions ul {
-    padding-left: 20px;
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
 }
 
-#instructions li {
-    margin-bottom: 8px;
-    line-height: 1.4;
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--toggle-off);
+  transition: .4s;
+  border-radius: 24px;
 }
 
-/* Buttons */
-.effect-button {
-    background-color: rgba(0, 0, 0, 0.6);
-    border: 1px solid #00FFFF;
-    color: #FFFFFF;
-    padding: 10px 15px;
-    margin: 5px;
-    cursor: pointer;
-    border-radius: 5px;
-    font-size: 14px;
-    font-weight: bold;
-    transition: all 0.3s ease;
-    display: inline-block;
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
 }
 
-.effect-button:hover {
-    background-color: rgba(0, 255, 255, 0.2);
-    transform: scale(1.05);
+input:checked + .toggle-slider {
+  background-color: var(--toggle-on);
 }
 
-/* Status indicator */
-#status-indicator {
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    background-color: rgba(0, 0, 0, 0.7);
-    border-radius: 5px;
-    padding: 10px;
-    color: white;
-    font-family: 'Arial', sans-serif;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.3s ease;
+input:checked + .toggle-slider:before {
+  transform: translateX(22px);
 }
 
-#status-indicator.visible {
-    opacity: 1;
+/* Slider container for volume */
+.slider-container {
+  width: 160px;
+  margin-top: 5px;
 }
 
-#interface {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: rgba(0, 0, 0, 0.8);
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+input[type="range"] {
+  width: 100%;
+  height: 5px;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.2);
+  outline: none;
+  border-radius: 5px;
 }
 
-button, .toggle {
-    display: inline-block;
-    margin: 10px 0;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    background-color: #007bff;
-    color: #ffffff;
-    cursor: pointer;
-    transition: background-color 0.3s;
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--menu-accent);
+  cursor: pointer;
 }
 
-button:hover, .toggle:hover {
-    background-color: #0056b3;
+/* Menu buttons */
+.menu-button {
+  display: block;
+  width: 100%;
+  padding: 10px 15px;
+  margin-bottom: 10px;
+  background-color: var(--button-bg);
+  color: var(--menu-text);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+  font-size: 0.95rem;
 }
 
-.toggle {
-    position: relative;
-    width: 50px;
-    height: 25px;
-    background-color: #ccc;
-    border-radius: 25px;
-    cursor: pointer;
+.menu-button:hover {
+  background-color: var(--button-hover);
+  border-color: var(--menu-border);
 }
 
-.toggle::before {
-    content: '';
-    position: absolute;
-    width: 23px;
-    height: 23px;
-    background-color: #ffffff;
-    border-radius: 50%;
-    top: 1px;
-    left: 1px;
-    transition: transform 0.3s;
+/* Warning buttons for emergency controls */
+.menu-button.warning {
+  background-color: rgba(255, 82, 82, 0.2);
+  border-color: rgba(255, 82, 82, 0.3);
 }
 
-.toggle.active {
-    background-color: #007bff;
+.menu-button.warning:hover {
+  background-color: rgba(255, 82, 82, 0.3);
 }
 
-.toggle.active::before {
-    transform: translateX(25px);
+/* Collapsible sections */
+.collapsible .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding-bottom: 15px;
 }
 
-/* Ball animation */
+.collapsible .expand-icon {
+  font-size: 18px;
+  color: var(--menu-text);
+  transition: all 0.3s ease;
+}
+
+.collapsible .section-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+/* Status message */
+#status-message {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-size: 14px;
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  z-index: 1000;
+}
+
+#status-message.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Visualization container */
+.visualization-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  pointer-events: none;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  display: none; /* Hidden by default */
+}
+
+/* Visualization bars */
+.visualization-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  gap: 4px;
+}
+
+.visualization-bar {
+  width: 8px;
+  height: 2px;
+  background-color: #00DFDF;
+  transition: height 0.05s ease;
+  border-radius: 2px 2px 0 0;
+  transform-origin: bottom;
+}
+
+/* Animation keyframes for subtle effects */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Apply animations to menu sections */
+.menu-section {
+  animation: slideIn 0.3s ease;
+  animation-fill-mode: backwards;
+}
+
+.menu-section:nth-child(1) { animation-delay: 0.05s; }
+.menu-section:nth-child(2) { animation-delay: 0.1s; }
+.menu-section:nth-child(3) { animation-delay: 0.15s; }
+.menu-section:nth-child(4) { animation-delay: 0.2s; }
+.menu-section:nth-child(5) { animation-delay: 0.25s; }
+
+/* Canvas styling */
+canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  outline: none;
+}
+
+/* Ensure the ball container doesn't interfere with rendering */
 #ball {
-    position: absolute;
-    width: 100px;
-    height: 100px;
-    background-color: #ff5722;
-    border-radius: 50%;
-    animation: float 3s ease-in-out infinite;
-}
-
-@keyframes float {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-20px);
-    }
-}
-
-/* Debug panel styles */
-#debug-panel {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background: rgba(0, 0, 0, 0.8);
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-#debug-panel button {
-    width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
 }

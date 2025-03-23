@@ -52,14 +52,11 @@ function toggleGreenSquares() {
     });
 }
 
-// Add a button to the UI to control the visibility
-const toggleButton = document.createElement('button');
-toggleButton.innerText = 'Toggle Green Squares';
-toggleButton.addEventListener('click', toggleGreenSquares);
-document.body.appendChild(toggleButton);
-
+// Keep the functionality available but don't create a button
 // Ensure green squares are hidden by default
 document.addEventListener('DOMContentLoaded', () => {
+    // Hide green squares initially
+    greenSquaresVisible = true; // Set to true so the toggle makes it false
     toggleGreenSquares();
 });
 

@@ -9,8 +9,6 @@
     IMPORTANT: DO NOT REMOVE OR MODIFY THE BALL ELEMENT IN THIS APPLICATION.
     The 3D ball is an essential component. Any modification that causes
     the ball to disappear will break core functionality.
-    
-    AI Assistant Note: Ensure any code changes preserve the ball display.
   -->
   
   <link rel="stylesheet" href="styles/styles.css" />
@@ -25,470 +23,459 @@
   </script>
 </head>
 <body>
-  <!-- Hamburger Menu -->
+  <!-- Minimal UI elements that don't intrude on the experience -->
+  
+  <!-- Clean hamburger menu in top-right corner -->
   <div class="hamburger-menu" id="menu-btn">
+    <span></span>
+    <span></span>
     <span></span>
   </div>
   
-  <!-- Instructions Panel -->
-  <div id="instructions">
-    <h2>Interactive 3D Ball</h2>
-    
-    <h3>Basic Interactions</h3>
-    <ul>
-      <li><strong>Hover:</strong> Move your mouse over the ball to create dents and hear warm pad sounds</li>
-      <li><strong>Click & Drag:</strong> Rotate the ball in any direction</li>
-      <li><strong>Cross Facet Boundaries:</strong> Hear unique crunchy sonic textures for each facet</li>
-    </ul>
-    
-    <h3>Special Effects</h3>
-    <ul>
-      <li><strong>Double-Click:</strong> Toggle rainbow mode with color cycling</li>
-      <li><strong>Mouse Wheel:</strong> Create spiky deformations</li>
-      <li><strong>Right-Click:</strong> Particle explosion effect</li>
-    </ul>
-    
-    <h3>Sound Experience</h3>
-    <p>Each triangle facet produces a unique sound with its own timbre. The hover movement creates warm musical tones that change with cursor position.</p>
-    
-    <!-- Effect Controls -->
-    <h3>Effect Controls</h3>
-    <div class="button-container">
-      <button class="effect-button" id="btn-rainbow">Rainbow Mode</button>
-      <button class="effect-button" id="btn-magnetic">Magnetic Effect</button>
-      <button class="effect-button" id="btn-blackhole">Blackhole</button>
-      <button class="effect-button" id="btn-explosion">Explosion</button>
-      <button class="effect-button" id="btn-reset">Reset Ball</button>
+  <!-- Main menu panel with all controls organized into categories -->
+  <div class="menu-panel" id="menu-panel">
+    <div class="menu-header">
+      <h2>Controls</h2>
+      <button class="close-btn" id="close-menu-btn">×</button>
     </div>
     
-    <!-- Audio Controls -->
-    <h3>Audio Controls</h3>
-    <div class="button-container">
-      <button class="effect-button audio-button" id="btn-audio-standard">Standard Audio</button>
-      <button class="effect-button audio-button" id="btn-audio-continuous">Continuous Audio Mode</button>
-      <button class="effect-button audio-button" id="btn-audio-test">Test Audio</button>
+    <!-- Ball controls section -->
+    <div class="menu-section">
+      <h3>Ball Controls</h3>
+      <button class="menu-button" id="reset-ball">Reset Ball</button>
+      <div class="menu-item">
+        <span>Wireframe</span>
+        <label class="toggle-switch" for="toggle-rainbow">
+          <input title="Toggle wireframe mode" label="Wireframe" type="checkbox" id="toggle-wireframe">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="menu-item">
+        <span>Rainbow Mode</span>
+        <label class="toggle-switch">
+          <input title="Toggle rainbow mode" label="Toggle rainbow mode" type="checkbox" id="toggle-rainbow">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="menu-item">
+        <span>Spiky Mode</span>
+        <label class="toggle-switch">
+          <input title="Toggle spiky mode" label="Toggle spiky mode" type="checkbox" id="toggle-spiky">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="menu-item">
+        <span>Facet Highlighting</span>
+        <label class="toggle-switch">
+          <input title="Toggle facet highlighting" label="Toggle facet highlighting" type="checkbox" id="toggle-facet">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="menu-item">
+        <span>Motion Trail</span>
+        <label class="toggle-switch">
+          <input title="Toggle trail" label="Toggle trail" type="checkbox" id="toggle-trail">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+    
+    <!-- Audio controls section -->
+    <div class="menu-section">
+      <h3>Audio Settings</h3>
+      <div class="menu-item">
+        <span>Enable Audio</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-audio" checked title="Enable Audio">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="menu-item">
+        <span>Continuous Mode</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-continuous" title="Toggle continuous mode">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="menu-item">
+        <span>Audio Visualization</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-visualization" title="Toggle audio visualization">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="menu-item">
+        <span>Volume</span>
+        <div class="slider-container">
+          <input type="range" id="volume-slider" min="0" max="100" value="70" title="Volume Slider">
+        </div>
+      </div>
+      <button class="menu-button" id="test-audio">Test Audio</button>
+    </div>
+    
+    <!-- Special effects section -->
+    <div class="menu-section">
+      <h3>Special Effects</h3>
+      <button class="menu-button" id="magnetic-effect">Magnetic Effect</button>
+      <button class="menu-button" id="blackhole-effect">Blackhole Effect</button>
+      <button class="menu-button" id="explosion-effect">Explosion Effect</button>
+    </div>
+    
+    <!-- Emergency controls (hidden in a collapsible section) -->
+    <div class="menu-section collapsible">
+      <div class="section-header" id="emergency-header">
+        <h3>Emergency Controls</h3>
+        <span class="expand-icon">+</span>
+      </div>
+      <div class="section-content" id="emergency-content">
+        <button class="menu-button warning" id="emergency-ball">Emergency Ball</button>
+        <button class="menu-button warning" id="recovery-ball">Recovery Ball</button>
+      </div>
+    </div>
+    
+    <!-- Debug tools (hidden in a collapsible section) -->
+    <div class="menu-section collapsible">
+      <div class="section-header" id="debug-header">
+        <h3>Debug Tools</h3>
+        <span class="expand-icon">+</span>
+      </div>
+      <div class="section-content" id="debug-content">
+        <button class="menu-button" id="debug-audio">Debug Audio</button>
+        <button class="menu-button" id="show-debug-panel">Show Debug Panel</button>
+      </div>
     </div>
   </div>
-  
-  <!-- Status Indicator -->
-  <div id="status-indicator"></div>
 
-  <!-- New Controls -->
-  <div class="controls">
-    <button id="toggleSpikyMode" onclick="window.appControls && window.appControls.toggleSpikyMode && window.appControls.toggleSpikyMode()">Toggle Spiky Mode</button>
-    <button id="toggleFacetHighlight" onclick="window.appControls && window.appControls.toggleFacetHighlighting && window.appControls.toggleFacetHighlighting()">Toggle Facet Highlighting</button>
-    <button id="toggleTrail" onclick="window.appControls && window.appControls.toggleTrailEffect && window.appControls.toggleTrailEffect()">Toggle Motion Trail</button>
-  </div>
+  <!-- Status message that appears briefly then fades -->
+  <div id="status-message"></div>
   
-  <!-- Add this to your HTML, likely near other UI controls -->
-  <div class="audio-controls">
-    <div class="control-group">
-      <label for="audio-enabled">Audio Enabled</label>
-      <input type="checkbox" id="audio-enabled" checked>
-    </div>
-    
-    <div class="control-group">
-      <label for="continuous-mode">Continuous Mode</label>
-      <input type="checkbox" id="continuous-mode" checked>
-    </div>
-    
-    <div class="control-group">
-      <label for="visualization">Visualization</label>
-      <input type="checkbox" id="visualization" checked>
-    </div>
-    
-    <div class="control-group">
-      <label for="volume">Volume</label>
-      <input type="range" id="volume" min="0" max="100" value="70">
-    </div>
-  </div>
+  <!-- Minimal element to hold the visualization bars -->
+  <div id="visualization-container" class="visualization-container"></div>
   
-  <div class="audio-debug-panel">
-    <button id="btn-standard-audio">Standard Audio</button>
-    <button id="btn-continuous-audio">Continuous Audio</button>
-    <button id="btn-audio-visualization">Toggle Visualization</button>
-    <div class="volume-control">
-      <label for="volume-slider">Volume:</label>
-      <input id="volume-slider" type="range" min="0" max="100" value="70">
-    </div>
-    <button id="btn-audio-debug" onclick="debugAudio()">Debug Audio</button>
-  </div>
-
-  <div id="controls">
-    <div class="control-group">
-        <h3>Visual Effects</h3>
-        <button id="btn-facet-highlight" class="effect-button">Toggle Facet Highlighting</button>
-        <button id="btn-spiky" class="effect-button">Toggle Spiky Mode</button>
-        <button id="btn-trail" class="effect-button">Toggle Trail Effect</button>
-    </div>
-  </div>
-
-  <div id="interface">
-    <button id="resetBall">Reset Ball</button>
-    <button id="toggleWireframe">Toggle Wireframe</button>
-    <button id="emergencyBall">Emergency Ball</button>
-    <div class="toggle" id="toggleGreenSquares"></div>
-    <button id="standardAudio">Standard Audio</button>
-    <button id="continuousAudio">Continuous Audio</button>
-    <button id="toggleVisualization">Toggle Visualization</button>
-    <button id="debugAudio">Debug Audio</button>
-    <button id="testAudio">Test Audio</button>
-  </div>
-  <div id="debug-panel">
-    <button id="resetBallDebug">Reset Ball</button>
-    <button id="toggleWireframeDebug">Toggle Wireframe</button>
-    <button id="emergencyBallDebug">Emergency Ball</button>
-  </div>
+  <!-- Ball container -->
   <div id="ball"></div>
 
   <!-- Main entry point script -->
   <script type="module" src="js/main.js"></script>
   
-  <!-- Debug script to help diagnose issues - but DON'T auto-initialize it -->
-  <script type="module">
-    import { initDebug } from './debug.js';
-    
-    // Make debug initialization available on window
-    window.initDebug = initDebug;
-    
-    // Add a button to manually initialize debug
-    const debugButton = document.createElement('button');
-    debugButton.textContent = 'Debug Tools';
-    debugButton.style.position = 'fixed';
-    debugButton.style.top = '10px';
-    debugButton.style.left = '10px';
-    debugButton.style.zIndex = '1000';
-    debugButton.style.background = '#4466aa';
-    debugButton.style.color = 'white';
-    debugButton.style.border = 'none';
-    debugButton.style.borderRadius = '4px';
-    debugButton.style.padding = '8px 16px';
-    debugButton.style.cursor = 'pointer';
-    
-    debugButton.onclick = function() {
-      initDebug();
-    };
-    
-    // Add button to DOM after a delay
-    setTimeout(() => {
-      document.body.appendChild(debugButton);
-    }, 2000);
-  </script>
-  
+  <!-- UI script -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+      // Menu toggle
       const menuBtn = document.getElementById('menu-btn');
-      const instructions = document.getElementById('instructions');
+      const menuPanel = document.getElementById('menu-panel');
+      const closeMenuBtn = document.getElementById('close-menu-btn');
       
+      // Open menu
       menuBtn.addEventListener('click', () => {
-        menuBtn.classList.toggle('open');
-        instructions.classList.toggle('open');
+        menuPanel.classList.add('open');
       });
       
-      // Close instructions when clicking outside (but not on the ball)
+      // Close menu
+      closeMenuBtn.addEventListener('click', () => {
+        menuPanel.classList.remove('open');
+      });
+      
+      // Close menu when clicking outside
       document.addEventListener('click', (e) => {
-        if (!instructions.contains(e.target) && 
+        if (!menuPanel.contains(e.target) && 
             e.target !== menuBtn && 
-            !menuBtn.contains(e.target) &&
-            !e.target.closest('canvas')) {
-          instructions.classList.remove('open');
-          menuBtn.classList.remove('open');
+            !menuBtn.contains(e.target)) {
+          menuPanel.classList.remove('open');
         }
       });
       
-      // Add event listeners for effect buttons
-      const buttons = {
-        rainbow: document.getElementById('btn-rainbow'),
-        magnetic: document.getElementById('btn-magnetic'),
-        blackhole: document.getElementById('btn-blackhole'),
-        explosion: document.getElementById('btn-explosion'),
-        reset: document.getElementById('btn-reset'),
-        audioStandard: document.getElementById('btn-audio-standard'),
-        audioContinuous: document.getElementById('btn-audio-continuous'),
-        audioTest: document.getElementById('btn-audio-test')
-      };
-      
-      // We'll define these functions in main.js and make them globally available
-      if (buttons.rainbow) {
-        buttons.rainbow.addEventListener('click', () => {
-          if (window.appControls && window.appControls.toggleRainbowMode) {
-            window.appControls.toggleRainbowMode();
-            showStatus('Rainbow Mode ' + (window.app.isRainbowMode ? 'Activated' : 'Deactivated'));
+      // Collapsible sections
+      const collapsibleHeaders = document.querySelectorAll('.section-header');
+      collapsibleHeaders.forEach(header => {
+        header.addEventListener('click', () => {
+          const content = header.nextElementSibling;
+          const expandIcon = header.querySelector('.expand-icon');
+          
+          // Toggle visibility
+          if (content.style.maxHeight) {
+            content.style.maxHeight = null;
+            expandIcon.textContent = '+';
+          } else {
+            content.style.maxHeight = content.scrollHeight + 'px';
+            expandIcon.textContent = '−';
           }
         });
-      }
+      });
       
-      if (buttons.magnetic) {
-        buttons.magnetic.addEventListener('click', () => {
-          if (window.appControls && window.appControls.toggleMagneticMode) {
-            window.appControls.toggleMagneticMode();
-            showStatus('Magnetic Effect ' + (window.app.isMagneticMode ? 'Activated' : 'Deactivated'));
-          }
-        });
-      }
+      // Connect UI controls to app functionality
       
-      if (buttons.blackhole) {
-        buttons.blackhole.addEventListener('click', () => {
-          if (window.appControls && window.appControls.createBlackholeEffect) {
-            window.appControls.createBlackholeEffect();
-            showStatus('Blackhole Effect Activated');
-          }
-        });
-      }
+      // Ball controls
+      const resetBallBtn = document.getElementById('reset-ball');
+      const toggleWireframeInput = document.getElementById('toggle-wireframe');
+      const toggleRainbowInput = document.getElementById('toggle-rainbow');
+      const toggleSpikyInput = document.getElementById('toggle-spiky');
+      const toggleFacetInput = document.getElementById('toggle-facet');
+      const toggleTrailInput = document.getElementById('toggle-trail');
       
-      if (buttons.explosion) {
-        buttons.explosion.addEventListener('click', () => {
-          if (window.appControls && window.appControls.createExplosion) {
-            window.appControls.createExplosion();
-            showStatus('Explosion Effect Activated');
-          }
-        });
-      }
-      
-      if (buttons.reset) {
-        buttons.reset.addEventListener('click', () => {
+      // Connect ball controls to functions
+      if (resetBallBtn) {
+        resetBallBtn.addEventListener('click', () => {
           if (window.appControls && window.appControls.resetBall) {
             window.appControls.resetBall();
-            showStatus('Ball Reset to Default State');
+            showStatus('Ball Reset');
           }
         });
       }
       
-      // Add event listeners for audio control buttons
-      if (buttons.audioStandard) {
-        buttons.audioStandard.addEventListener('click', () => {
-          // Toggle audio mode to standard
-          if (window.audioSystem && window.audioSystem.soundScheduler) {
-            // Reset to standard settings
-            if (window.audioSystem.soundScheduler.setContinuousMode) {
-              window.audioSystem.soundScheduler.setContinuousMode(false);
+      if (toggleWireframeInput) {
+        toggleWireframeInput.addEventListener('change', () => {
+          if (window.appControls && window.appControls.toggleWireframe) {
+            const enabled = window.appControls.toggleWireframe();
+            showStatus(`Wireframe ${enabled ? 'Enabled' : 'Disabled'}`);
+          }
+        });
+      }
+      
+      if (toggleRainbowInput) {
+        toggleRainbowInput.addEventListener('change', () => {
+          if (window.appControls && window.appControls.toggleRainbowMode) {
+            const enabled = window.appControls.toggleRainbowMode();
+            showStatus(`Rainbow Mode ${enabled ? 'Enabled' : 'Disabled'}`);
+          }
+        });
+      }
+      
+      if (toggleSpikyInput) {
+        toggleSpikyInput.addEventListener('change', () => {
+          if (window.appControls && window.appControls.toggleSpikyMode) {
+            const enabled = window.appControls.toggleSpikyMode();
+            showStatus(`Spiky Mode ${enabled ? 'Enabled' : 'Disabled'}`);
+          }
+        });
+      }
+      
+      if (toggleFacetInput) {
+        toggleFacetInput.addEventListener('change', () => {
+          if (window.appControls && window.appControls.toggleFacetHighlighting) {
+            const enabled = window.appControls.toggleFacetHighlighting();
+            showStatus(`Facet Highlighting ${enabled ? 'Enabled' : 'Disabled'}`);
+          }
+        });
+      }
+      
+      if (toggleTrailInput) {
+        toggleTrailInput.addEventListener('change', () => {
+          if (window.appControls && window.appControls.toggleTrailEffect) {
+            const enabled = window.appControls.toggleTrailEffect();
+            showStatus(`Motion Trail ${enabled ? 'Enabled' : 'Disabled'}`);
+          }
+        });
+      }
+      
+      // Special effects
+      const magneticEffectBtn = document.getElementById('magnetic-effect');
+      const blackholeEffectBtn = document.getElementById('blackhole-effect');
+      const explosionEffectBtn = document.getElementById('explosion-effect');
+      
+      if (magneticEffectBtn) {
+        magneticEffectBtn.addEventListener('click', () => {
+          if (window.appControls && window.appControls.toggleMagneticMode) {
+            const enabled = window.appControls.toggleMagneticMode();
+            showStatus(`Magnetic Effect ${enabled ? 'Enabled' : 'Disabled'}`);
+          }
+        });
+      }
+      
+      if (blackholeEffectBtn) {
+        blackholeEffectBtn.addEventListener('click', () => {
+          if (window.createBlackholeEffect) {
+            window.createBlackholeEffect();
+          }
+        });
+      }
+      
+      if (explosionEffectBtn) {
+        explosionEffectBtn.addEventListener('click', () => {
+          if (window.createExplosion) {
+            window.createExplosion();
+          }
+        });
+      }
+      
+      // Audio controls
+      const toggleAudioInput = document.getElementById('toggle-audio');
+      const toggleContinuousInput = document.getElementById('toggle-continuous');
+      const toggleVisualizationInput = document.getElementById('toggle-visualization');
+      const volumeSlider = document.getElementById('volume-slider');
+      const testAudioBtn = document.getElementById('test-audio');
+      
+      if (toggleAudioInput) {
+        toggleAudioInput.addEventListener('change', () => {
+          if (window.app && window.app.audioContext) {
+            if (toggleAudioInput.checked) {
+              if (window.app.audioContext.state === 'suspended') {
+                window.app.audioContext.resume();
+              }
+            } else {
+              if (window.app.audioContext.state === 'running') {
+                window.app.audioContext.suspend();
+              }
             }
-            window.audioSystem.soundScheduler.maxSoundsPerSecond = 20;
-            showStatus('Standard Audio Mode Activated');
-          } else {
-            showStatus('Audio system not fully initialized');
+            showStatus(`Audio ${toggleAudioInput.checked ? 'Enabled' : 'Disabled'}`);
           }
         });
       }
       
-      if (buttons.audioContinuous) {
-        buttons.audioContinuous.addEventListener('click', () => {
-          // Toggle audio mode to continuous
-          if (window.audioSystem && window.audioSystem.soundScheduler) {
-            // Enable continuous mode
-            if (window.audioSystem.soundScheduler.setContinuousMode) {
-              window.audioSystem.soundScheduler.setContinuousMode(true);
-            }
-            window.audioSystem.soundScheduler.maxSoundsPerSecond = 30;
-            showStatus('Continuous Audio Mode Activated');
-          } else if (window.enableContinuousSoundMode && window.app) {
-            window.enableContinuousSoundMode(window.app);
-            showStatus('Continuous Audio Mode Activated');
-          } else {
-            showStatus('Audio system not fully initialized');
+      if (toggleContinuousInput) {
+        toggleContinuousInput.addEventListener('change', () => {
+          if (window.app && window.app.soundScheduler && window.app.soundScheduler.setContinuousMode) {
+            window.app.soundScheduler.setContinuousMode(toggleContinuousInput.checked);
+            showStatus(`Continuous Audio ${toggleContinuousInput.checked ? 'Enabled' : 'Disabled'}`);
           }
         });
       }
       
-      if (buttons.audioTest) {
-        buttons.audioTest.addEventListener('click', () => {
-          // Play test sound
+      if (toggleVisualizationInput) {
+        toggleVisualizationInput.addEventListener('change', () => {
+          const visualizationContainer = document.getElementById('visualization-container');
+          if (visualizationContainer) {
+            visualizationContainer.style.display = toggleVisualizationInput.checked ? 'block' : 'none';
+          }
+          
+          if (window.app && window.app.visualization) {
+            window.app.visualization.active = toggleVisualizationInput.checked;
+          }
+          
+          showStatus(`Visualization ${toggleVisualizationInput.checked ? 'Enabled' : 'Disabled'}`);
+        });
+      }
+      
+      if (volumeSlider) {
+        volumeSlider.addEventListener('input', () => {
+          if (window.app && window.app.soundManager && window.app.soundManager.setVolume) {
+            const volume = volumeSlider.value / 100;
+            window.app.soundManager.setVolume(volume);
+          }
+        });
+      }
+      
+      if (testAudioBtn) {
+        testAudioBtn.addEventListener('click', () => {
           if (window.appControls && window.appControls.playSound) {
             window.appControls.playSound();
             showStatus('Test Sound Played');
-          } else {
-            showStatus('Audio test function not available');
           }
         });
       }
       
-      // Status indicator function
+      // Emergency controls
+      const emergencyBallBtn = document.getElementById('emergency-ball');
+      const recoveryBallBtn = document.getElementById('recovery-ball');
+      
+      if (emergencyBallBtn) {
+        emergencyBallBtn.addEventListener('click', () => {
+          if (window.debugTools && window.debugTools.createEmergencyBall) {
+            window.debugTools.createEmergencyBall();
+            showStatus('Emergency Ball Created');
+          }
+        });
+      }
+      
+      if (recoveryBallBtn) {
+        recoveryBallBtn.addEventListener('click', () => {
+          if (window.createRecoveryBall) {
+            window.createRecoveryBall();
+            showStatus('Recovery Ball Created');
+          } else if (window.ensureBasicScene) {
+            window.ensureBasicScene();
+            showStatus('Recovery Ball Created');
+          }
+        });
+      }
+      
+      // Debug controls
+      const debugAudioBtn = document.getElementById('debug-audio');
+      const showDebugPanelBtn = document.getElementById('show-debug-panel');
+      
+      if (debugAudioBtn) {
+        debugAudioBtn.addEventListener('click', () => {
+          if (window.debugAudioSystem && window.app) {
+            window.debugAudioSystem(window.app);
+            showStatus('Audio Debug Started');
+          }
+        });
+      }
+      
+      if (showDebugPanelBtn) {
+        showDebugPanelBtn.addEventListener('click', () => {
+          if (window.initDebug) {
+            window.initDebug();
+            showStatus('Debug Panel Shown');
+          }
+        });
+      }
+      
+      // Status message function
       function showStatus(message) {
-        const statusIndicator = document.getElementById('status-indicator');
-        statusIndicator.textContent = message;
-        statusIndicator.classList.add('visible');
+        const statusElement = document.getElementById('status-message');
+        if (!statusElement) return;
+        
+        statusElement.textContent = message;
+        statusElement.classList.add('visible');
         
         // Hide after 2 seconds
         setTimeout(() => {
-          statusIndicator.classList.remove('visible');
+          statusElement.classList.remove('visible');
         }, 2000);
       }
       
       // Make showStatus available globally
       window.showStatus = showStatus;
-
-      // Add event listeners for new effect buttons
-      document.getElementById('btn-facet-highlight').addEventListener('click', function() {
-        if (window.appControls && window.appControls.toggleFacetHighlighting) {
-            const isActive = window.appControls.toggleFacetHighlighting();
-            this.classList.toggle('active', isActive);
+      
+      // Add an emergency debug button
+      const debugButton = document.createElement('button');
+      debugButton.id = 'emergency-debug';
+      debugButton.textContent = 'Debug Scene';
+      debugButton.style.position = 'fixed';
+      debugButton.style.bottom = '10px';
+      debugButton.style.left = '10px';
+      debugButton.style.zIndex = '9999';
+      debugButton.style.background = 'rgba(255, 0, 0, 0.7)';
+      debugButton.style.color = 'white';
+      debugButton.style.border = 'none';
+      debugButton.style.borderRadius = '4px';
+      debugButton.style.padding = '8px 16px';
+      debugButton.style.cursor = 'pointer';
+      debugButton.style.fontFamily = 'Arial, sans-serif';
+      debugButton.style.fontSize = '14px';
+      debugButton.style.display = 'none';  // Hidden by default
+      
+      document.body.appendChild(debugButton);
+      
+      debugButton.addEventListener('click', () => {
+        console.log('App state:', window.app);
+        
+        if (window.ensureBasicScene) {
+          window.ensureBasicScene();
+          showStatus('Scene recovery attempted');
         }
+        
+        // Show debug information in console
+        console.log('Debug state:', {
+          hasScene: !!window.app?.scene,
+          hasBallGroup: !!window.app?.ballGroup,
+          ballChildren: window.app?.ballGroup?.children?.length || 0,
+          audioContext: !!window.app?.audioContext,
+          renderer: !!window.app?.renderer
+        });
       });
-
-      document.getElementById('btn-spiky').addEventListener('click', function() {
-        if (window.appControls && window.appControls.toggleSpikyMode) {
-            const isActive = window.appControls.toggleSpikyMode();
-            this.classList.toggle('active', isActive);
-        }
-      });
-
-      document.getElementById('btn-trail').addEventListener('click', function() {
-        if (window.appControls && window.appControls.toggleTrailEffect) {
-            const isActive = window.appControls.toggleTrailEffect();
-            this.classList.toggle('active', isActive);
+      
+      // Press 'D' key to show emergency debug button
+      document.addEventListener('keydown', (e) => {
+        if (e.key.toLowerCase() === 'd' && e.ctrlKey && e.altKey) {
+          const debugButton = document.getElementById('emergency-debug');
+          if (debugButton) {
+            debugButton.style.display = debugButton.style.display === 'none' ? 'block' : 'none';
+          }
         }
       });
     });
-
-    // Simplified debug function that works with both approaches
-    function debugAudio() {
-      if (window.app) {
-        if (window.debugAudioSystem) {
-          // Use the globally available function that was set by either main.js or debug.js
-          window.debugAudioSystem(window.app);
-        } else {
-          // Dynamic import fallback
-          import('./js/audio/core.js')
-            .then(module => {
-              if (module.debugAudioSystem) {
-                module.debugAudioSystem(window.app);
-              } else {
-                console.log("debugAudioSystem not exported from module");
-                console.log("Audio state:", 
-                  window.app.audioContext ? "Context exists" : "No context",
-                  window.app.soundManager ? "Manager exists" : "No manager");
-              }
-            })
-            .catch(err => {
-              console.error("Error importing audio core:", err);
-            });
-        }
-      } else {
-        console.log("App not initialized yet");
-      }
-    }
   </script>
-  
-  <style>
-    /* Add styles for audio buttons */
-    .audio-button {
-      background-color: #2a4494;
-    }
-    
-    .audio-button:hover {
-      background-color: #3a5494;
-    }
-    
-    #btn-audio-continuous {
-      background-color: #447744;
-    }
-    
-    #btn-audio-continuous:hover {
-      background-color: #558855;
-    }
-    
-    #btn-audio-test {
-      background-color: #774477;
-    }
-    
-    #btn-audio-test:hover {
-      background-color: #885588;
-    }
-    
-    /* Style for the new controls */
-    .controls {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 10px;
-      z-index: 100;
-    }
-    
-    .controls button {
-      padding: 8px 16px;
-      background-color: #2a4494;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    
-    .controls button:hover {
-      background-color: #3a5494;
-    }
-
-    /* Add styles for audio controls */
-    .audio-controls {
-      position: fixed;
-      bottom: 10px;
-      right: 10px;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 10px;
-      border-radius: 5px;
-      z-index: 1000;
-    }
-    
-    .control-group {
-      margin-bottom: 10px;
-    }
-    
-    .control-group label {
-      display: block;
-      color: white;
-      margin-bottom: 5px;
-    }
-    
-    .control-group input[type="checkbox"] {
-      margin-right: 5px;
-    }
-    
-    .control-group input[type="range"] {
-      width: 100%;
-    }
-
-    /* Add styles for debug panel */
-    .audio-debug-panel {
-      position: fixed;
-      bottom: 80px;
-      right: 10px;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 10px;
-      border-radius: 5px;
-      z-index: 1000;
-    }
-    
-    .audio-debug-panel button {
-      display: block;
-      width: 100%;
-      margin-bottom: 5px;
-      padding: 5px;
-      background: #4466aa;
-      color: white;
-      border: none;
-      border-radius: 3px;
-      cursor: pointer;
-    }
-    
-    .audio-debug-panel button:hover {
-      background: #5577bb;
-    }
-    
-    .volume-control {
-      margin: 10px 0;
-    }
-    
-    .volume-control label {
-      display: block;
-      color: white;
-      margin-bottom: 5px;
-    }
-    
-    .volume-control input {
-      width: 100%;
-    }
-  </style>
 </body>
 </html>
