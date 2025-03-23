@@ -376,14 +376,9 @@ window.debugTools = {
 
 // Initialize on load
 window.addEventListener('load', function() {
-    setTimeout(() => {
-        createDebugUI();
-        console.log("Debug UI created");
-        
-        // Add debug button
-        setTimeout(addDebugButton, 1000);
-        
-        // Register error handler
-        window.addEventListener('error', handleGlobalError);
-    }, 2000);
+    // Debug initialization disabled to remove stray buttons
+    console.log("Debug UI initialization suppressed to prevent stray buttons");
+    
+    // Only register the error handler
+    window.addEventListener('error', handleGlobalError);
 });

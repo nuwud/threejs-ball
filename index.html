@@ -100,7 +100,7 @@
       <div class="menu-item">
         <span>Audio Visualization</span>
         <label class="toggle-switch">
-          <input type="checkbox" id="toggle-visualization" title="Toggle audio visualization">
+          <input type="checkbox" id="toggle-visualization" title="Toggle audio visualization" checked="false">
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -157,6 +157,21 @@
 
   <!-- Main entry point script -->
   <script type="module" src="js/main.js"></script>
+  
+  <!-- Button remover script to fix stray buttons -->
+  <script src="js/button-remover.js"></script>
+  
+  <!-- Complete visualizer fix - handles all green visualizers -->
+  <script src="js/complete-visualizer-fix.js"></script>
+  
+  <!-- Direct fix for horizontal green bars -->
+  <script src="js/direct-green-bar-fix.js"></script>
+  
+  <!-- Targeted fix for createVisualizationBars -->
+  <script src="js/targeted-bar-fix.js"></script>
+  
+  <!-- Fixes for toggles and effects -->
+  <script src="js/toggle-effect-fixes.js"></script>
   
   <!-- UI script -->
   <script>
@@ -428,53 +443,9 @@
       // Make showStatus available globally
       window.showStatus = showStatus;
       
-      // Add an emergency debug button
-      const debugButton = document.createElement('button');
-      debugButton.id = 'emergency-debug';
-      debugButton.textContent = 'Debug Scene';
-      debugButton.style.position = 'fixed';
-      debugButton.style.bottom = '10px';
-      debugButton.style.left = '10px';
-      debugButton.style.zIndex = '9999';
-      debugButton.style.background = 'rgba(255, 0, 0, 0.7)';
-      debugButton.style.color = 'white';
-      debugButton.style.border = 'none';
-      debugButton.style.borderRadius = '4px';
-      debugButton.style.padding = '8px 16px';
-      debugButton.style.cursor = 'pointer';
-      debugButton.style.fontFamily = 'Arial, sans-serif';
-      debugButton.style.fontSize = '14px';
-      debugButton.style.display = 'none';  // Hidden by default
+      // Debug button removed
       
-      document.body.appendChild(debugButton);
-      
-      debugButton.addEventListener('click', () => {
-        console.log('App state:', window.app);
-        
-        if (window.ensureBasicScene) {
-          window.ensureBasicScene();
-          showStatus('Scene recovery attempted');
-        }
-        
-        // Show debug information in console
-        console.log('Debug state:', {
-          hasScene: !!window.app?.scene,
-          hasBallGroup: !!window.app?.ballGroup,
-          ballChildren: window.app?.ballGroup?.children?.length || 0,
-          audioContext: !!window.app?.audioContext,
-          renderer: !!window.app?.renderer
-        });
-      });
-      
-      // Press 'D' key to show emergency debug button
-      document.addEventListener('keydown', (e) => {
-        if (e.key.toLowerCase() === 'd' && e.ctrlKey && e.altKey) {
-          const debugButton = document.getElementById('emergency-debug');
-          if (debugButton) {
-            debugButton.style.display = debugButton.style.display === 'none' ? 'block' : 'none';
-          }
-        }
-      });
+      // Debug hotkey removed
     });
   </script>
 </body>

@@ -1,6 +1,16 @@
 // Enhanced audio debugging visualization
 
 function createAudioDebugPanel() {
+    // Return dummy methods to maintain functionality without creating UI
+    return {
+        updateMeter: () => {},
+        updateStatus: () => {},
+        updateContextInfo: () => {},
+        log: () => {},
+        updatePerformance: () => {}
+    };
+    
+    // Original code below is skipped (never executed)
     const debugPanel = document.createElement('div');
     debugPanel.style.position = 'absolute';
     debugPanel.style.bottom = '10px';

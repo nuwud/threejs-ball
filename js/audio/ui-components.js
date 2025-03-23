@@ -21,21 +21,23 @@ export function toggleGreenSquares() {
 
 /**
  * Initialize UI components
+ * Modified to not create buttons to keep the interface clean
  */
 export function initializeUI() {
-    // Add a button to the UI to control the visibility
-    const toggleButton = document.createElement('button');
-    toggleButton.innerText = 'Toggle Green Squares';
-    toggleButton.classList.add('audio-ui-button');
-    toggleButton.addEventListener('click', toggleGreenSquares);
-    document.body.appendChild(toggleButton);
+    // BUTTON CREATION REMOVED
+    // Original code commented out to prevent button creation:
+    // const toggleButton = document.createElement('button');
+    // toggleButton.innerText = 'Toggle Green Squares';
+    // toggleButton.classList.add('audio-ui-button');
+    // toggleButton.addEventListener('click', toggleGreenSquares);
+    // document.body.appendChild(toggleButton);
     
     // Ensure green squares are hidden by default
     document.addEventListener('DOMContentLoaded', () => {
         toggleGreenSquares();
     });
     
-    console.log('Audio UI components initialized');
+    console.log('Audio UI components initialized (button creation disabled)');
 }
 
 /**
