@@ -350,9 +350,6 @@ function init() {
         animate();
         console.log("Animation loop started");
         
-        // Add debug button for audio testing
-        addDebugButton();
-        
         // Initialize audio controls
         setTimeout(initAudioControls, 1000);
         
@@ -616,48 +613,6 @@ function onAppInitialized(app) {
     }
 }
 
-// For debugging: add a button to test audio
-function addDebugButton() {
-    const button = document.createElement('button');
-    button.textContent = 'Test Audio';
-    button.style.position = 'absolute';
-    button.style.bottom = '10px';
-    button.style.right = '10px';
-    button.style.zIndex = '1000';
-    button.style.padding = '8px 16px';
-    button.style.background = '#00AAFF';
-    button.style.color = 'white';
-    button.style.border = 'none';
-    button.style.borderRadius = '4px';
-    button.style.cursor = 'pointer';
-    
-    button.addEventListener('click', () => {
-        // Ensure audio is initialized
-        if (!window.app.audioInitialized) {
-            initOnFirstClick();
-            
-            // Add a small delay to allow audio to initialize
-            setTimeout(() => {
-                playTestSound();
-            }, 500);
-        } else {
-            playTestSound();
-        }
-    });
-    
-    function playTestSound() {
-        // Direct play using core audio functions
-        if (window.app.audioContext) {
-            playClickSound(window.app);
-            console.log("Test sound played");
-        } else {
-            console.warn("Audio context not available");
-        }
-    }
-    
-    document.body.appendChild(button);
-}
-
 // Add this to your initialization code to handle the new UI controls
 function initAudioControls() {
     const audioEnabledCheckbox = document.getElementById('audio-enabled');
@@ -800,3 +755,32 @@ window.resetBall = function() {
         window.appControls.resetBall();
     }
 };
+
+document.addEventListener('DOMContentLoaded', () => {
+    const testAudioButton = document.getElementById('test-audio');
+    if (testAudioButton) {
+        testAudioButton.addEventListener('click', () => {
+            // Ensure audio is initialized
+            if (!window.app.audioInitialized) {
+                initOnFirstClick();
+
+                // Add a small delay to allow audio to initialize
+                setTimeout(() => {
+                    playTestSound();
+                }, 500);
+            } else {
+                playTestSound();
+            }
+        });
+    }
+
+    function playTestSound() {
+        // Direct play using core audio functions
+        if (window.app.audioContext) {
+            playClickSound(window.app);
+            console.log("Test sound played");
+        } else {
+            console.warn("Audio context not available");
+        }
+    }
+});

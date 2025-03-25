@@ -430,3 +430,10 @@ canvas {
 .control input[type="checkbox"] {
   transform: scale(1.2);
 }
+
+/* Remove any specific positioning for the Test Audio button */
+#test-audio {
+  position: static; /* Reset positioning */
+  bottom: auto;
+  right: auto;
+}

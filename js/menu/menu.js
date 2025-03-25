@@ -38,4 +38,15 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
+
+  // Audio controls
+  const testAudioBtn = document.getElementById('test-audio');
+  if (testAudioBtn) {
+    testAudioBtn.addEventListener('click', () => {
+      if (window.appControls && window.appControls.playSound) {
+        window.appControls.playSound();
+        showStatus('Test Sound Played');
+      }
+    });
+  }
 });
