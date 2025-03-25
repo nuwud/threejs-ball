@@ -350,3 +350,16 @@ canvas {
   height: 100%;
   z-index: 1;
 }
+
+/* Add this to your CSS file */
+.control {
+    margin-bottom: 10px;
+}
+
+.control label {
+    margin-right: 10px;
+}
+
+.control input[type="checkbox"] {
+    transform: scale(1.2);
+}

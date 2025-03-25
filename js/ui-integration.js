@@ -102,8 +102,9 @@ function connectUIControls(app) {
     });
 
     connectToggleControl('toggle-visualization', app, (checked) => {
-        if (app.visualization) {
-            app.visualization.active = checked;
+        if (app.audioVisualization) {
+            app.audioVisualization.container.visible = checked;
+            app.audioVisualization.active = checked;
             return checked;
         }
         return false;

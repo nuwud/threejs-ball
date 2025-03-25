@@ -91,8 +91,12 @@ export function createAudioVisualization(app) {
     
     app.audioVisualization = {
         container: visualizerContainer,
-        bars: bars
+        bars: bars,
+        active: false // Default to inactive
     };
+    
+    // Hide the visualization by default
+    visualizerContainer.visible = false;
     
     console.log("Audio visualization created");
 }
