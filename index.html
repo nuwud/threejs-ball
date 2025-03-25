@@ -1,9 +1,18 @@
+<!--
+  Three.js Ball Project
+  Created by: [Your Name/Organization]
+  Copyright © 2023-2024 - All Rights Reserved
+  License: [License Type - e.g., MIT, GPL, etc.]
+  
+  This project demonstrates interactive 3D graphics using Three.js.
+  Repository: [Your repository URL if applicable]
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Interactive 3D Ball with Three.js</title>
+  <title>Three.js Ball Project</title>
   <link rel="stylesheet" href="styles/styles.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
   <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.7.3/dist/es-module-shims.min.js"></script>
@@ -15,6 +24,8 @@
       }
     }
   </script>
+  <!-- Add this script tag for GSAP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 </head>
 <body>
   <!-- Hamburger Menu -->
@@ -30,9 +41,19 @@
   <!-- Ball Container -->
   <div id="ball"></div>
 
+  <!-- Footer hover trigger -->
+  <div class="footer-trigger"></div>
+  
+  <!-- Footer with attribution -->
+  <footer class="attribution">
+    <p>© 2024 Three.js Ball Project. All rights reserved.</p>
+    <p>Created using <a href="https://threejs.org/" target="_blank" rel="noopener">Three.js</a> and 
+    <a href="https://greensock.com/gsap/" target="_blank" rel="noopener">GSAP</a>.</p>
+  </footer>
+
   <!-- Main entry point script -->
   <script type="module" src="js/main.js"></script>
-  <script src="/js/menu/menu.js"></script>
+  <script src="js/menu/menu.js"></script>
   <script>
     // Load the menu HTML dynamically
     fetch('menu.html')

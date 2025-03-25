@@ -2,21 +2,21 @@
 import * as THREE from 'three';
 import { setupRenderer } from './renderer.js';
 import { createScene } from './scene.js';
-import { 
-    listener, 
-    setupAudio, 
-    setupAudioAnalyzer, 
-    createAudioVisualization, 
+import {
+    listener,
+    setupAudio,
+    setupAudioAnalyzer,
+    createAudioVisualization,
     updateAudioVisualization,
     getSynthesizer,
     createBallSoundEffects
 } from './audio/index.js';
 import { createBall, updateBallScale, updateBallRotation, updateBallPosition, resetBall } from './ball.js';
 import { setupEventListeners } from './events.js';
-import { 
-    updateParticleExplosion, 
-    updateMagneticParticles, 
-    updateBlackholeEffect, 
+import {
+    updateParticleExplosion,
+    updateMagneticParticles,
+    updateBlackholeEffect,
     updateRainbowMode,
     createParticleExplosion,
     createMagneticTrail,
@@ -27,38 +27,6 @@ import { updateFacetHighlights } from './effects/facet.js';
 import { createTrailEffect, updateTrailEffect } from './effects/trail.js';
 import { applySpikyEffect } from './effects/spiky.js';
 import { resetDeformation } from './effects/deformation.js';
-
-// Import enhanced visualization safely with try/catch
-let createEnhancedVisualization = null;
-try {
-    import('./audio/enhanced-visualization.js').then(module => {
-        createEnhancedVisualization = module.createEnhancedVisualization;
-    }).catch(e => console.warn("Enhanced visualization not available:", e));
-} catch (e) {
-    console.warn("Error importing enhanced visualization:", e);
-}
-
-// Audio core imports - keep these intact
-import { 
-    playFacetSound,
-    playClickSound,
-    playReleaseSound,
-    soundManager, 
-    enableContinuousSoundMode
-} from './audio/core.js';
-
-// Make soundManager globally available
-window.soundManager = soundManager;
-
-// Dynamically load debugAudioSystem but don't let it break the main app
-window.debugAudioSystem = null;
-import('./audio/core.js').then(module => {
-    if (module.debugAudioSystem) {
-        window.debugAudioSystem = module.debugAudioSystem;
-    }
-}).catch(e => console.warn("Could not load debug audio system:", e));
-
-console.log("Initializing application...");
 
 // Global app state
 window.app = {
@@ -93,170 +61,6 @@ window.app = {
     enhancedVisualization: null
 };
 
-// Global app controls - exposed for UI buttons
-window.appControls = {
-    toggleRainbowMode: function() {
-        const isActive = !window.app.isRainbowMode;
-        window.app.isRainbowMode = isActive;
-        console.log("Rainbow mode:", isActive);
-        return isActive;
-    },
-    toggleMagneticMode: function() {
-        window.app.isMagneticMode = !window.app.isMagneticMode;
-        if (window.app.isMagneticMode) {
-            createMagneticTrail(window.app);
-        } else {
-            removeMagneticTrail(window.app);
-        }
-        console.log("Magnetic mode:", window.app.isMagneticMode);
-        return window.app.isMagneticMode;
-    },
-    createBlackholeEffect: function() {
-        createBlackholeEffect(window.app);
-        console.log("Blackhole effect activated");
-    },
-    createExplosion: function() {
-        createParticleExplosion(window.app);
-        console.log("Explosion effect activated");
-    },
-    resetBall: function() {
-        resetBall(window.app);
-        console.log("Ball reset");
-    },
-    playSound: function() {
-        // Make sure audio is initialized
-        if (!window.app.audioInitialized) {
-            initOnFirstClick();
-        }
-        
-        // Use the core audio functions directly
-        if (window.app.audioContext) {
-            playClickSound(window.app);
-            console.log("Test sound played");
-        } else {
-            console.warn("Audio context not available");
-        }
-    },
-    toggleSpikyMode: function() {
-        // Toggle spikiness between 0 and 0.5
-        window.app.spikiness = window.app.spikiness > 0 ? 0 : 0.5;
-        
-        if (window.app.spikiness > 0) {
-            applySpikyEffect(window.app, window.app.spikiness);
-            console.log("Spiky mode activated:", window.app.spikiness);
-        } else {
-            resetDeformation(window.app, 0.5);
-            console.log("Spiky mode deactivated");
-        }
-        
-        return window.app.spikiness > 0;
-    },
-    
-    toggleFacetHighlighting: function() {
-        window.app.enableFacetHighlighting = !window.app.enableFacetHighlighting;
-        console.log("Facet highlighting:", window.app.enableFacetHighlighting);
-        return window.app.enableFacetHighlighting;
-    },
-    
-    toggleTrailEffect: function() {
-        if (window.app.trailEffect) {
-            window.app.scene.remove(window.app.trailEffect);
-            window.app.trailEffect = null;
-            console.log("Trail effect deactivated");
-            return false;
-        } else {
-            window.app.trailEffect = createTrailEffect(window.app);
-            console.log("Trail effect activated");
-            return true;
-        }
-    }
-};
-
-/**
- * Create a simpler emergency ball if the main ball creation fails
- * This ensures users always see something rather than an empty scene
- */
-function createEmergencyBall() {
-    console.log("Creating emergency ball...");
-    
-    if (!window.app) {
-        console.error("Cannot create emergency ball: app object missing");
-        return null;
-    }
-    
-    // Make sure we have a scene - create one if it doesn't exist
-    if (!window.app.scene) {
-        console.warn("Scene not found, creating a new scene for emergency ball");
-        window.app.scene = new THREE.Scene();
-        window.app.scene.background = new THREE.Color(0x000033); // Dark blue background
-    }
-    
-    try {
-        // Create a simple sphere with fewer segments
-        const geometry = new THREE.SphereGeometry(1, 16, 16);
-        
-        // Create a simple material (no complex textures or effects)
-        const material = new THREE.MeshBasicMaterial({
-            color: 0x8866ff,
-            wireframe: false
-        });
-        
-        // Create wireframe material
-        const wireMaterial = new THREE.MeshBasicMaterial({
-            color: 0x00ffff,
-            wireframe: true
-        });
-        
-        // Create meshes
-        const mesh = new THREE.Mesh(geometry, material);
-        const wireMesh = new THREE.Mesh(geometry, wireMaterial);
-        
-        // Create group to hold both meshes
-        const ballGroup = new THREE.Group();
-        ballGroup.add(mesh);
-        ballGroup.add(wireMesh);
-        
-        // Store references in userData
-        ballGroup.userData = {
-            mesh: mesh,
-            wireMesh: wireMesh,
-            mat: material,
-            wireMat: wireMaterial,
-            geo: geometry,
-            isEmergencyBall: true,
-            originalPositions: geometry.attributes.position.array.slice()
-        };
-        
-        // Add to scene
-        window.app.scene.add(ballGroup);
-        window.app.ballGroup = ballGroup;
-        
-        // Add emit function for compatibility with event system
-        ballGroup.emit = function(eventName, data) {
-            console.log(`Ball event: ${eventName}`, data);
-        };
-        
-        console.log("Emergency ball created successfully");
-        
-        // Make sure we have a camera
-        if (!window.app.camera) {
-            console.warn("Camera not found, creating a new camera for emergency ball");
-            window.app.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            window.app.camera.position.z = 2;
-        }
-        
-        // Show status message to user
-        if (window.showStatus) {
-            window.showStatus("Using simplified ball model");
-        }
-        
-        return ballGroup;
-    } catch (error) {
-        console.error("Failed to create emergency ball:", error);
-        return null;
-    }
-}
-
 // Initialize the application
 function init() {
     console.log("Initializing application...");
@@ -266,8 +70,18 @@ function init() {
         const w = window.innerWidth;
         const h = window.innerHeight;
         window.app.renderer = setupRenderer(w, h);
-        document.body.appendChild(window.app.renderer.domElement);
-        console.log("Renderer added to DOM");
+        
+        // Append the renderer's canvas to the #ball container
+        const ballContainer = document.getElementById('ball');
+        if (ballContainer) {
+            ballContainer.appendChild(window.app.renderer.domElement);
+            console.log("Renderer added to DOM");
+        } else {
+            console.error('Ball container (#ball) not found in DOM.');
+            // Fallback to append to body
+            document.body.appendChild(window.app.renderer.domElement);
+            console.warn("Renderer added to body as fallback");
+        }
 
         // Create scene
         window.app.scene = createScene();
@@ -298,192 +112,190 @@ function init() {
         window.app.scene.userData.pointLight = pointLight;
 
         console.log("Lights set up");
-
-        // Add event listener for window resize
-        window.addEventListener('resize', onWindowResize);
-        console.log("Resize handler set up");
-
-        // Initialize soundManager early and attach to window.app
-        if (soundManager && !window.app.soundManager) {
-            window.app.soundManager = soundManager;
-            if (typeof soundManager.init === 'function') {
-                try {
-                    soundManager.init();
-                    console.log("Sound manager initialized early");
-                } catch (e) {
-                    console.warn("Early sound manager initialization failed:", e);
-                }
-            }
-        }
-
-        // Try to create the ball - THIS IS THE CRITICAL PART
-        try {
-            console.log("Attempting to create ball...");
-            const ball = createBall(window.app);
-            console.log("Ball creation result:", ball ? "Success" : "Failed");
-            
-            // If ball creation failed, create emergency ball
-            if (!ball || !window.app.ballGroup) {
-                console.warn("Ball not created successfully, trying emergency ball");
-                createEmergencyBall();
-            } else {
-                console.log("Ball created successfully with properties:", 
-                    Object.keys(ball).join(", "),
-                    "userData properties:", Object.keys(ball.userData).join(", "));
-            }
-        } catch (ballError) {
-            console.error("Error creating ball:", ballError);
+        
+        // Create the ball - THIS IS THE CRITICAL PART
+        console.log("Attempting to create ball...");
+        const ball = createBall(window.app);
+        
+        if (!ball) {
+            console.warn("Ball creation returned null, creating emergency ball");
             createEmergencyBall();
+        } else {
+            console.log("Ball created successfully!");
+            
+            // Make sure the ball is visible
+            ball.visible = true;
+            
+            // Add it to the scene if not already added
+            if (ball.parent !== window.app.scene) {
+                window.app.scene.add(ball);
+                console.log("Ball added to scene");
+            }
+            
+            // Store reference in app for later access
+            window.app.ballGroup = ball;
         }
 
         // Set up event listeners for interactivity
         setupEventListeners(window.app);
         console.log("Event listeners set up");
-        
+
+        // Add event listener for window resize
+        window.addEventListener('resize', onWindowResize);
+        console.log("Resize handler set up");
+
         // Initialize audio on first user interaction
         document.addEventListener('click', initOnFirstClick, { once: true });
         document.addEventListener('mousedown', initOnFirstClick, { once: true });
         document.addEventListener('touchstart', initOnFirstClick, { once: true });
         document.addEventListener('keydown', initOnFirstClick, { once: true });
-        
+
         // Start animation loop
         animate();
         console.log("Animation loop started");
-        
-        // Initialize audio controls
-        setTimeout(initAudioControls, 1000);
-        
-        // Call onAppInitialized AFTER basic setup is complete
-        onAppInitialized(window.app);
-        
+
         console.log("Application initialized successfully");
     } catch (error) {
         console.error("Error initializing application:", error);
-        
         // Try to recover with minimal initialization
+        recoverWithEmergencyBall();
+    }
+}
+
+// Initialize audio on first user interaction
+function initOnFirstClick() {
+    if (!window.app.audioInitialized) {
         try {
-            if (!window.app.renderer) {
-                const w = window.innerWidth;
-                const h = window.innerHeight;
-                window.app.renderer = new THREE.WebGLRenderer({ antialias: true });
-                window.app.renderer.setSize(w, h);
-                document.body.appendChild(window.app.renderer.domElement);
-            }
+            // Pass window.app to setupAudio
+            const audioSetupResult = setupAudio(window.app);
             
-            if (!window.app.scene) {
-                window.app.scene = new THREE.Scene();
-                window.app.scene.background = new THREE.Color(0x000000);
-            }
-            
-            if (!window.app.camera) {
-                window.app.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-                window.app.camera.position.z = 2;
-            }
-            
-            if (!window.app.ballGroup) {
-                createEmergencyBall();
-            }
-            
-            // Start minimal animation loop
-            function minimalAnimate() {
-                requestAnimationFrame(minimalAnimate);
+            // Function to complete audio initialization
+            const completeAudioSetup = () => {
+                window.app.audioInitialized = true;
+                window.app.soundSynth = getSynthesizer();
+                // Pass window.app to createBallSoundEffects if needed
+                createBallSoundEffects(window.app);
                 
-                // Rotate ball if it exists
-                if (window.app.ballGroup) {
-                    window.app.ballGroup.rotation.y += 0.01;
+                // Only set up audio analyzer if audio context exists
+                if (window.app.audioContext) {
+                    // Pass window.app to setupAudioAnalyzer
+                    setupAudioAnalyzer(window.app);
+                    // Pass window.app to createAudioVisualization
+                    window.app.audioVisualization = createAudioVisualization(window.app);
+                } else {
+                    console.warn("Audio context not available, skipping analyzer setup");
                 }
                 
-                // Render
-                window.app.renderer.render(window.app.scene, window.app.camera);
-            }
+                console.log("Audio initialized on user interaction");
+            };
             
-            minimalAnimate();
-            console.log("Minimal fallback initialization completed");
-            
-            if (window.showStatus) {
-                window.showStatus("Running in fallback mode");
+            // Check if setupAudio returned a Promise
+            if (audioSetupResult && typeof audioSetupResult.then === 'function') {
+                // Handle Promise-based setup
+                audioSetupResult
+                    .then(completeAudioSetup)
+                    .catch(error => {
+                        console.error("Error initializing audio:", error);
+                    });
+            } else {
+                // Handle synchronous setup (no Promise returned)
+                completeAudioSetup();
             }
-        } catch (fallbackError) {
-            console.error("Critical failure in fallback:", fallbackError);
+        } catch (error) {
+            console.error("Error in audio initialization:", error);
         }
     }
 }
 
-// Function to handle window resize
+// Function to create an emergency ball if main ball creation fails
+function createEmergencyBall() {
+    console.warn("Creating emergency fallback ball");
+    try {
+        // Create a simple sphere
+        const geometry = new THREE.SphereGeometry(0.5, 16, 16);
+        const material = new THREE.MeshStandardMaterial({
+            color: 0x00DFDF,
+            metalness: 0.3,
+            roughness: 0.4,
+        });
+        const ball = new THREE.Mesh(geometry, material);
+        
+        // Create a group to hold the ball
+        const ballGroup = new THREE.Group();
+        ballGroup.add(ball);
+        
+        // Add to scene and store reference
+        window.app.scene.add(ballGroup);
+        window.app.ballGroup = ballGroup;
+        
+        console.log("Emergency ball created successfully");
+    } catch (error) {
+        console.error("Failed to create emergency ball:", error);
+    }
+}
+
+// Handle window resize
 function onWindowResize() {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    
-    window.app.camera.aspect = width / height;
-    window.app.camera.updateProjectionMatrix();
-    
-    window.app.renderer.setSize(width, height);
+    if (window.app.camera && window.app.renderer) {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        
+        window.app.camera.aspect = w / h;
+        window.app.camera.updateProjectionMatrix();
+        window.app.renderer.setSize(w, h);
+        
+        console.log("Resized renderer to", w, "x", h);
+    }
 }
 
 // Animation loop
 function animate() {
     requestAnimationFrame(animate);
     
+    const delta = window.app.clock.getDelta();
+    const elapsedTime = window.app.clock.getElapsedTime();
+    
     try {
-        // Update ball animations if ball exists
-        if (window.app.ballGroup) {
-            try {
-                updateBallScale(window.app);
-                updateBallRotation(window.app);
-                updateBallPosition(window.app);
-            } catch (ballError) {
-                console.error("Error updating ball:", ballError);
-                // At least make it rotate
-                window.app.ballGroup.rotation.y += 0.01;
-            }
+        // Update ball scale
+        if (window.app.targetScale !== window.app.currentScale) {
+            updateBallScale(window.app);
         }
         
-        // Update special effects - wrap in try/catch to prevent one effect from breaking everything
-        try {
-            updateParticleExplosion(window.app);
-        } catch (e) { console.error("Error in particle explosion:", e); }
+        // Update ball rotation
+        updateBallRotation(window.app, delta);
         
-        try {
+        // Update ball position if being dragged
+        if (window.app.isDragging && window.app.touchPoint) {
+            updateBallPosition(window.app);
+        }
+        
+        // Update visual effects
+        if (window.app.isRainbowMode) {
+            updateRainbowMode(window.app, elapsedTime);
+        }
+        
+        if (window.app.isMagneticMode) {
             updateMagneticParticles(window.app);
-        } catch (e) { console.error("Error in magnetic particles:", e); }
+        }
         
-        try {
+        if (window.app.gravitationalPull > 0) {
             updateBlackholeEffect(window.app);
-        } catch (e) { console.error("Error in blackhole effect:", e); }
-        
-        try {
-            updateRainbowMode(window.app);
-        } catch (e) { console.error("Error in rainbow mode:", e); }
-        
-        // Add these new updates with proper safety checks:
-        if (window.app.trailEffect) {
-            try {
-                updateTrailEffect(window.app);
-            } catch (e) { 
-                console.error("Error in trail effect:", e);
-                // Clean up failed trail effect to prevent future errors
-                if (window.app.trailEffect && window.app.scene) {
-                    window.app.scene.remove(window.app.trailEffect);
-                    window.app.trailEffect = null;
-                }
-            }
         }
         
         if (window.app.enableFacetHighlighting) {
-            try {
-                updateFacetHighlights(window.app);
-            } catch (e) { 
-                console.error("Error in facet highlights:", e);
-                // Disable facet highlighting to prevent future errors
-                window.app.enableFacetHighlighting = false;
-            }
+            updateFacetHighlights(window.app);
         }
-
+        
+        if (window.app.trailEffect) {
+            updateTrailEffect(window.app.trailEffect, delta);
+        }
+        
         // Update audio visualization if available
-        if (window.app.audioContext && window.app.analyser) {
-            try {
-                updateAudioVisualization(window.app);
-            } catch (e) { console.error("Error in audio visualization:", e); }
+        if (window.app.analyser && window.app.audioDataArray) {
+            window.app.analyser.getByteFrequencyData(window.app.audioDataArray);
+            if (window.app.audioVisualization) {
+                updateAudioVisualization(window.app.audioDataArray);
+            }
         }
         
         // Render the scene
@@ -493,294 +305,131 @@ function animate() {
     }
 }
 
-// Initialize audio on first user interaction
-function initOnFirstClick() {
+// Function to recover with an emergency ball if main initialization fails
+function recoverWithEmergencyBall() {
     try {
-        // Don't initialize multiple times
-        if (window.app.audioInitialized) return;
+        console.warn("Attempting emergency recovery...");
         
-        console.log("Initializing audio on first user interaction");
-        
-        // Set a flag to prevent infinite loops if audio initialization fails
-        window.app.audioInitialized = true;
-        
-        // Ensure soundManager is attached to app
-        if (!window.app.soundManager && soundManager) {
-            window.app.soundManager = soundManager;
-            console.log("Sound manager attached to app");
+        if (!window.app.renderer) {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            window.app.renderer = new THREE.WebGLRenderer({ antialias: true });
+            window.app.renderer.setSize(w, h);
+            document.body.appendChild(window.app.renderer.domElement);
+            console.log("Emergency renderer created");
+        }
+
+        if (!window.app.scene) {
+            window.app.scene = new THREE.Scene();
+            window.app.scene.background = new THREE.Color(0x000033);
+            console.log("Emergency scene created");
+        }
+
+        if (!window.app.camera) {
+            window.app.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            window.app.camera.position.z = 2;
+            console.log("Emergency camera created");
+        }
+
+        if (!window.app.ballGroup) {
+            createEmergencyBall();
         }
         
-        // Initialize soundManager if not already done
-        if (window.app.soundManager && typeof window.app.soundManager.init === 'function' && !window.app.soundManager.initialized) {
-            try {
-                window.app.soundManager.init();
-                console.log("Sound manager initialized");
-            } catch (e) {
-                console.error("Failed to initialize sound manager:", e);
+        // Start minimal animation loop
+        function minimalAnimate() {
+            requestAnimationFrame(minimalAnimate);
+
+            // Rotate ball if it exists
+            if (window.app.ballGroup) {
+                window.app.ballGroup.rotation.y += 0.01;
             }
+
+            // Render
+            window.app.renderer.render(window.app.scene, window.app.camera);
         }
-        
-        // Setup audio systems with timeouts to prevent blocking
-        setTimeout(() => {
-            try {
-                setupAudio(window.app);
-                console.log("Audio setup complete");
-                
-                // Setup analyzer after short delay
-                setTimeout(() => {
-                    try {
-                        setupAudioAnalyzer(window.app);
-                        console.log("Audio analyzer setup complete");
-                        
-                        // Create audio visualizations
-                        createAudioVisualization(window.app);
-                        console.log("Audio visualization created");
-                        
-                        // Initialize synthesizer if needed
-                        try {
-                            // Get the synthesizer instance
-                            window.app.soundSynth = getSynthesizer();
-                            
-                            // Setup ball sound effects
-                            if (window.app.soundSynth && window.app.ballGroup) {
-                                const soundEffects = createBallSoundEffects(window.app.ballGroup);
-                                soundEffects.setupBallEvents();
-                                console.log("Ball sound effects initialized");
-                            }
-                        } catch (synthError) {
-                            console.warn("Error initializing synthesizer:", synthError);
-                        }
-                        
-                        // Resume audio context if needed
-                        if (window.app.audioContext && window.app.audioContext.state === 'suspended') {
-                            window.app.audioContext.resume().then(() => {
-                                console.log("AudioContext resumed successfully");
-                            }).catch(err => {
-                                console.error("Failed to resume AudioContext:", err);
-                            });
-                        }
-                    } catch (analyzerError) {
-                        console.error("Error setting up audio analyzer:", analyzerError);
-                    }
-                }, 100);
-            } catch (setupError) {
-                console.error("Error in audio setup:", setupError);
-            }
-        }, 100);
-        
-        console.log("Audio initialization scheduled");
-    } catch (error) {
-        console.error("Error initializing audio:", error);
-        // Mark as initialized even if it fails to prevent retries
-        window.app.audioInitialized = true;
+
+        minimalAnimate();
+        console.log("Minimal fallback initialization completed");
+    } catch (fallbackError) {
+        console.error("Critical failure in fallback:", fallbackError);
     }
 }
 
-// After app is initialized
-function onAppInitialized(app) {
-    console.log("Running post-initialization tasks...");
-    
-    try {
-        // Initialize the enhanced visualization if available
-        if (createEnhancedVisualization && typeof createEnhancedVisualization === 'function') {
-            try {
-                app.enhancedVisualization = createEnhancedVisualization(app);
-                console.log("Enhanced visualization created");
-            } catch (e) {
-                console.warn("Error creating enhanced visualization:", e);
-            }
-        }
-        
-        // Initialize new UI system if available
-        try {
-            // Try to dynamically import UI integration to avoid hard dependency
-            import('./ui-integration.js')
-                .then(module => {
-                    if (module.default && typeof module.default === 'function') {
-                        module.default(app);
-                        console.log("UI integration initialized");
-                    }
-                })
-                .catch(error => {
-                    console.warn("UI integration module not found or failed to load:", error);
-                });
-        } catch (e) {
-            console.warn("Error initializing UI system:", e);
-        }
-        
-    } catch (error) {
-        console.error("Error in post-initialization:", error);
-    }
-}
-
-// Add this to your initialization code to handle the new UI controls
-function initAudioControls() {
-    const audioEnabledCheckbox = document.getElementById('audio-enabled');
-    const continuousModeCheckbox = document.getElementById('continuous-mode');
-    const visualizationCheckbox = document.getElementById('visualization');
-    const volumeSlider = document.getElementById('volume');
-    
-    // Check if elements exist in the DOM
-    if (!audioEnabledCheckbox || !continuousModeCheckbox || 
-        !visualizationCheckbox || !volumeSlider) {
-        console.warn("Audio control elements not found in DOM");
-        return;
-    }
-    
-    // Set initial states - WITH NULL CHECKS
-    audioEnabledCheckbox.checked = true;
-    continuousModeCheckbox.checked = true;
-    visualizationCheckbox.checked = true;
-    
-    // Initialize master volume - WITH NULL CHECKS
-    if (window.app && window.app.soundManager && window.app.soundManager.masterGain) {
-        volumeSlider.value = window.app.soundManager.masterGain.gain.value * 100;
-    } else {
-        volumeSlider.value = 70; // Default value
-    }
-    
-    // Add event listeners
-    audioEnabledCheckbox.addEventListener('change', (e) => {
-        if (!window.app || !window.app.soundManager || !window.app.soundManager.masterGain) return;
-        
-        if (e.target.checked) {
-            window.app.soundManager.masterGain.gain.value = volumeSlider.value / 100;
+// Add controls API for external access
+window.appControls = {
+    resetBall: () => {
+        resetBall(window.app);
+        resetDeformation();
+        removeMagneticTrail(window.app);
+        window.app.isRainbowMode = false;
+        window.app.isMagneticMode = false;
+        window.app.gravitationalPull = 0;
+        window.showStatus("Ball reset to default state");
+    },
+    toggleRainbowMode: () => {
+        window.app.isRainbowMode = !window.app.isRainbowMode;
+        window.showStatus(`Rainbow mode ${window.app.isRainbowMode ? 'enabled' : 'disabled'}`);
+    },
+    toggleMagneticMode: () => {
+        window.app.isMagneticMode = !window.app.isMagneticMode;
+        if (window.app.isMagneticMode) {
+            createMagneticTrail(window.app);
         } else {
-            window.app.soundManager.masterGain.gain.value = 0;
+            removeMagneticTrail(window.app);
         }
-    });
-    
-    continuousModeCheckbox.addEventListener('change', (e) => {
-        if (window.app) {
-            window.app.continuousSoundEnabled = e.target.checked;
+        window.showStatus(`Magnetic mode ${window.app.isMagneticMode ? 'enabled' : 'disabled'}`);
+    },
+    setGravitationalPull: (value) => {
+        const newValue = parseFloat(value);
+        if (!isNaN(newValue)) {
+            window.app.gravitationalPull = newValue;
+            if (newValue > 0 && !window.app.blackholeEffect) {
+                createBlackholeEffect(window.app);
+            }
+            window.showStatus(`Gravitational pull set to ${newValue}`);
         }
-    });
-    
-    visualizationCheckbox.addEventListener('change', (e) => {
-        if (window.app && window.app.audioVisualization) {
-            window.app.audioVisualization.enabled = e.target.checked;
+    },
+    explode: () => {
+        createParticleExplosion(window.app);
+        window.showStatus("Explosion effect triggered");
+    },
+    toggleTrail: () => {
+        if (window.app.trailEffect) {
+            window.app.scene.remove(window.app.trailEffect);
+            window.app.trailEffect = null;
+            window.showStatus("Trail effect disabled");
+        } else {
+            window.app.trailEffect = createTrailEffect(window.app);
+            window.showStatus("Trail effect enabled");
         }
-    });
-    
-    volumeSlider.addEventListener('input', (e) => {
-        if (!window.app || !window.app.soundManager || !window.app.soundManager.masterGain) return;
-        
-        if (audioEnabledCheckbox.checked) {
-            window.app.soundManager.masterGain.gain.value = e.target.value / 100;
+    },
+    makeSpikey: (value) => {
+        const spikiness = parseFloat(value);
+        if (!isNaN(spikiness)) {
+            window.app.spikiness = spikiness;
+            applySpikyEffect(window.app, spikiness);
+            window.showStatus(`Spikiness set to ${spikiness}`);
         }
-    });
-}
-
-// Initialize the application
-init();
-
-// Add a debugging function to globals
-window.debugBall = function() {
-    console.group("Ball Debug Information:");
-    if (!window.app || !window.app.ballGroup) {
-        console.log("Ball not found in app state");
-        console.groupEnd();
-        return;
-    }
-    
-    const ball = window.app.ballGroup;
-    console.log("Ball exists:", !!ball);
-    console.log("Ball children count:", ball.children ? ball.children.length : 0);
-    console.log("Ball has userData:", !!ball.userData);
-    
-    if (ball.userData) {
-        console.log("Ball userData properties:", Object.keys(ball.userData).join(", "));
-        console.log("Ball has mesh:", !!ball.userData.mesh);
-        console.log("Ball has wireMesh:", !!ball.userData.wireMesh);
-        console.log("Ball has material:", !!ball.userData.mat);
-        console.log("Ball has wireframe material:", !!ball.userData.wireMat);
-        console.log("Ball has geometry:", !!ball.userData.geo);
-    }
-    
-    console.log("Ball in scene:", window.app.scene.children.includes(ball));
-    console.log("Ball can emit events:", typeof ball.emit === 'function');
-    console.log("Ball position:", JSON.stringify(ball.position));
-    console.log("Ball rotation:", JSON.stringify(ball.rotation));
-    console.log("Ball scale:", JSON.stringify(ball.scale));
-    
-    console.groupEnd();
-};
-
-// Add debug keyboard shortcut - press Ctrl+Alt+B to debug ball
-document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'b') {
-        window.debugBall();
-    }
-});
-
-// Add a recovery function
-window.fixBrokenBall = function() {
-    if (!window.app || !window.app.scene) {
-        console.error("App or scene not initialized");
-        return false;
-    }
-    
-    // If ball exists but is broken, try to remove it first
-    if (window.app.ballGroup) {
-        try {
-            window.app.scene.remove(window.app.ballGroup);
-            window.app.ballGroup = null;
-            console.log("Removed broken ball");
-        } catch (e) {
-            console.warn("Error removing broken ball:", e);
-        }
-    }
-    
-    // Create a new ball
-    try {
-        const newBall = createBall(window.app);
-        
-        if (newBall) {
-            console.log("New ball created successfully");
+    },
+    toggleFacetHighlighting: () => {
+        window.app.enableFacetHighlighting = !window.app.enableFacetHighlighting;
+        window.showStatus(`Facet highlighting ${window.app.enableFacetHighlighting ? 'enabled' : 'disabled'}`);
+    },
+    playSound: () => {
+        if (window.app.soundSynth) {
+            window.app.soundSynth.triggerAttackRelease("C4", "8n");
             return true;
-        } else {
-            console.log("Creating normal ball failed, trying emergency ball");
-            const emergencyBall = createEmergencyBall();
-            return !!emergencyBall;
         }
-    } catch (e) {
-        console.error("Error creating replacement ball:", e);
         return false;
     }
 };
 
-// Make functions available globally for debug
-window.resetBall = function() {
-    if (window.appControls && window.appControls.resetBall) {
-        window.appControls.resetBall();
-    }
+// Initialize application when document is loaded
+document.addEventListener('DOMContentLoaded', init);
+
+// Export functions for potential module use
+export {
+    init,
+    animate,
+    createEmergencyBall
 };
-
-document.addEventListener('DOMContentLoaded', () => {
-    const testAudioButton = document.getElementById('test-audio');
-    if (testAudioButton) {
-        testAudioButton.addEventListener('click', () => {
-            // Ensure audio is initialized
-            if (!window.app.audioInitialized) {
-                initOnFirstClick();
-
-                // Add a small delay to allow audio to initialize
-                setTimeout(() => {
-                    playTestSound();
-                }, 500);
-            } else {
-                playTestSound();
-            }
-        });
-    }
-
-    function playTestSound() {
-        // Direct play using core audio functions
-        if (window.app.audioContext) {
-            playClickSound(window.app);
-            console.log("Test sound played");
-        } else {
-            console.warn("Audio context not available");
-        }
-    }
-});
