@@ -319,7 +319,7 @@
         try {
             const { playToneForPosition, playFacetSound } = app.audio || 
                 window.audioModule || 
-                require('./js/audio/core.js');
+                require('./audio/core.js');
                 
             // Store for direct use
             window.soundFunctions = {

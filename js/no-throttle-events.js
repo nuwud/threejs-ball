@@ -124,7 +124,7 @@
                         const facetIndex = intersects[0].faceIndex;
                         
                         // This is the key change: ALWAYS trigger sound, no throttling
-                        const { playToneForPosition, playFacetSound } = require('./js/audio/core.js');
+                        const { playToneForPosition, playFacetSound } = require('./audio/core.js');
                         
                         // Try to initialize audio if needed
                         if (typeof window.ensureAudioInitialized === 'function') {
@@ -212,7 +212,7 @@
         function patchCoreSoundFunctions() {
             try {
                 // Locate the audio core module
-                const audioCore = window.app.audioCore || require('./js/audio/core.js');
+                const audioCore = window.app.audioCore || require('./audio/core.js');
                 
                 if (!audioCore) {
                     console.warn("Could not find audio core module");

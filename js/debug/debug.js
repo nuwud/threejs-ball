@@ -102,18 +102,59 @@ window.recoverBall = function() {
     }
 };
 
-// Insert the recover function into the HTML
-const recoverButton = document.createElement('button');
-recoverButton.textContent = 'Recover Ball';
-recoverButton.style.position = 'absolute';
-recoverButton.style.top = '10px';
-recoverButton.style.right = '10px';
-recoverButton.style.zIndex = '9999';
-recoverButton.style.padding = '8px 16px';
-recoverButton.style.backgroundColor = '#ff5555';
-recoverButton.style.color = 'white';
-recoverButton.style.border = 'none';
-recoverButton.style.borderRadius = '4px';
-recoverButton.style.cursor = 'pointer';
-recoverButton.onclick = () => window.recoverBall();
-document.body.appendChild(recoverButton);
+// Global error handler with improved diagnostics
+function handleGlobalError(event) {
+    console.error('Global error:', event.message, 'at', event.filename, 'line', event.lineno);
+
+    // Show error to user
+    if (window.showStatus) {
+        window.showStatus('Error: ' + event.message);
+    }
+
+    // Diagnostic info about sound system
+    console.log("Sound system state:", {
+        soundManagerExists: !!window.soundManager,
+        soundManagerInitialized: window.soundManager?.initialized,
+        appSoundManagerExists: !!window.app?.soundManager,
+        audioContextExists: !!window.app?.audioContext || !!window.soundManager?.audioContext
+    });
+
+    // Try to recover if it's a ball-related error
+    if (event.message.includes('ball') && !window.app?.ballGroup) {
+        console.warn("Ball-related error detected, attempting recovery");
+        createRecoveryBall();
+    }
+}
+
+// Initialize ONLY WHEN REQUESTED, not automatically
+function initDebug() {
+    createDebugUI();
+    loadAudioDebugTools();
+}
+
+// Export all functions
+export {
+    initDebug,
+    createDebugUI,
+    resetBall,
+    toggleWireframe,
+    createEmergencyBall
+};
+
+// Make debug functions available globally, but don't auto-initialize
+window.debugTools = {
+    init: initDebug,
+    createDebugUI,
+    resetBall,
+    toggleWireframe,
+    createEmergencyBall
+};
+
+// Initialize on load
+window.addEventListener('load', function() {
+    // Debug initialization disabled to remove stray buttons
+    console.log("Debug UI initialization suppressed to prevent stray buttons");
+
+    // Only register the error handler
+    window.addEventListener('error', handleGlobalError);
+});

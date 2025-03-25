@@ -1,4 +1,6 @@
-/* General styles */
+/* ===========================
+   General Styles
+=========================== */
 :root {
   --menu-bg-dark: rgba(40, 40, 40, 0.8);
   --menu-bg-light: rgba(70, 70, 70, 0.7);
@@ -26,7 +28,9 @@ body {
   overflow: hidden;
 }
 
-/* Hamburger Menu - Clean and minimal in top right */
+/* ===========================
+   Hamburger Menu
+=========================== */
 .hamburger-menu {
   position: fixed;
   top: 20px;
@@ -57,7 +61,9 @@ body {
   transition: all 0.3s ease;
 }
 
-/* Menu Panel - Slide in from right */
+/* ===========================
+   Menu Panel
+=========================== */
 .menu-panel {
   position: fixed;
   top: 0;
@@ -68,18 +74,20 @@ body {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   box-shadow: -5px 0 15px rgba(0, 0, 0, 0.3);
-  transition: right 0.3s ease;
-  z-index: 999;
+  transition: right 0.3s ease; /* Ensure smooth transition */
+  z-index: 1000; /* Ensure it is above other elements */
   overflow-y: auto;
   box-sizing: border-box;
   border-left: 1px solid var(--menu-border);
 }
 
 .menu-panel.open {
-  right: 0;
+  right: 0; /* Slide in when open */
 }
 
-/* Menu header */
+/* ===========================
+   Menu Header
+=========================== */
 .menu-header {
   display: flex;
   justify-content: space-between;
@@ -102,13 +110,18 @@ body {
   font-size: 24px;
   cursor: pointer;
   transition: color 0.3s ease;
+  position: absolute; /* Ensure it is positioned relative to the menu panel */
+  top: 20px; /* Adjust to align properly within the menu panel */
+  right: 20px; /* Keep it inside the menu panel */
 }
 
 .close-btn:hover {
   color: var(--menu-accent);
 }
 
-/* Menu sections */
+/* ===========================
+   Menu Sections
+=========================== */
 .menu-section {
   padding: 15px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -121,7 +134,9 @@ body {
   font-weight: 400;
 }
 
-/* Menu items with toggles */
+/* ===========================
+   Menu Items and Toggles
+=========================== */
 .menu-item {
   display: flex;
   justify-content: space-between;
@@ -133,7 +148,6 @@ body {
   font-size: 0.95rem;
 }
 
-/* Toggle switch styling */
 .toggle-switch {
   position: relative;
   display: inline-block;
@@ -171,15 +185,17 @@ body {
   border-radius: 50%;
 }
 
-input:checked + .toggle-slider {
+input:checked+.toggle-slider {
   background-color: var(--toggle-on);
 }
 
-input:checked + .toggle-slider:before {
+input:checked+.toggle-slider:before {
   transform: translateX(22px);
 }
 
-/* Slider container for volume */
+/* ===========================
+   Slider Container
+=========================== */
 .slider-container {
   width: 160px;
   margin-top: 5px;
@@ -201,6 +217,48 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 50%;
   background: var(--menu-accent);
   cursor: pointer;
+}
+
+/* ===========================
+   Canvas Styling for Three.js
+=========================== */
+canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  outline: none;
+}
+
+/* Ensure the ball container doesn't interfere with rendering */
+#ball {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* ===========================
+   Effect Buttons
+=========================== */
+.effect-button {
+  padding: 8px 16px;
+  margin: 5px;
+  background-color: #555;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.effect-button:hover {
+  background-color: #777;
+}
+
+.effect-button.active {
+  background-color: #4CAF50;
 }
 
 /* Menu buttons */
@@ -288,7 +346,8 @@ input[type="range"]::-webkit-slider-thumb {
   display: flex;
   justify-content: center;
   align-items: center;
-  display: none; /* Hidden by default */
+  display: none;
+  /* Hidden by default */
 }
 
 /* Visualization bars */
@@ -312,13 +371,25 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* Animation keyframes for subtle effects */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideIn {
-  from { transform: translateX(20px); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 /* Apply animations to menu sections */
@@ -327,39 +398,35 @@ input[type="range"]::-webkit-slider-thumb {
   animation-fill-mode: backwards;
 }
 
-.menu-section:nth-child(1) { animation-delay: 0.05s; }
-.menu-section:nth-child(2) { animation-delay: 0.1s; }
-.menu-section:nth-child(3) { animation-delay: 0.15s; }
-.menu-section:nth-child(4) { animation-delay: 0.2s; }
-.menu-section:nth-child(5) { animation-delay: 0.25s; }
-
-/* Canvas styling */
-canvas {
-  display: block;
-  width: 100vw;
-  height: 100vh;
-  outline: none;
+.menu-section:nth-child(1) {
+  animation-delay: 0.05s;
 }
 
-/* Ensure the ball container doesn't interfere with rendering */
-#ball {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
+.menu-section:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.menu-section:nth-child(3) {
+  animation-delay: 0.15s;
+}
+
+.menu-section:nth-child(4) {
+  animation-delay: 0.2s;
+}
+
+.menu-section:nth-child(5) {
+  animation-delay: 0.25s;
 }
 
 /* Add this to your CSS file */
 .control {
-    margin-bottom: 10px;
+  margin-bottom: 10px;
 }
 
 .control label {
-    margin-right: 10px;
+  margin-right: 10px;
 }
 
 .control input[type="checkbox"] {
-    transform: scale(1.2);
+  transform: scale(1.2);
 }
