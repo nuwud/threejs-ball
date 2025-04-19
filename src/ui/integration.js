@@ -37,11 +37,12 @@ export function initializeNewUI(app) {
 function connectUIControls(app) {
     // Ball controls
     connectToggleControl('toggle-wireframe', app, (checked) => {
-        if (app.ballGroup?.userData?.wireMesh) {
-            app.ballGroup.userData.wireMesh.visible = checked;
-            return checked;
+        if (!app.ballGroup?.userData?.wireMesh) {
+            console.warn('Wireframe mesh not found');
+            return false;
         }
-        return false;
+        app.ballGroup.userData.wireMesh.visible = checked;
+        return checked;
     });
 
     connectToggleControl('toggle-rainbow', app, (checked) => {

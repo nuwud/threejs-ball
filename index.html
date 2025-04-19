@@ -42,7 +42,7 @@
   <div class="menu-panel" id="menu">
     <div class="menu-header">
       <h2>Menu</h2>
-      <button class="close-btn" id="close-menu">×</button>
+      <!-- Removed separate close button -->
     </div>
     <div class="menu-content">
       <div class="menu-section">
@@ -235,27 +235,19 @@
       
       const hamburger = document.getElementById('hamburger');
       const menu = document.getElementById('menu');
-      const closeMenu = document.getElementById('close-menu');
       
       // Log elements for debugging
       console.log('Menu elements found:', {
         hamburger: hamburger ? 'Yes ✓' : 'No ✗',
-        menu: menu ? 'Yes ✓' : 'No ✗',
-        closeMenu: closeMenu ? 'Yes ✓' : 'No ✗'
+        menu: menu ? 'Yes ✓' : 'No ✗'
       });
       
-      // Add click handlers directly
+      // Add click handler for toggle
       if (hamburger && menu) {
         hamburger.addEventListener('click', function() {
-          console.log('Hamburger clicked');
-          menu.classList.add('open');
-        });
-      }
-      
-      if (closeMenu && menu) {
-        closeMenu.addEventListener('click', function() {
-          console.log('Close button clicked');
-          menu.classList.remove('open');
+          console.log('Hamburger clicked - toggling menu');
+          menu.classList.toggle('open');
+          hamburger.classList.toggle('open');
         });
       }
       

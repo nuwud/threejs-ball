@@ -115,6 +115,19 @@ body {
   transition: all 0.3s ease;
 }
 
+/* Hamburger morphing animation */
+.hamburger.open div:nth-child(1) {
+  transform: translateY(10px) rotate(45deg);
+}
+
+.hamburger.open div:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger.open div:nth-child(3) {
+  transform: translateY(-10px) rotate(-45deg);
+}
+
 /* ===========================
    Menu Panel - Fixed z-index and transition
 =========================== */

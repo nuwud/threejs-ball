@@ -1,0 +1,57 @@
+name: UI Bridge Audit
+version: 1.0.0
+description: >
+  GitHub Copilot Agent for auditing and exposing all properties and methods
+  accessed via `app.` in integration.js, menu.js, and related UI files.
+  Ensures compatibility with Three.js + Tone.js modular projects by creating
+  a clean `app.uiBridge` object.
+
+entrypoint: ask
+
+ask:
+  prompt: |
+    You’re auditing a modular Three.js app with a UI panel loaded via `menu.html`
+    and logic in `integration.js` and `menu.js`.
+
+    🎯 Goal: Match all properties accessed in the UI (like `app.ballGroup.userData.wireMesh`)
+    to what’s defined in `main.js` or `window.app`.
+
+    🧩 Context:
+    - The UI toggles and buttons access properties via `app.property`,
+      e.g., `app.isRainbowMode`, `app.effectManager.triggerExplosion()`,
+      `app.ballGroup.userData.wireMesh`, etc.
+    - All UI logic is in: `menu.js`, `integration.js`, and optionally `sound-toggle.js`
+    - The main app object is assembled in `main.js`
+
+    Please:
+    1. List all `app.` references in the UI scripts.
+    2. Cross-check if each one is defined in `main.js` or on `window.app`
+    3. If not, propose a `uiBridge` object in app like:
+
+    ```js
+    app.uiBridge = {
+      get wireMesh() { return app.ballGroup.userData.wireMesh },
+      triggerExplosion: () => app.effectManager.triggerExplosion(),
+      // etc.
+    }
+    ```
+
+    4. Recommend whether the `uiBridge` block should be global (e.g. `window.app.uiBridge`)
+       or modularized via import/export patterns.
+    5. Confirm that each referenced property or method is wrapped with safe guards
+       (e.g., optional chaining, null checks).
+
+    Final Output:
+    - ✅ Safe `uiBridge` scaffold
+    - ✅ Checklist of resolved properties
+    - ✅ Summary of newly exposed helpers for UI usage
+    - 🧠 Optional: Suggest refactoring for long-term maintainability
+
+    This is part of a modular 3D UI system, so don’t overwrite core logic — bridge it cleanly.
+
+  selector:
+    files:
+      - src/ui/integration.js
+      - src/ui/menu/menu.js
+      - src/ui/menu/sound-toggle.js
+      - src/core/main.js
