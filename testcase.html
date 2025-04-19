@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hamburger Menu Test</title>
+    <style>
+        .hamburger-menu {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 30px;
+            height: 24px;
+            cursor: pointer;
+            z-index: 100;
+        }
+
+        .hamburger-menu span {
+            display: block;
+            position: absolute;
+            height: 4px;
+            width: 100%;
+            background: #000;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .hamburger-menu span:nth-child(1) {
+            top: 0;
+        }
+
+        .hamburger-menu span:nth-child(2) {
+            top: 10px;
+        }
+
+        .hamburger-menu span:nth-child(3) {
+            top: 20px;
+        }
+
+        .menu-panel {
+            position: fixed;
+            top: 0;
+            right: -300px;
+            width: 300px;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            transition: right 0.3s ease;
+            z-index: 1000;
+        }
+
+        .menu-panel.open {
+            right: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="hamburger-menu" id="menu-btn">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+
+    <div class="menu-panel" id="menu-panel">
+        <h2>Menu</h2>
+        <button id="close-menu-btn">Close</button>
+    </div>
+
+    <script>
+        const menuBtn = document.getElementById('menu-btn');
+        const menuPanel = document.getElementById('menu-panel');
+        const closeMenuBtn = document.getElementById('close-menu-btn');
+
+        menuBtn.addEventListener('click', () => {
+            menuPanel.classList.toggle('open');
+        });
+
+        closeMenuBtn.addEventListener('click', () => {
+            menuPanel.classList.remove('open');
+        });
+    </script>
+</body>
+</html>

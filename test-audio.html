@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio System Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #222;
+      color: #f0f0f0;
+    }
+    button {
+      padding: 12px 24px;
+      margin: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+    #log {
+      width: 80%;
+      height: 300px;
+      border: 1px solid #444;
+      padding: 8px;
+      overflow-y: auto;
+      margin-top: 20px;
+      font-family: monospace;
+      background-color: #333;
+      color: #0f0;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 600px;
+    }
+    h1 {
+      color: #3498db;
+      margin-bottom: 20px;
+    }
+    .success {
+      color: #2ecc71;
+    }
+    .error {
+      color: #e74c3c;
+    }
+    .warning {
+      color: #f39c12;
+    }
+  </style>
+</head>
+<body>
+  <h1>Audio System Test</h1>
+  <div class="controls">
+    <button id="testBasic">Test Basic Audio</button>
+    <button id="testSystem">Test Full Audio System</button>
+    <button id="resumeContext">Resume Audio Context</button>
+    <button id="playFacet">Play Facet Sound</button>
+    <button id="playClick">Play Click Sound</button>
+    <button id="playPosition">Play Position Sound</button>
+    <button id="toggleContinuous">Toggle Continuous Mode</button>
+  </div>
+  <div id="log"></div>
+
+  <script type="module">
+    import { initAudio, playSound, getSynthesizer, isInitialized } from './src/audio/index.js';
+    import { testBasicAudio, monitorAudioContextState } from './src/audio/utils/debug.js';
+    
+    let audioContext;
+    let synth;
+    let continuousModeEnabled = false;
+    
+    // Custom logger that outputs to the page
+    function log(message, type = 'info') {
+      console.log(message);
+      const logElement = document.getElementById('log');
+      let cssClass = '';
+      
+      if (type === 'success') cssClass = 'success';
+      else if (type === 'error') cssClass = 'error';
+      else if (type === 'warning') cssClass = 'warning';
+      
+      logElement.innerHTML += `<div class="${cssClass}">${message}</div>`;
+      logElement.scrollTop = logElement.scrollHeight;
+    }
+    
+    // Test basic Web Audio API functionality
+    document.getElementById('testBasic').addEventListener('click', () => {
+      log('Testing basic audio...');
+      if (testBasicAudio()) {
+        log('✅ Basic audio test passed', 'success');
+      } else {
+        log('❌ Basic audio test failed', 'error');
+      }
+    });
+    
+    // Test the full audio system
+    document.getElementById('testSystem').addEventListener('click', async () => {
+      log('Initializing audio system...');
+      try {
+        audioContext = await initAudio();
+        if (audioContext) {
+          log('✅ Audio system initialized', 'success');
+          monitorAudioContextState(audioContext, 10000);
+          
+          // Initialize the synthesizer
+          synth = getSynthesizer();
+          if (synth) {
+            log('✅ Sound synthesizer created', 'success');
+          } else {
+            log('❌ Sound synthesizer creation failed', 'error');
+          }
+          
+          // Try playing a sound
+          log('Playing test sound...');
+          try {
+            playSound('test');
+            log('Sound playback initiated', 'success');
+          } catch (error) {
+            log(`❌ Sound playback failed: ${error.message}`, 'error');
+          }
+        } else {
+          log('❌ Audio system initialization returned null/undefined', 'error');
+        }
+      } catch (error) {
+        log(`❌ Audio system initialization failed: ${error.message}`, 'error');
+      }
+    });
+    
+    // Resume audio context manually
+    document.getElementById('resumeContext').addEventListener('click', () => {
+      if (!audioContext) {
+        log('No audio context available yet', 'warning');
+        return;
+      }
+      
+      log(`Current audio context state: ${audioContext.state}`);
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+          log('✅ Audio context resumed successfully', 'success');
+        }).catch(error => {
+          log(`❌ Failed to resume audio context: ${error.message}`, 'error');
+        });
+      } else {
+        log('Audio context is already running', 'info');
+      }
+    });
+    
+    // Play facet sound
+    document.getElementById('playFacet').addEventListener('click', () => {
+      if (!isInitialized()) {
+        log('Audio system not initialized. Please test the full system first.', 'warning');
+        return;
+      }
+      
+      try {
+        const facetIndex = Math.floor(Math.random() * 20); // Random facet
+        const position = { u: Math.random(), v: Math.random() }; // Random position
+        
+        log(`Playing facet sound for facet ${facetIndex} at position (${position.u.toFixed(2)}, ${position.v.toFixed(2)})`);
+        synth.playFacetSound(facetIndex, position);
+        log('Facet sound played', 'success');
+      } catch (error) {
+        log(`❌ Failed to play facet sound: ${error.message}`, 'error');
+      }
+    });
+    
+    // Play click sound
+    document.getElementById('playClick').addEventListener('click', () => {
+      if (!isInitialized()) {
+        log('Audio system not initialized. Please test the full system first.', 'warning');
+        return;
+      }
+      
+      try {
+        log('Playing click sound');
+        if (synth.playClickSound) {
+          synth.playClickSound();
+          log('Click sound played', 'success');
+        } else {
+          // Fall back to playSpecialSound if available
+          synth.playSpecialSound('click');
+          log('Click sound played via special sound API', 'success');
+        }
+      } catch (error) {
+        log(`❌ Failed to play click sound: ${error.message}`, 'error');
+      }
+    });
+    
+    // Play position sound
+    document.getElementById('playPosition').addEventListener('click', () => {
+      if (!isInitialized()) {
+        log('Audio system not initialized. Please test the full system first.', 'warning');
+        return;
+      }
+      
+      try {
+        // Generate random x,y coordinates between -1 and 1
+        const x = Math.random() * 2 - 1;
+        const y = Math.random() * 2 - 1;
+        
+        log(`Playing position sound at (${x.toFixed(2)}, ${y.toFixed(2)})`);
+        
+        // Check which function is available
+        if (window.app && window.app.playToneForPosition) {
+          window.app.playToneForPosition(x, y);
+          log('Position sound played via app.playToneForPosition', 'success');
+        } else if (window.playToneForPosition) {
+          window.playToneForPosition({ audioContext }, x, y);
+          log('Position sound played via global playToneForPosition', 'success');
+        } else if (synth.playPositionSound) {
+          synth.playPositionSound(x, y);
+          log('Position sound played via synth.playPositionSound', 'success');
+        } else {
+          // Create a simple tone if no dedicated function exists
+          log('No position sound function found, creating a simple tone', 'warning');
+          const tone = synth.createTone({
+            frequency: 220 + (x + 1) * 330,
+            volume: 0.1 + (y + 1) * 0.1,
+            duration: 0.2
+          });
+          log('Simple tone created as fallback', 'success');
+        }
+      } catch (error) {
+        log(`❌ Failed to play position sound: ${error.message}`, 'error');
+      }
+    });
+    
+    // Toggle continuous mode
+    document.getElementById('toggleContinuous').addEventListener('click', () => {
+      if (!isInitialized()) {
+        log('Audio system not initialized. Please test the full system first.', 'warning');
+        return;
+      }
+      
+      try {
+        continuousModeEnabled = !continuousModeEnabled;
+        log(`${continuousModeEnabled ? 'Enabling' : 'Disabling'} continuous sound mode`);
+        
+        // Try different methods to enable continuous mode
+        if (window.audioSystem && window.audioSystem.setContinuousMode) {
+          window.audioSystem.setContinuousMode(continuousModeEnabled);
+          log(`Continuous mode ${continuousModeEnabled ? 'enabled' : 'disabled'} via audioSystem`, 'success');
+        } else if (synth.enableContinuousMode) {
+          synth.enableContinuousMode(continuousModeEnabled);
+          log(`Continuous mode ${continuousModeEnabled ? 'enabled' : 'disabled'} via synthesizer`, 'success');
+        } else if (window.app && window.app.soundScheduler && window.app.soundScheduler.setContinuousMode) {
+          window.app.soundScheduler.setContinuousMode(continuousModeEnabled);
+          log(`Continuous mode ${continuousModeEnabled ? 'enabled' : 'disabled'} via app.soundScheduler`, 'success');
+        } else {
+          log('No continuous mode function found', 'warning');
+        }
+      } catch (error) {
+        log(`❌ Failed to toggle continuous mode: ${error.message}`, 'error');
+      }
+    });
+    
+    log('Audio test page loaded. Click buttons to test audio functionality.');
+  </script>
+</body>
+</html>

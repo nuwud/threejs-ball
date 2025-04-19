@@ -12,9 +12,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Three.js Ball Project</title>
-  <link rel="stylesheet" href="styles/styles.css" />
-  <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
+  <title>Three.js Bouncing Ball</title>
+  <link rel="stylesheet" href="./styles/styles.css" />
+  <link rel="icon" href="./assets/favicon.ico" type="image/x-icon">
   <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.7.3/dist/es-module-shims.min.js"></script>
   <script type="importmap">
     {
@@ -33,27 +33,183 @@
     <span></span>
     <span></span>
     <span></span>
-  </div>
+</div>
+
+<!-- Menu Panel -->
+<div class="menu-panel" id="menu-panel">
+    <div class="menu-header">
+        <h2>Menu</h2>
+        <button class="close-btn" id="close-menu-btn">×</button>
+    </div>
+    <div class="menu-content">
+        <!-- Add menu options here -->
+    </div>
+</div>
 
   <!-- Placeholder for the menu -->
-  <div id="menu-container"></div>
+  <div id="menu-container">
+      <!-- Content from menu.html will be loaded here -->
+      <!-- Example of where the toggle might go inside menu.html structure: -->
+      <!--
+      <div class="menu-section">
+          <h3>Audio Controls</h3>
+          <div class="menu-item">
+              <span>Master Sound</span>
+              <label class="toggle-switch">
+                  <input type="checkbox" id="master-sound-toggle" checked>
+                  <span class="toggle-slider"></span>
+              </label>
+          </div>
+      </div>
+      -->
+  </div>
 
-  <!-- Ball Container -->
-  <div id="ball"></div>
+  <!-- Ball Container - REMOVED redundant div -->
+  <!-- <div id="ball"></div> -->
+
+  <!-- Main Container - Use this for the Three.js canvas -->
+  <div id="container"></div>
 
   <!-- Footer hover trigger -->
   <div class="footer-trigger"></div>
   
   <!-- Footer with attribution -->
   <footer class="attribution">
-    <p>© 2024 Three.js Ball Project. All rights reserved.</p>
+    <p>© 2025 Three.js Ball Project. All rights reserved.</p>
     <p>Created using <a href="https://threejs.org/" target="_blank" rel="noopener">Three.js</a> and 
     <a href="https://greensock.com/gsap/" target="_blank" rel="noopener">GSAP</a>.</p>
   </footer>
 
+  <!-- Add before the script imports at the bottom -->
+  <div class="audio-start-overlay">
+    <div class="audio-start-content">
+      <h2>Click to Enable Audio</h2>
+      <p>This experience includes interactive sound effects.</p>
+      <button class="audio-start-button">Start Experience</button>
+    </div>
+  </div>
+
+  <div id="loading-indicator">Loading 3D Environment...</div>
+  <div id="error-message" style="display: none;"></div>
+
+  <!-- Commenting out the test audio button -->
+  <!--
+  <div id="test-audio-button">
+    <button id="test-audio">Test Audio</button>
+  </div>
+  -->
+
   <!-- Main entry point script -->
-  <script type="module" src="js/main.js"></script>
-  <script src="js/menu/menu.js"></script>
+  <script src="lib/three.min.js"></script>
+  <script type="module" src="./src/core/main.js"></script>
+  
+  <!-- Add our most direct, simplified audio connection -->
+  <script src="./src/direct-ball-audio.js"></script>
+  
+  <!-- Other audio scripts, leave them in place for backward compatibility -->
+  <script type="module" src="./src/audio/direct-audio-fix.js"></script>
+  <script type="module" src="./src/audio/facet-audio-fix.js"></script>
+  
+  <!-- Add this script to handle audio initialization -->
+  <script type="module">
+    // Get DOM elements
+    const startButton = document.querySelector('.audio-start-button');
+    const audioOverlay = document.querySelector('.audio-start-overlay');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const errorMessage = document.getElementById('error-message');
+
+    // Function to show error message
+    function showError(message) {
+      errorMessage.textContent = message;
+      errorMessage.style.display = 'block';
+      setTimeout(() => {
+        errorMessage.style.opacity = '0';
+        setTimeout(() => {
+          errorMessage.style.display = 'none';
+          errorMessage.style.opacity = '1';
+        }, 1000);
+      }, 5000);
+    }
+
+    // Function to initialize audio and start experience
+    async function startExperience() {
+      try {
+        // Show loading indicator
+        loadingIndicator.style.display = 'block';
+        audioOverlay.style.opacity = '0.5';
+        
+        // Get or create new audio context
+        let audioContext;
+        if (window.app && window.app.audioContext) {
+          audioContext = window.app.audioContext;
+        } else {
+          // Create new audio context if not available
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          audioContext = new AudioContext();
+          if (window.app) {
+            window.app.audioContext = audioContext;
+          }
+        }
+        
+        // Resume audio context
+        if (audioContext.state === 'suspended') {
+          console.log("Resuming audio context from button click");
+          await audioContext.resume();
+        }
+        
+        // Directly test sound to ensure audio is working
+        const testOsc = audioContext.createOscillator();
+        const testGain = audioContext.createGain();
+        testOsc.connect(testGain);
+        testGain.connect(audioContext.destination);
+        testGain.gain.value = 0.2; // Audible but not too loud
+        testOsc.frequency.value = 523.25; // C5 - clearly audible
+        testOsc.start();
+        testOsc.stop(audioContext.currentTime + 0.1); // Very short beep
+        console.log("Test sound played from start button");
+        
+        // Hide overlay with animation
+        audioOverlay.style.transition = 'opacity 0.5s, visibility 0.5s';
+        audioOverlay.style.opacity = '0';
+        
+        // After fade out completes, hide completely
+        setTimeout(() => {
+          audioOverlay.style.visibility = 'hidden';
+          
+          // Simple event to avoid cloning issues
+          window.dispatchEvent(new Event('audioEnabled'));
+          console.log('audioEnabled event dispatched');
+          
+          // Make sure we initialize audio again if needed
+          if (typeof window.initFacetAudio === 'function') {
+            console.log('Calling initFacetAudio from start button');
+            window.initFacetAudio();
+          }
+        }, 500);
+        
+        // Hide loading indicator
+        loadingIndicator.style.display = 'none';
+      } catch (error) {
+        console.error('Failed to initialize audio:', error);
+        showError('Audio initialization failed. Experience will continue without sound.');
+        
+        // Hide overlay and loading indicator even on failure
+        audioOverlay.style.visibility = 'hidden';
+        loadingIndicator.style.display = 'none';
+        
+        // Continue without audio using simple event
+        window.dispatchEvent(new Event('audioFailed'));
+      }
+    }
+
+    // Add click event listener to the start button
+    if (startButton) {
+      startButton.addEventListener('click', startExperience);
+    } else {
+      console.error('Start button not found in the document');
+    }
+  </script>
+
   <script>
     // Load the menu HTML dynamically
     fetch('menu.html')
@@ -61,6 +217,25 @@
       .then(html => {
         document.getElementById('menu-container').innerHTML = html;
       });
+
+    // Add this to your main HTML file's <script> section
+    window.addEventListener('error', function(e) {
+      // Create visible error display
+      const errorDiv = document.createElement('div');
+      errorDiv.style.position = 'fixed';
+      errorDiv.style.top = '50px';
+      errorDiv.style.left = '10px';
+      errorDiv.style.backgroundColor = 'rgba(255, 0, 0, 0.8)';
+      errorDiv.style.color = 'white';
+      errorDiv.style.padding = '10px';
+      errorDiv.style.zIndex = '9999';
+      errorDiv.textContent = `ERROR: ${e.message} (${e.filename}:${e.lineno})`;
+      document.body.appendChild(errorDiv);
+    });
   </script>
+  <!-- Remove this redundant Three.js import, as it's handled by the import map -->
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script> -->
+  <!-- Remove this duplicate entry point if main.js is the primary one -->
+  <!-- <script type="module" src="./app.js"></script> -->
 </body>
 </html>
