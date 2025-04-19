@@ -28,47 +28,57 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 </head>
 <body>
-  <!-- Hamburger Menu -->
-  <div class="hamburger-menu" id="menu-btn">
-    <span></span>
-    <span></span>
-    <span></span>
-</div>
+  <!-- Main Container for Three.js canvas -->
+  <div id="container"></div>
 
-<!-- Menu Panel -->
-<div class="menu-panel" id="menu-panel">
-    <div class="menu-header">
-        <h2>Menu</h2>
-        <button class="close-btn" id="close-menu-btn">×</button>
-    </div>
-    <div class="menu-content">
-        <!-- Add menu options here -->
-    </div>
-</div>
-
-  <!-- Placeholder for the menu -->
-  <div id="menu-container">
-      <!-- Content from menu.html will be loaded here -->
-      <!-- Example of where the toggle might go inside menu.html structure: -->
-      <!--
-      <div class="menu-section">
-          <h3>Audio Controls</h3>
-          <div class="menu-item">
-              <span>Master Sound</span>
-              <label class="toggle-switch">
-                  <input type="checkbox" id="master-sound-toggle" checked>
-                  <span class="toggle-slider"></span>
-              </label>
-          </div>
-      </div>
-      -->
+  <!-- Hamburger Menu - Using the structure from testcase.html -->
+  <div class="hamburger" id="hamburger">
+    <div></div>
+    <div></div>
+    <div></div>
   </div>
 
-  <!-- Ball Container - REMOVED redundant div -->
-  <!-- <div id="ball"></div> -->
+  <!-- Menu Panel - Directly embedded -->
+  <div class="menu-panel" id="menu">
+    <div class="menu-header">
+      <h2>Menu</h2>
+      <button class="close-btn" id="close-menu">×</button>
+    </div>
+    <div class="menu-content">
+      <div class="menu-section">
+        <h3>Ball Controls</h3>
+        <button class="menu-button" id="reset-ball">Reset Ball</button>
+        <div class="menu-item">
+          <span>Wireframe</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="toggle-wireframe">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="menu-item">
+          <span>Rainbow Mode</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="toggle-rainbow">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
 
-  <!-- Main Container - Use this for the Three.js canvas -->
-  <div id="container"></div>
+      <div class="menu-section">
+        <h3>Audio Settings</h3>
+        <div class="menu-item">
+          <span>Enable Audio</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="toggle-sound" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="menu-item">
+          <button class="menu-button" id="test-audio">Test Audio</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Footer hover trigger -->
   <div class="footer-trigger"></div>
@@ -80,7 +90,7 @@
     <a href="https://greensock.com/gsap/" target="_blank" rel="noopener">GSAP</a>.</p>
   </footer>
 
-  <!-- Add before the script imports at the bottom -->
+  <!-- Audio start overlay -->
   <div class="audio-start-overlay">
     <div class="audio-start-content">
       <h2>Click to Enable Audio</h2>
@@ -92,25 +102,15 @@
   <div id="loading-indicator">Loading 3D Environment...</div>
   <div id="error-message" style="display: none;"></div>
 
-  <!-- Commenting out the test audio button -->
-  <!--
-  <div id="test-audio-button">
-    <button id="test-audio">Test Audio</button>
-  </div>
-  -->
-
-  <!-- Main entry point script -->
-  <script src="lib/three.min.js"></script>
+  <!-- Main entry point script - Using CDN for three.js -->
   <script type="module" src="./src/core/main.js"></script>
   
-  <!-- Add our most direct, simplified audio connection -->
+  <!-- Audio scripts -->
   <script src="./src/direct-ball-audio.js"></script>
-  
-  <!-- Other audio scripts, leave them in place for backward compatibility -->
   <script type="module" src="./src/audio/direct-audio-fix.js"></script>
   <script type="module" src="./src/audio/facet-audio-fix.js"></script>
   
-  <!-- Add this script to handle audio initialization -->
+  <!-- Audio initialization script -->
   <script type="module">
     // Get DOM elements
     const startButton = document.querySelector('.audio-start-button');
@@ -210,15 +210,8 @@
     }
   </script>
 
+  <!-- Error handling script -->
   <script>
-    // Load the menu HTML dynamically
-    fetch('menu.html')
-      .then(response => response.text())
-      .then(html => {
-        document.getElementById('menu-container').innerHTML = html;
-      });
-
-    // Add this to your main HTML file's <script> section
     window.addEventListener('error', function(e) {
       // Create visible error display
       const errorDiv = document.createElement('div');
@@ -233,9 +226,53 @@
       document.body.appendChild(errorDiv);
     });
   </script>
-  <!-- Remove this redundant Three.js import, as it's handled by the import map -->
-  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script> -->
-  <!-- Remove this duplicate entry point if main.js is the primary one -->
-  <!-- <script type="module" src="./app.js"></script> -->
+  
+  <!-- Menu scripts - Make sure these are at the end -->
+  <script>
+    // Simple direct implementation to ensure menu works
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM fully loaded - Menu initialization');
+      
+      const hamburger = document.getElementById('hamburger');
+      const menu = document.getElementById('menu');
+      const closeMenu = document.getElementById('close-menu');
+      
+      // Log elements for debugging
+      console.log('Menu elements found:', {
+        hamburger: hamburger ? 'Yes ✓' : 'No ✗',
+        menu: menu ? 'Yes ✓' : 'No ✗',
+        closeMenu: closeMenu ? 'Yes ✓' : 'No ✗'
+      });
+      
+      // Add click handlers directly
+      if (hamburger && menu) {
+        hamburger.addEventListener('click', function() {
+          console.log('Hamburger clicked');
+          menu.classList.add('open');
+        });
+      }
+      
+      if (closeMenu && menu) {
+        closeMenu.addEventListener('click', function() {
+          console.log('Close button clicked');
+          menu.classList.remove('open');
+        });
+      }
+      
+      // Initialize audio toggle
+      const toggleSound = document.getElementById('toggle-sound');
+      if (toggleSound) {
+        toggleSound.addEventListener('change', function(e) {
+          const enabled = e.target.checked;
+          console.log(`Sound ${enabled ? 'enabled' : 'disabled'}`);
+          
+          // Set global sound state if window.app exists
+          if (window.app) {
+            window.app.soundMuted = !enabled;
+          }
+        });
+      }
+    });
+  </script>
 </body>
 </html>

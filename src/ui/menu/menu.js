@@ -1,134 +1,105 @@
-// import { soundManager } from '../../managers/soundManager';
-// import { menuConfig } from '../../config/menuConfig';
-
-// Import necessary modules or dependencies
-
-// ... existing menu setup code ...
+/**
+ * Simple menu handling script
+ */
 
 document.addEventListener('DOMContentLoaded', () => {
-    const menuBtn = document.getElementById('menu-btn');
-    const menuPanel = document.getElementById('menu-panel');
-    const closeMenuBtn = document.getElementById('close-menu-btn');
-
-    // Toggle the menu panel on click
-    menuBtn.addEventListener('click', () => {
-        if (menuPanel) {
-            menuPanel.classList.toggle('open');
-        } else {
-            console.error('Menu panel not found!');
-        }
+  console.log('menu.js loaded');
+  
+  // Get main menu elements
+  const hamburger = document.getElementById('hamburger');
+  const menu = document.getElementById('menu');
+  const closeMenu = document.getElementById('close-menu');
+  
+  // Setup menu toggle
+  if (hamburger && menu) {
+    hamburger.addEventListener('click', () => {
+      console.log('Opening menu');
+      menu.classList.add('open');
     });
-
-    // Close the menu panel on close button click
-    closeMenuBtn.addEventListener('click', () => {
-        menuPanel.classList.remove('open');
+  }
+  
+  if (closeMenu && menu) {
+    closeMenu.addEventListener('click', () => {
+      console.log('Closing menu');
+      menu.classList.remove('open');
     });
-
-    // Wait for menu HTML to be loaded if it's dynamic
-    const menuContainer = document.getElementById('menu-container');
-    const observer = new MutationObserver((mutationsList, observer) => {
-        const soundToggle = document.getElementById('master-sound-toggle');
-        if (soundToggle) {
-            initializeSoundToggle(soundToggle);
-            observer.disconnect(); // Stop observing once the element is found
-        }
-    });
-
-    // Start observing the menu container for added nodes
-    observer.observe(menuContainer, { childList: true, subtree: true });
-
-    // Fallback in case the element is already there when this script runs
-    const initialSoundToggle = document.getElementById('master-sound-toggle');
-    if (initialSoundToggle) {
-        initializeSoundToggle(initialSoundToggle);
-        observer.disconnect();
+  }
+  
+  // Add click-away functionality
+  document.addEventListener('click', (e) => {
+    if (menu && menu.classList.contains('open')) {
+      // Check if click is outside the menu
+      if (!menu.contains(e.target) && e.target !== hamburger && !hamburger.contains(e.target)) {
+        menu.classList.remove('open');
+      }
     }
-
-    const toggleWireframe = document.getElementById('toggle-wireframe');
-    toggleWireframe.addEventListener('change', (event) => {
-        const isChecked = event.target.checked;
-        // Apply wireframe mode logic here
-    });
+  });
+  
+  // Initialize menu controls
+  initMenuControls();
 });
 
-function initializeSoundToggle(soundToggle) {
-    // Example: Assume a global sound manager or state
-    // Replace with your actual sound management logic
-    const isSoundEnabled = () => !window.debugToggles?.mute; // Link to debug flag or soundManager state
-    const setSoundEnabled = (enabled) => {
-        if (window.debugToggles) {
-            window.debugToggles.mute = !enabled;
-            console.log(`Master Sound ${enabled ? 'Enabled' : 'Disabled'}`);
-            // Add calls to your actual soundManager.mute() or soundManager.unmute() here
+// Initialize controls within the menu
+function initMenuControls() {
+  // Toggle controls
+  const toggles = document.querySelectorAll('.toggle-switch input[type="checkbox"]');
+  toggles.forEach(toggle => {
+    toggle.addEventListener('change', (e) => {
+      const id = e.target.id;
+      const enabled = e.target.checked;
+      console.log(`Toggle ${id} is now ${enabled ? 'ON' : 'OFF'}`);
+      
+      // Handle specific toggle actions
+      if (id === 'toggle-sound' || id === 'toggle-audio') {
+        if (window.app) {
+          window.app.soundMuted = !enabled;
         }
-    };
-
-    soundToggle.checked = isSoundEnabled(); // Set initial state
-
-    soundToggle.addEventListener('change', (event) => {
-        setSoundEnabled(event.target.checked);
+      } else if (id === 'toggle-wireframe') {
+        // Handle wireframe toggle
+      }
     });
-}
-
-// ... rest of menu.js ...
-
-// Example: Add functionality for other menu items
-function initializeMenuItems() {
-    const menuItems = document.querySelectorAll('.menu-item');
-    menuItems.forEach((item) => {
-        item.addEventListener('click', (event) => {
-            const action = event.target.dataset.action;
-            if (action) {
-                handleMenuAction(action);
-            }
-        });
+  });
+  
+  // Button controls
+  const buttons = document.querySelectorAll('.menu-button');
+  buttons.forEach(button => {
+    button.addEventListener('click', (e) => {
+      const id = e.target.id;
+      console.log(`Button ${id} clicked`);
+      
+      // Handle specific button actions
+      if (id === 'test-audio') {
+        playTestSound();
+      } else if (id === 'reset-ball') {
+        if (window.app && window.app.resetBall) {
+          window.app.resetBall();
+        }
+      }
     });
+  });
 }
 
-function handleMenuAction(action) {
-    switch (action) {
-        case 'start-game':
-            console.log('Starting game...');
-            // Add logic to start the game
-            break;
-        case 'settings':
-            console.log('Opening settings...');
-            // Add logic to open settings
-            break;
-        case 'exit':
-            console.log('Exiting...');
-            // Add logic to exit the application
-            break;
-        default:
-            console.warn(`Unknown action: ${action}`);
-    }
+// Simple test sound function
+function playTestSound() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = window.app?.audioContext || new AudioContext();
+    
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.3);
+    
+    console.log('Test sound played');
+  } catch (error) {
+    console.error('Could not play test sound:', error);
+  }
 }
-
-// Initialize the menu items when the DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    initializeMenuItems();
-});
-
-<div class="menu-panel" id="menu-panel">
-    <div class="menu-header">
-        <h2>Menu</h2>
-        <button class="close-btn" id="close-menu-btn">×</button>
-    </div>
-    <div class="menu-content">
-        <div class="menu-item" data-action="start-game">Start Game</div>
-        <div class="menu-item" data-action="settings">Settings</div>
-        <div class="menu-item" data-action="exit">Exit</div>
-        <label>
-            <input type="checkbox" id="toggle-wireframe" />
-            Toggle Wireframe
-        </label>
-        <label>
-            <input type="checkbox" id="master-sound-toggle" />
-            Master Sound
-        </label>
-        <div class="section-header">
-            <span>Collapsible Section</span>
-            <span class="expand-icon">+</span>
-        </div>
-    </div>
-</div>

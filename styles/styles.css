@@ -45,7 +45,7 @@ body {
 }
 
 /* ===========================
-   Hamburger Menu
+   Hamburger Menu - Updated for better visibility
 =========================== */
 .hamburger-menu {
   position: fixed;
@@ -54,7 +54,14 @@ body {
   width: 30px;
   height: 24px;
   cursor: pointer;
-  z-index: 100;
+  z-index: 2000; /* Increased z-index to ensure visibility */
+  background-color: rgba(0, 0, 0, 0.3); /* Add subtle background */
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.hamburger-menu:hover {
+  background-color: rgba(0, 0, 0, 0.5); /* Darken on hover */
 }
 
 .hamburger-menu span {
@@ -62,9 +69,10 @@ body {
   position: absolute;
   height: 4px;
   width: 100%;
-  background: #fff;
+  background: #fff; /* Bright white for better visibility */
   border-radius: 2px;
   transition: all 0.3s ease;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.5); /* Add shadow for better visibility */
 }
 
 .hamburger-menu span:nth-child(1) {
@@ -79,24 +87,69 @@ body {
   top: 20px;
 }
 
+/* Hamburger button */
+.hamburger {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 30px;
+  height: 25px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  z-index: 2000;
+  padding: 10px;
+  border-radius: 5px;
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+.hamburger:hover {
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+.hamburger div {
+  height: 4px;
+  background: white;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
 /* ===========================
-   Menu Panel
+   Menu Panel - Fixed z-index and transition
 =========================== */
 .menu-panel {
   position: fixed;
   top: 0;
-  right: -300px; /* Hidden by default */
+  right: -300px; /* Off-screen by default */
   width: 300px;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(40, 40, 40, 0.95);
   color: white;
   transition: right 0.3s ease;
-  z-index: 1000;
+  z-index: 1900;
   overflow-y: auto;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.5);
 }
 
 .menu-panel.open {
-  right: 0; /* Slide in when open */
+  right: 0; /* Visible when open */
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--menu-text);
+  font-size: 24px;
+  cursor: pointer;
+  transition: color 0.3s ease;
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  color: white;
+  font-size: 2rem;
+  top: 10px;
+  right: 10px;
 }
 
 /* ===========================
@@ -115,18 +168,6 @@ body {
   color: var(--menu-accent);
   font-size: 1.5rem;
   font-weight: 500;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  color: var(--menu-text);
-  font-size: 24px;
-  cursor: pointer;
-  transition: color 0.3s ease;
-  position: absolute;
-  top: 20px;
-  right: 20px;
 }
 
 .close-btn:hover {
@@ -243,6 +284,8 @@ canvas {
   width: 100%;
   height: 100%;
   outline: none;
+  position: absolute;
+  z-index: 1; /* Ensure it is below the menu */
 }
 
 /* ===========================
