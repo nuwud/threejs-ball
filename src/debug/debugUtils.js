@@ -81,10 +81,10 @@ export function testRenderer(app) {
         camera.position.z = 5;
         
         // Create a bright colored plane for visibility
-        const geometry = new THREE.PlaneGeometry(5, 5);
-        const material = new THREE.MeshBasicMaterial({ color: 0xff00ff, side: THREE.DoubleSide });
-        const plane = new THREE.Mesh(geometry, material);
-        scene.add(plane);
+        // const geometry = new THREE.PlaneGeometry(5, 5);
+        // const material = new THREE.MeshBasicMaterial({ color: 0xff00ff, side: THREE.DoubleSide });
+        // const plane = new THREE.Mesh(geometry, material);
+        // scene.add(plane);
         
         // If we have a renderer, render the test scene
         if (app.renderer) {

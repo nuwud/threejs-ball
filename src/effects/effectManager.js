@@ -1105,6 +1105,71 @@ function initSoundManager(app) {
     }
 }
 
+// --- Effect Registry ---
+const effectRegistry = {};
+const updatableEffects = [];
+
+/**
+ * Register an effect with a name, toggle, and update function.
+ * @param {string} name
+ * @param {object} handlers { toggle, update }
+ */
+function registerEffect(name, handlers) {
+    effectRegistry[name] = handlers;
+    if (typeof handlers.update === 'function') {
+        updatableEffects.push({ name, update: handlers.update });
+    }
+}
+
+/**
+ * Call a registered effect's toggle or update.
+ * @param {string} name
+ * @param {any[]} args
+ * @returns {any}
+ */
+function callEffect(name, ...args) {
+    if (effectRegistry[name]?.toggle) {
+        return effectRegistry[name].toggle(...args);
+    }
+    console.warn(`[effectManager] Effect "${name}" not registered or missing toggle.`);
+    return false;
+}
+
+/**
+ * Update all updatable effects (to be called in animation loop).
+ * @param {object} app
+ */
+function updateEffects(app) {
+    for (const { update } of updatableEffects) {
+        update(app);
+    }
+}
+
+// --- Register all effects here ---
+registerEffect('rainbow', {
+    toggle: toggleRainbowMode,
+    update: updateRainbowMode
+});
+registerEffect('blackhole', {
+    toggle: toggleBlackholeEffect,
+    update: updateBlackholeEffect
+});
+registerEffect('magnetic', {
+    toggle: toggleMagneticMode,
+    update: updateMagneticParticles
+});
+registerEffect('explosion', {
+    toggle: createParticleExplosion,
+    update: updateParticleExplosion
+});
+registerEffect('audioVisualization', {
+    toggle: toggleAudioVisualization,
+    update: updateAudioVisualization
+});
+registerEffect('plane', {
+    toggle: (app, visible) => { if (app.plane) app.plane.visible = !!visible; }
+});
+
 export {
     createParticleExplosion,
     updateParticleExplosion,
@@ -1130,5 +1195,21 @@ export {
     resetDeformation,
     createAudioVisualization,
     updateAudioVisualization,
-    initializeEffects
+    initializeEffects,
+    registerEffect,
+    callEffect,
+    updateEffects,
+    effectRegistry
 };
+
+export function logOrphanedEffects() {
+    const allExports = Object.keys(module.exports || {});
+    const registered = Object.keys(effectRegistry);
+    const orphaned = allExports.filter(name =>
+        (name.startsWith('create') || name.startsWith('toggle') || name.startsWith('update')) &&
+        !registered.includes(name)
+    );
+    if (orphaned.length) {
+        console.warn('[effectManager] Orphaned effect functions:', orphaned);
+    }
+}

@@ -5,7 +5,7 @@ import { updateAudioVisualization } from '../audio/visualization/core.js';
 
 // Create a full screen pass for post-processing effects
 function createFullScreenPass() {
-    const geometry = new THREE.PlaneGeometry(2, 2);
+    // const geometry = new THREE.PlaneGeometry(2, 2);
     const material = new THREE.ShaderMaterial({
         vertexShader: `
             varying vec2 vUv;
