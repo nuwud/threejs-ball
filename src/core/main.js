@@ -940,6 +940,11 @@ function init() {
         mouseControlsScript.onload = function() {
           console.log("Mouse controls script loaded successfully");
           
+          // Also load our emergency fix script
+          const fixScript = document.createElement('script');
+          fixScript.src = './src/core/mouse-controls-fix.js';
+          document.head.appendChild(fixScript);
+          
           // Use a delay to ensure the app is fully initialized before calling setup
           setTimeout(() => {
             if (typeof window.setupMouseButtonEffects === 'function') {

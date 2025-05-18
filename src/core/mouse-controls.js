@@ -435,15 +435,6 @@
       // Setup mouse wheel specifically for zooming in/out
       window.addEventListener('wheel', handleMouseWheel, { passive: false });
       
-      // Prevent context menu when using right-click for special effects
-      window.addEventListener('contextmenu', function(event) {
-        if (window.app.mouseControls && 
-            (window.app.mouseControls.isBlackholeModeActive || 
-             window.app.mouseControls.isSpikinessModeActive)) {
-          event.preventDefault();
-        }
-      });
-      
       // Mark as initialized
       window.app.mouseControlsInitialized = true;
       console.log('Mouse controls initialized successfully');
@@ -459,24 +450,21 @@
     console.log("Setting up enhanced mouse button effects...");
     
     try {
+      // Prevent context menu when using right-click for special effects
+      window.addEventListener('contextmenu', function(event) {
+        event.preventDefault();
+        console.log("Context menu prevented by mouse-controls.js");
+        return false;
+      });
+      
       // Add event listeners for mouse buttons
       window.addEventListener('mousedown', (event) => {
-        // Prevent default right-click context menu when in special modes
-        if (event.button === 2 && window.app && window.app.mouseControls && 
-            (window.app.mouseControls.isBlackholeModeActive || 
-             window.app.mouseControls.isSpikinessModeActive)) {
-          event.preventDefault();
-        }
-        
-        if (!window.app) return;
+        console.log(`Mouse button detected: ${event.button}`);
         
         // Map effects to specific mouse buttons
         switch (event.button) {
-          case 0: // Left click - deformation push (when in spikiness mode)
-            if (window.app.mouseControls && window.app.mouseControls.isSpikinessModeActive) {
-              console.log("Left click - push deformation");
-              // Handled by the pointerDown handler for standard interaction
-            }
+          case 0: // Left click
+            // Regular interaction handled by main.js
             break;
             
           case 1: // Middle click/wheel - toggle camera inside mode
@@ -487,46 +475,11 @@
             }
             break;
             
-          case 2: // Right click - special effect based on mode
-            if (window.app.mouseControls && window.app.mouseControls.isBlackholeModeActive) {
-              console.log("Right click - creating blackhole");
-              // Calculate mouse position in normalized device coordinates
-              const mouse = new THREE.Vector2(
-                (event.clientX / window.innerWidth) * 2 - 1,
-                -(event.clientY / window.innerHeight) * 2 + 1
-              );
-              
-              // Update the picking ray
-              const raycaster = new THREE.Raycaster();
-              raycaster.setFromCamera(mouse, window.app.camera);
-              
-              // Get intersection with ball or place along ray
-              const intersects = raycaster.intersectObject(window.app.ballGroup, true);
-              
-              if (intersects.length > 0) {
-                // Create blackhole at intersection point
-                if (window.app.createBlackholeAtPoint) {
-                  window.app.createBlackholeAtPoint(intersects[0].point);
-                }
-              } else {
-                // Create blackhole along the ray at a fixed distance
-                const blackholePos = new THREE.Vector3();
-                raycaster.ray.at(2, blackholePos);
-                if (window.app.createBlackholeAtPoint) {
-                  window.app.createBlackholeAtPoint(blackholePos);
-                }
-              }
-            } else if (window.app.mouseControls && window.app.mouseControls.isSpikinessModeActive) {
-              console.log("Right click - pull deformation");
-              // Inward deformation should be handled in the pointer handlers
-              // Just toggle the mode if needed
-              window.app.insidePullMode = true;
-            } else {
-              // No special mode - create blackhole
-              console.log("Right click - toggle blackhole effect");
-              if (window.app.uiBridge && window.app.uiBridge.createBlackholeEffect) {
-                window.app.uiBridge.createBlackholeEffect();
-              }
+          case 2: // Right click - blackhole toggle
+            event.preventDefault();
+            console.log("Right click - toggle blackhole effect");
+            if (window.app.uiBridge && window.app.uiBridge.createBlackholeEffect) {
+              window.app.uiBridge.createBlackholeEffect();
             }
             break;
             
@@ -544,74 +497,10 @@
             }
             break;
         }
-      });
-      
-      // Double click for rainbow mode
-      window.addEventListener('dblclick', () => {
-        console.log("Double click - toggling rainbow mode");
-        if (window.app && window.app.uiBridge && typeof window.app.uiBridge.toggleRainbowMode === 'function') {
-          const currentState = window.app.isRainbowMode || false;
-          window.app.uiBridge.toggleRainbowMode(!currentState);
-        }
-      });
+      }, true); // Note the 'true' parameter for capture phase
       
       // Add wheel event for zooming inside/outside the ball
-      if (typeof window.app.handleMouseWheel === 'function') {
-        window.addEventListener('wheel', window.app.handleMouseWheel, { passive: false });
-      } else if (globalHandleMouseWheel) {
-        window.addEventListener('wheel', globalHandleMouseWheel, { passive: false });
-      } else if (window.handleMouseWheel) {
-        window.addEventListener('wheel', window.handleMouseWheel, { passive: false });
-      } else {
-        console.warn("Mouse wheel handler not available");
-      }
-      
-      // Key controls for convenience
-      window.addEventListener('keydown', (e) => {
-        if (!window.app || !window.app.uiBridge) return;
-        
-        switch (e.key.toLowerCase()) {
-          case 'i': // Toggle inside/outside camera
-            if (window.app.uiBridge.toggleCameraPosition) {
-              window.app.uiBridge.toggleCameraPosition();
-            }
-            break;
-          case 'e': // Explosion
-            if (window.app.uiBridge.createExplosion) {
-              window.app.uiBridge.createExplosion();
-            }
-            break;
-          case 'r': // Rainbow toggle
-            if (typeof window.app.uiBridge.toggleRainbowMode === 'function') {
-              const currentState = window.app.isRainbowMode || false;
-              window.app.uiBridge.toggleRainbowMode(!currentState);
-            }
-            break;
-          case 'd': // Toggle deformation mode
-            if (window.app.insidePullMode !== undefined) {
-              window.app.insidePullMode = !window.app.insidePullMode;
-              console.log(`Deformation mode: ${window.app.insidePullMode ? 'Inside Pull' : 'Outside Push'}`);
-            }
-            break;
-          case 'b': // Toggle blackhole mode
-            if (window.app.mouseControls) {
-              window.app.mouseControls.isBlackholeModeActive = !window.app.mouseControls.isBlackholeModeActive;
-              console.log(`Blackhole mode: ${window.app.mouseControls.isBlackholeModeActive ? 'enabled' : 'disabled'}`);
-            }
-            break;
-          case 'm': // Toggle magnetic mode
-            if (window.app.mouseControls) {
-              window.app.mouseControls.isMagneticModeActive = !window.app.mouseControls.isMagneticModeActive;
-              console.log(`Magnetic mode: ${window.app.mouseControls.isMagneticModeActive ? 'enabled' : 'disabled'}`);
-              if (window.app.mouseControls.isMagneticModeActive && window.app.createMagneticTrail) {
-                window.app.createMagneticTrail();
-              } else if (window.app.removeMagneticTrail) {
-                window.app.removeMagneticTrail();
-              }
-            }
-            break;
-        }
-      });
+      window.addEventListener('wheel', handleMouseWheel, { passive: false });
       
       console.log("Mouse button effects successfully set up");
     } catch (e) {
@@ -621,6 +510,7 @@
 
   // Make them globally available
   window.setupMouseButtonEffects = setupMouseButtonEffects;
+  window.handleMouseWheel = handleMouseWheel;
 
   // Start checking for initialization
   if (document.readyState === 'complete') {
