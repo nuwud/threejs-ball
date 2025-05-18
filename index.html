@@ -62,6 +62,29 @@
             <span class="toggle-slider"></span>
           </label>
         </div>
+        <div>
+          <!-- Add this to your HTML interface -->
+          <button id="deform-mode-toggle" class="control-button" title="Toggle between inward pull and outward push deformation">
+            <span class="icon">↕️</span>
+            <span class="label">Toggle Deform Mode</span>
+          </button>
+                  </div>
+                  <div>
+                    <!-- Add this to index.html in the appropriate menu section -->
+<button id="inside-camera-button" class="control-button" title="Move camera inside/outside the ball">
+  <span class="icon">🔍</span>
+  <span class="label">Inside View</span>
+</button>
+</div>
+        <div>
+          <!-- Add this to your HTML interface -->
+          <button id="toggle-rotation" class="control-button" title="Toggle ball rotation">
+            <span class="icon">🔄</span>
+            <span class="label">Toggle Rotation</span>
+          </button>
+        </div>
+        
+
       </div>
 
       <div class="menu-section">
@@ -140,8 +163,8 @@
   <script type="module" src="./src/core/main.js"></script>
   
   <!-- Audio scripts -->
-  <script src="./src/direct-ball-audio.js"></script>
-  <script type="module" src="./src/audio/direct-audio-fix.js"></script>
+  <!-- <script src="./src/direct-ball-audio.js"></script> -->
+  <!-- <script type="module" src="./src/audio/direct-audio-fix.js"></script>-->
   <script type="module" src="./src/audio/facet-audio-fix.js"></script>
   
   <!-- Audio initialization script -->
@@ -301,5 +324,7 @@
     });
   </script>
   <script type="module" src="./src/ui/menu/menu.js"></script>
+  <script src="./src/core/mouse-controls.js"></script>
+  <script src="./src/core/ui-connections.js"></script>
 </body>
 </html>

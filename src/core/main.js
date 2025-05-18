@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { updateRainbowMode, toggleRainbowMode } from '../effects/visual/rainbow.js';
+//import { initMouseControls } from '../controls/mouse-controls.js';
 
 // Define window.app and uiBridge as early as possible
 window.app = window.app || {};
@@ -9,7 +10,7 @@ window.app = window.app || {};
 // Attach uiBridge with all control bridges before DOMContentLoaded
 window.app.uiBridge = {
     // Getters for current state
-    get wireMesh() { 
+    get wireMesh() {
         // Look in both possible locations for the wireMesh
         return window.app?.ballGroup?.userData?.wireMesh || window.app?.wireMesh;
     },
@@ -24,7 +25,7 @@ window.app.uiBridge = {
             window.app.masterGain.gain.value = level;
             console.log(`Volume set to ${(level * 100).toFixed(0)}%`);
             // Store volume in localStorage for persistence
-            try { localStorage.setItem('ballVolume', level); } catch(e) {}
+            try { localStorage.setItem('ballVolume', level); } catch (e) { }
             return true;
         }
         console.warn('Audio system not initialized, cannot set volume');
@@ -38,7 +39,7 @@ window.app.uiBridge = {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 window.app.audioContext = new AudioContext();
                 window.app.masterGain = window.app.audioContext.createGain();
-                window.app.masterGain.gain.value = 0.5;
+                window.app.masterGain.gain.value = enabled ? 0.5 : 0.0;
                 window.app.masterGain.connect(window.app.audioContext.destination);
                 window.app.soundMuted = !enabled;
                 console.log('Created audio context');
@@ -48,30 +49,34 @@ window.app.uiBridge = {
                 return false;
             }
         }
-        
+
         try {
-            if (enabled) {
-                if (window.app.audioContext.state === 'suspended') {
-                    window.app.audioContext.resume().then(() => {
-                        console.log('AudioContext resumed successfully');
-                    }).catch(err => {
-                        console.error('Failed to resume AudioContext:', err);
-                    });
-                }
-                window.app.soundMuted = false;
-            } else {
-                if (window.app.audioContext.state === 'running') {
-                    window.app.audioContext.suspend().then(() => {
-                        console.log('AudioContext suspended successfully');
-                    }).catch(err => {
-                        console.error('Failed to suspend AudioContext:', err);
-                    });
-                }
-                window.app.soundMuted = true;
+            // Always ensure the context is running regardless of mute state
+            if (window.app.audioContext.state === 'suspended') {
+                window.app.audioContext.resume().then(() => {
+                    console.log('AudioContext resumed successfully');
+                }).catch(err => {
+                    console.error('Failed to resume AudioContext:', err);
+                });
             }
-            
+
+            // Actually control volume instead of suspending context
+            if (window.app.masterGain) {
+                if (enabled) {
+                    // Fade in volume
+                    window.app.masterGain.gain.setValueAtTime(window.app.masterGain.gain.value, window.app.audioContext.currentTime);
+                    window.app.masterGain.gain.linearRampToValueAtTime(0.5, window.app.audioContext.currentTime + 0.1);
+                } else {
+                    // Fade out volume
+                    window.app.masterGain.gain.setValueAtTime(window.app.masterGain.gain.value, window.app.audioContext.currentTime);
+                    window.app.masterGain.gain.linearRampToValueAtTime(0.0, window.app.audioContext.currentTime + 0.1);
+                }
+            }
+
+            window.app.soundMuted = !enabled;
+
             // Store audio state in localStorage for persistence
-            try { localStorage.setItem('ballAudioEnabled', enabled); } catch(e) {}
+            try { localStorage.setItem('ballAudioEnabled', enabled); } catch (e) { }
             console.log(`Audio ${enabled ? 'enabled' : 'disabled'}`);
             return true;
         } catch (e) {
@@ -94,10 +99,10 @@ window.app.uiBridge = {
                 return false;
             }
         }
-        
+
         try {
             const ctx = window.app.audioContext;
-            
+
             // If suspended, resume first
             if (ctx.state === 'suspended') {
                 ctx.resume().then(() => {
@@ -108,32 +113,32 @@ window.app.uiBridge = {
             } else {
                 playTestTone(ctx);
             }
-            
+
             function playTestTone(ctx) {
                 // Create oscillator for a pleasant test tone
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
-                
+
                 osc.type = 'sine';
                 osc.frequency.value = 440; // A4 note
-                
+
                 gain.gain.value = 0.2;
-                
+
                 osc.connect(gain);
                 gain.connect(window.app.masterGain || ctx.destination);
-                
+
                 // Simple envelope
                 const now = ctx.currentTime;
                 gain.gain.setValueAtValue ? gain.gain.setValueAtTime(0, now) : gain.gain.value = 0;
                 gain.gain.linearRampToValueAtTime ? gain.gain.linearRampToValueAtTime(0.2, now + 0.05) : gain.gain.value = 0.2;
                 gain.gain.exponentialRampToValueAtTime ? gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5) : null;
-                
+
                 osc.start();
                 osc.stop(now + 0.6);
-                
+
                 console.log('Test sound played');
             }
-            
+
             return true;
         } catch (e) {
             console.error('Error playing test sound:', e);
@@ -147,7 +152,7 @@ window.app.uiBridge = {
             console.warn('Ball not initialized, cannot reset position');
             return false;
         }
-        
+
         try {
             // Reset position and rotation with animation using GSAP if available
             if (window.gsap) {
@@ -166,12 +171,12 @@ window.app.uiBridge = {
                 window.app.ballGroup.position.set(0, 0, 0);
                 window.app.ballGroup.rotation.set(0, 0, 0);
             }
-            
+
             // Reset any deformation
             if (typeof window.app.resetDeformation === 'function') {
                 window.app.resetDeformation(1.0); // Fast reset
             }
-            
+
             console.log('Ball position and rotation reset');
             return true;
         } catch (e) {
@@ -186,7 +191,7 @@ window.app.uiBridge = {
         if (wireMesh) {
             wireMesh.visible = enabled;
             // Store wireframe state in localStorage for persistence
-            try { localStorage.setItem('ballWireframeEnabled', enabled); } catch(e) {}
+            try { localStorage.setItem('ballWireframeEnabled', enabled); } catch (e) { }
             console.log(`Wireframe mode ${enabled ? 'enabled' : 'disabled'}`);
             return true;
         } else {
@@ -198,7 +203,7 @@ window.app.uiBridge = {
     toggleRainbowMode: (enabled) => {
         window.app.isRainbowMode = enabled;
         // Store rainbow state in localStorage for persistence
-        try { localStorage.setItem('ballRainbowEnabled', enabled); } catch(e) {}
+        try { localStorage.setItem('ballRainbowEnabled', enabled); } catch (e) { }
         console.log(`Rainbow mode ${enabled ? 'enabled' : 'disabled'}`);
         return true;
     },
@@ -209,8 +214,8 @@ window.app.uiBridge = {
             if (typeof window.createParticleExplosion === 'function') {
                 window.createParticleExplosion(window.app);
                 return true;
-            } else if (typeof window.app.createExplosion === 'function' && 
-                     window.app.createExplosion !== window.app.uiBridge.createExplosion) {
+            } else if (typeof window.app.createExplosion === 'function' &&
+                window.app.createExplosion !== window.app.uiBridge.createExplosion) {
                 return window.app.createExplosion();
             }
             return false;
@@ -219,191 +224,408 @@ window.app.uiBridge = {
             return false;
         }
     },
-    
+
     createBlackholeEffect: () => {
         try {
             window.app.isBlackholeActive = !window.app.isBlackholeActive;
-            
+
             if (window.app.isBlackholeActive) {
-                // Try to use imported function if available
-                if (typeof window.createBlackholeEffect === 'function') {
-                    window.createBlackholeEffect(window.app);
-                } else if (typeof window.app.createBlackholeEffect === 'function' && 
-                          window.app.createBlackholeEffect !== window.app.uiBridge.createBlackholeEffect) {
-                    window.app.createBlackholeEffect();
-                } else {
-                    // Fallback
-                    window.app.createBasicBlackholeEffect();
+                // Create blackhole effect
+                window.app.createBlackholeVisuals();
+
+                // Start updating the blackhole effect
+                if (!window.app.blackholeUpdateFunction) {
+                    window.app.blackholeUpdateFunction = function () {
+                        if (!window.app.isBlackholeActive || !window.app.blackholeCenter) return;
+
+                        // Rotate the blackhole
+                        if (window.app.blackholeRing) {
+                            window.app.blackholeRing.rotation.z += 0.01;
+                        }
+
+                        // Make particles orbit
+                        if (window.app.blackholeParticles) {
+                            window.app.blackholeParticles.rotation.z += 0.005;
+                        }
+
+                        // Apply gravitational pull to the ball
+                        if (window.app.ballGroup) {
+                            const blackholePos = new THREE.Vector3(0, 0, 0);
+                            const ballPos = window.app.ballGroup.position.clone();
+                            const direction = new THREE.Vector3().subVectors(blackholePos, ballPos).normalize();
+                            const distance = ballPos.distanceTo(blackholePos);
+
+                            // Only apply if ball is far enough from center to avoid extreme pulls
+                            if (distance > 0.2 && distance < 5) {
+                                // Newton's gravitational formula (simplified)
+                                const force = 0.05 / (distance * distance);
+                                window.app.ballGroup.position.add(direction.multiplyScalar(force));
+
+                                // Also apply some rotation based on the force
+                                window.app.ballGroup.rotation.x += force * 0.1;
+                                window.app.ballGroup.rotation.y += force * 0.15;
+                            }
+                        }
+                    };
+
+                    // Hook into animation loop
+                    const originalAnimate = window.app.animate;
+                    window.app.animate = function () {
+                        originalAnimate();
+                        if (window.app.blackholeUpdateFunction) {
+                            window.app.blackholeUpdateFunction();
+                        }
+                    };
                 }
+
                 console.log('Blackhole effect activated');
             } else {
-                // Try to use imported function if available
-                if (typeof window.removeBlackholeEffect === 'function') {
-                    window.removeBlackholeEffect(window.app);
-                } else if (typeof window.app.removeBlackholeEffect === 'function' && 
-                          window.app.removeBlackholeEffect !== window.app.uiBridge.removeBlackholeEffect) {
-                    window.app.removeBlackholeEffect();
-                } else {
-                    // Fallback
-                    window.app.removeBasicBlackholeEffect();
-                }
+                // Clean up blackhole
+                window.app.removeBlackholeVisuals();
                 console.log('Blackhole effect deactivated');
             }
-            
+
             // Store state in localStorage for persistence
-            try { localStorage.setItem('ballBlackHoleActive', window.app.isBlackholeActive); } catch(e) {}
-            
+            try { localStorage.setItem('ballBlackHoleActive', window.app.isBlackholeActive); } catch (e) { }
+
             return true;
         } catch (e) {
             console.error('Error toggling blackhole effect:', e);
             return false;
         }
     },
-    
-    createBasicBlackholeEffect: () => {
-        // Create a basic blackhole effect if the main implementation is missing
+
+    createBlackholeVisuals: () => {
         if (!window.app.scene) return;
-        
-        // Remove any existing effect
-        window.app.uiBridge.removeBasicBlackholeEffect();
-        
-        // Create a simple black sphere in the center
-        const blackholeGeo = new THREE.SphereGeometry(0.5, 32, 32);
-        const blackholeMat = new THREE.MeshBasicMaterial({ 
-            color: 0x000000, 
+
+        // Remove any existing blackhole
+        window.app.removeBlackholeVisuals();
+
+        // Create dark center sphere
+        const blackholeMaterial = new THREE.MeshBasicMaterial({
+            color: 0x000000,
             transparent: true,
-            opacity: 0.8
+            opacity: 0.8,
+            side: THREE.DoubleSide
         });
-        
-        window.app.blackholeEffect = new THREE.Mesh(blackholeGeo, blackholeMat);
-        window.app.scene.add(window.app.blackholeEffect);
-        
-        // Add a distortion effect to the render pipeline
-        if (window.app.renderer && window.app.renderer.domElement) {
-            window.app.renderer.domElement.style.filter = "blur(2px) brightness(0.8)";
+
+        const blackholeGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+        const blackholeCenter = new THREE.Mesh(blackholeGeometry, blackholeMaterial);
+        blackholeCenter.position.set(0, 0, 0); // Place at center
+        window.app.scene.add(blackholeCenter);
+        window.app.blackholeCenter = blackholeCenter;
+
+        // Create glowing ring
+        const ringGeometry = new THREE.RingGeometry(0.5, 0.8, 32);
+        const ringMaterial = new THREE.MeshBasicMaterial({
+            color: 0x6600FF,
+            transparent: true,
+            opacity: 0.6,
+            side: THREE.DoubleSide
+        });
+
+        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+        ring.position.set(0, 0, 0);
+        window.app.scene.add(ring);
+        window.app.blackholeRing = ring;
+
+        // Create particle system for accretion disk
+        const particleCount = 1000;
+        const particleGeometry = new THREE.BufferGeometry();
+        const particlePositions = new Float32Array(particleCount * 3);
+        const particleColors = new Float32Array(particleCount * 3);
+
+        for (let i = 0; i < particleCount; i++) {
+            // Random position in a disk
+            const radius = 0.5 + Math.random() * 1.0; // Between 0.5 and 1.5
+            const angle = Math.random() * Math.PI * 2;
+
+            // Add some vertical spread for thickness
+            const height = (Math.random() - 0.5) * 0.1;
+
+            particlePositions[i * 3] = Math.cos(angle) * radius;
+            particlePositions[i * 3 + 1] = Math.sin(angle) * radius;
+            particlePositions[i * 3 + 2] = height;
+
+            // Blue-purple colors with variation
+            particleColors[i * 3] = Math.random() * 0.2;       // R - low red
+            particleColors[i * 3 + 1] = Math.random() * 0.3;   // G - low green
+            particleColors[i * 3 + 2] = 0.5 + Math.random() * 0.5; // B - high blue
         }
+
+        particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+        particleGeometry.setAttribute('color', new THREE.BufferAttribute(particleColors, 3));
+
+        const particleMaterial = new THREE.PointsMaterial({
+            size: 0.02,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending
+        });
+
+        const particles = new THREE.Points(particleGeometry, particleMaterial);
+        window.app.scene.add(particles);
+        window.app.blackholeParticles = particles;
+
+        // Apply post-processing if available
+        if (typeof THREE.EffectComposer === 'function') {
+            try {
+                // Create bloom effect
+                console.log('Setting up bloom effect for blackhole');
+            } catch (e) {
+                console.error('Error setting up post-processing:', e);
+            }
+        }
+
+        return true;
     },
-    
-    removeBasicBlackholeEffect: () => {
-        // Remove our basic blackhole effect
-        if (window.app.blackholeEffect && window.app.scene) {
-            window.app.scene.remove(window.app.blackholeEffect);
-            window.app.blackholeEffect = null;
+
+    removeBlackholeVisuals: () => {
+        if (window.app.blackholeCenter) {
+            window.app.scene.remove(window.app.blackholeCenter);
+            window.app.blackholeCenter = null;
         }
-        
-        // Remove render effects
-        if (window.app.renderer && window.app.renderer.domElement) {
-            window.app.renderer.domElement.style.filter = "";
+
+        if (window.app.blackholeRing) {
+            window.app.scene.remove(window.app.blackholeRing);
+            window.app.blackholeRing = null;
         }
+
+        if (window.app.blackholeParticles) {
+            window.app.scene.remove(window.app.blackholeParticles);
+            window.app.blackholeParticles = null;
+        }
+
+        return true;
     },
-    
+
     createMagneticEffect: () => {
         try {
             window.app.isMagneticActive = !window.app.isMagneticActive;
-            
+
             if (window.app.isMagneticActive) {
-                // Try to use imported function if available
-                if (typeof window.createTrailEffect === 'function') {
-                    window.createTrailEffect(window.app);
-                } else if (typeof window.app.createMagneticEffect === 'function' && 
-                          window.app.createMagneticEffect !== window.app.uiBridge.createMagneticEffect) {
-                    window.app.createMagneticEffect();
-                } else {
-                    // Fallback
-                    window.app.createBasicMagneticEffect();
+                // Create the magnetic trail
+                window.app.createMagneticTrail();
+
+                // Create update function if it doesn't exist
+                if (!window.app.updateMagneticTrailFunction) {
+                    window.app.updateMagneticTrailFunction = function () {
+                        if (!window.app.isMagneticActive) return;
+
+                        // Update the trail and particles
+                        window.app.updateMagneticTrail();
+                    };
+
+                    // Add to animation loop
+                    const originalAnimate = window.app.animate;
+                    window.app.animate = function () {
+                        originalAnimate();
+                        if (window.app.updateMagneticTrailFunction) {
+                            window.app.updateMagneticTrailFunction();
+                        }
+                    };
                 }
+
                 console.log('Magnetic effect activated');
             } else {
-                // Try to use imported function if available
-                if (typeof window.removeTrailEffect === 'function') {
-                    window.removeTrailEffect(window.app);
-                } else if (typeof window.app.removeMagneticEffect === 'function' && 
-                          window.app.removeMagneticEffect !== window.app.uiBridge.removeMagneticEffect) {
-                    window.app.removeMagneticEffect();
-                } else {
-                    // Fallback
-                    window.app.removeBasicMagneticEffect();
-                }
+                // Clean up the trail
+                window.app.removeMagneticTrail();
                 console.log('Magnetic effect deactivated');
             }
-            
+
             // Store state in localStorage for persistence
-            try { localStorage.setItem('ballMagneticActive', window.app.isMagneticActive); } catch(e) {}
-            
+            try { localStorage.setItem('ballMagneticActive', window.app.isMagneticActive); } catch (e) { }
+
             return true;
         } catch (e) {
             console.error('Error toggling magnetic effect:', e);
             return false;
         }
     },
-    
-    createBasicMagneticEffect: () => {
-        // Create a basic magnetic trail effect if the main implementation is missing
-        if (!window.app.scene || !window.app.ballGroup) return;
-        
-        // Create a trail object
-        const trailGeo = new THREE.BufferGeometry();
-        const maxPoints = 100;
-        const positions = new Float32Array(maxPoints * 3);
-        trailGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        
-        const trailMat = new THREE.LineBasicMaterial({
-            color: 0x00FFFF,
+
+    // Create the magnetic trail visuals
+    createMagneticTrail: () => {
+        if (!window.app.scene || !window.app.ballGroup) return false;
+
+        // Remove any existing trail first
+        window.app.removeMagneticTrail();
+
+        // Create orbiting particles around the ball
+        window.app.magneticParticles = [];
+        for (let i = 0; i < 30; i++) {
+            const size = Math.random() * 0.08 + 0.04;
+            const particleGeometry = new THREE.SphereGeometry(size, 8, 8);
+
+            // Use a bright glowing material with some randomized color
+            const hue = 0.6 + Math.random() * 0.2; // Cyan to blue range
+            const color = new THREE.Color().setHSL(hue, 0.9, 0.6);
+
+            const particleMaterial = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.7,
+                blending: THREE.AdditiveBlending
+            });
+
+            const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+
+            // Random orbit parameters
+            particle.userData = {
+                orbitRadius: Math.random() * 0.5 + 0.5,
+                orbitSpeed: Math.random() * 0.02 + 0.01,
+                orbitPhase: Math.random() * Math.PI * 2,
+                orbitHeight: (Math.random() - 0.5) * 0.5,
+                pulseSpeed: Math.random() * 2 + 1
+            };
+
+            window.app.scene.add(particle);
+            window.app.magneticParticles.push(particle);
+        }
+
+        // Create trail line
+        const maxTrailPoints = 100;
+        const trailGeometry = new THREE.BufferGeometry();
+        const trailPositions = new Float32Array(maxTrailPoints * 3);
+        const trailColors = new Float32Array(maxTrailPoints * 3);
+
+        // Initialize positions to ball position
+        const ballPos = new THREE.Vector3();
+        window.app.ballGroup.getWorldPosition(ballPos);
+
+        for (let i = 0; i < maxTrailPoints; i++) {
+            trailPositions[i * 3] = ballPos.x;
+            trailPositions[i * 3 + 1] = ballPos.y;
+            trailPositions[i * 3 + 2] = ballPos.z;
+
+            // Gradient color from blue to cyan to white
+            const ratio = i / maxTrailPoints;
+            trailColors[i * 3] = ratio;        // R increases along trail
+            trailColors[i * 3 + 1] = 0.5 + ratio * 0.5; // G is higher at end of trail
+            trailColors[i * 3 + 2] = 1.0;      // B always high
+        }
+
+        trailGeometry.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+        trailGeometry.setAttribute('color', new THREE.BufferAttribute(trailColors, 3));
+
+        const trailMaterial = new THREE.LineBasicMaterial({
+            vertexColors: true,
+            linewidth: 3,
+            opacity: 0.7,
             transparent: true,
-            opacity: 0.7
+            blending: THREE.AdditiveBlending
         });
-        
-        const trail = new THREE.Line(trailGeo, trailMat);
+
+        const trail = new THREE.Line(trailGeometry, trailMaterial);
         window.app.scene.add(trail);
         window.app.magneticTrail = trail;
-        window.app.magneticTrailPoints = [];
-        
-        // Update function for animation loop
-        window.app.updateMagneticTrail = () => {
-            if (!window.app.isMagneticActive || !window.app.magneticTrail) return;
-            
-            // Get current ball position
+
+        // Add glow effect to the ball
+        if (window.app.ballGroup.userData.mat) {
+            window.app.ballGroup.userData.mat.emissive = new THREE.Color(0x0066FF);
+            window.app.ballGroup.userData.mat.emissiveIntensity = 0.5;
+        }
+
+        window.app.trailPositions = [];
+        window.app.trailHue = 0;
+
+        return true;
+    },
+
+    // Update the magnetic trail
+    updateMagneticTrail: () => {
+        if (!window.app.isMagneticActive) return;
+
+        // Update orbiting particles around the ball
+        if (window.app.magneticParticles && window.app.magneticParticles.length > 0) {
+            const time = Date.now() * 0.001;
             const ballPos = new THREE.Vector3();
             window.app.ballGroup.getWorldPosition(ballPos);
-            
-            // Add point to trail
-            window.app.magneticTrailPoints.push(ballPos.clone());
-            
-            // Limit number of points
-            if (window.app.magneticTrailPoints.length > maxPoints) {
-                window.app.magneticTrailPoints.shift();
+
+            window.app.magneticParticles.forEach((particle, index) => {
+                const params = particle.userData;
+
+                // Calculate orbital position
+                const angle = time * params.orbitSpeed + params.orbitPhase;
+                const x = Math.cos(angle) * params.orbitRadius;
+                const y = Math.sin(angle) * params.orbitRadius;
+                const z = Math.sin(time * 0.5 + params.orbitPhase) * params.orbitHeight;
+
+                // Position relative to ball
+                particle.position.set(
+                    ballPos.x + x,
+                    ballPos.y + y,
+                    ballPos.z + z
+                );
+
+                // Add pulsating effect
+                const pulse = Math.sin(time * params.pulseSpeed + index) * 0.3 + 0.7;
+                particle.scale.set(pulse, pulse, pulse);
+
+                // Update color for rainbow effect
+                const hue = (window.app.trailHue + index * 0.02) % 1.0;
+                particle.material.color.setHSL(hue, 0.9, 0.6);
+            });
+        }
+
+        // Update trail
+        if (window.app.magneticTrail) {
+            const positions = window.app.magneticTrail.geometry.attributes.position;
+            const colors = window.app.magneticTrail.geometry.attributes.color;
+
+            // Get ball position
+            const ballPos = new THREE.Vector3();
+            window.app.ballGroup.getWorldPosition(ballPos);
+
+            // Shift all positions one step back
+            for (let i = positions.count - 1; i > 0; i--) {
+                positions.array[i * 3] = positions.array[(i - 1) * 3];
+                positions.array[i * 3 + 1] = positions.array[(i - 1) * 3 + 1];
+                positions.array[i * 3 + 2] = positions.array[(i - 1) * 3 + 2];
             }
-            
-            // Update trail geometry
-            const positions = window.app.magneticTrail.geometry.attributes.position.array;
-            for (let i = 0; i < window.app.magneticTrailPoints.length; i++) {
-                const point = window.app.magneticTrailPoints[i];
-                positions[i * 3] = point.x;
-                positions[i * 3 + 1] = point.y;
-                positions[i * 3 + 2] = point.z;
-            }
-            
-            window.app.magneticTrail.geometry.attributes.position.needsUpdate = true;
-            window.app.magneticTrail.geometry.setDrawRange(0, window.app.magneticTrailPoints.length);
-        };
-        
-        // Hook into animation loop
-        const originalAnimate = window.app.animate;
-        window.app.animate = function() {
-            originalAnimate();
-            if (window.app.updateMagneticTrail) {
-                window.app.updateMagneticTrail();
-            }
-        };
+
+            // Add new position at front
+            positions.array[0] = ballPos.x;
+            positions.array[1] = ballPos.y;
+            positions.array[2] = ballPos.z;
+
+            // Update hue for rainbow effect
+            window.app.trailHue = (window.app.trailHue + 0.01) % 1.0;
+
+            // Update the front color
+            colors.array[0] = 0.5 + Math.sin(window.app.trailHue * Math.PI * 2) * 0.5; // R
+            colors.array[1] = 0.5 + Math.sin((window.app.trailHue + 0.33) * Math.PI * 2) * 0.5; // G
+            colors.array[2] = 0.5 + Math.sin((window.app.trailHue + 0.66) * Math.PI * 2) * 0.5; // B
+
+            positions.needsUpdate = true;
+            colors.needsUpdate = true;
+        }
     },
-    
-    removeBasicMagneticEffect: () => {
-        // Remove our basic magnetic effect
-        if (window.app.magneticTrail && window.app.scene) {
+
+    // Remove magnetic trail
+    removeMagneticTrail: () => {
+        // Remove particles
+        if (window.app.magneticParticles && window.app.magneticParticles.length > 0) {
+            window.app.magneticParticles.forEach(particle => {
+                if (window.app.scene) {
+                    window.app.scene.remove(particle);
+                }
+            });
+            window.app.magneticParticles = [];
+        }
+
+        // Remove trail
+        if (window.app.magneticTrail) {
             window.app.scene.remove(window.app.magneticTrail);
             window.app.magneticTrail = null;
-            window.app.magneticTrailPoints = [];
         }
+
+        // Remove glow
+        if (window.app.ballGroup && window.app.ballGroup.userData.mat) {
+            window.app.ballGroup.userData.mat.emissiveIntensity = 0;
+        }
+
+        return true;
     },
 
     // Visualization and appearance controls
@@ -411,17 +633,17 @@ window.app.uiBridge = {
         try {
             if (window.app.audioVisualization) {
                 window.app.audioVisualization.enabled = enabled;
-                
+
                 if (window.app.scene?.userData?.audioVisualization) {
                     window.app.scene.userData.audioVisualization.visible = enabled;
                 }
-                
+
                 // Store visualization state in localStorage for persistence
-                try { localStorage.setItem('ballVisualizationEnabled', enabled); } catch(e) {}
+                try { localStorage.setItem('ballVisualizationEnabled', enabled); } catch (e) { }
                 console.log(`Audio visualization ${enabled ? 'enabled' : 'disabled'}`);
                 return true;
             }
-            
+
             // If no visualization exists but we want to enable it, try to create one
             if (enabled && !window.app.audioVisualization) {
                 if (typeof window.createEnhancedVisualization === 'function') {
@@ -431,7 +653,7 @@ window.app.uiBridge = {
                     return window.app.createBasicAudioVisualization();
                 }
             }
-            
+
             console.warn('Audio visualization not available');
             return false;
         } catch (e) {
@@ -439,16 +661,16 @@ window.app.uiBridge = {
             return false;
         }
     },
-    
+
     createBasicAudioVisualization: () => {
         // Create a simple audio visualization if one doesn't exist
         if (!window.app.audioContext || !window.app.scene) return false;
-        
+
         // Create analyzer if it doesn't exist
         if (!window.app.analyser) {
             window.app.analyser = window.app.audioContext.createAnalyser();
             window.app.analyser.fftSize = 32;
-            
+
             if (window.app.masterGain) {
                 window.app.masterGain.connect(window.app.analyser);
             } else {
@@ -456,55 +678,64 @@ window.app.uiBridge = {
                 const destination = window.app.audioContext.destination;
                 window.app.analyser.connect(destination);
             }
-            
+
             window.app.analyserData = new Uint8Array(window.app.analyser.frequencyBinCount);
         }
-        
+
         // Create visualization bars
         const visGroup = new THREE.Group();
         window.app.scene.add(visGroup);
         window.app.scene.userData.audioVisualization = visGroup;
-        
+
         const barCount = 16;
         const barGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-        
+
         for (let i = 0; i < barCount; i++) {
             const angle = (i / barCount) * Math.PI * 2;
             const x = Math.cos(angle) * 2;
             const z = Math.sin(angle) * 2;
-            
+
             const bar = new THREE.Mesh(
                 barGeo,
                 new THREE.MeshPhongMaterial({ color: 0x00FFFF })
             );
-            
+
             bar.position.set(x, 0, z);
             visGroup.add(bar);
         }
-        
+
         // Update function
-        window.app.updateAudioVisualization = function() {
+        window.app.updateAudioVisualization = function () {
             if (!window.app.analyser || !window.app.scene?.userData?.audioVisualization) return;
-            
+
             window.app.analyser.getByteFrequencyData(window.app.analyserData);
-            
+
             const bars = window.app.scene.userData.audioVisualization.children;
             const binCount = window.app.analyserData.length;
-            
+
             for (let i = 0; i < bars.length; i++) {
                 const binIndex = Math.floor((i / bars.length) * binCount);
                 const value = window.app.analyserData[binIndex] / 256;
-                
+
                 bars[i].scale.y = value * 5 + 0.1;
                 bars[i].position.y = value * 1.5;
             }
         };
-        
+
+        // Add the update function to the animation loop
+        const originalAnimate = window.app.animate;
+        window.app.animate = function () {
+            originalAnimate();
+            if (window.app.audioVisualization && window.app.audioVisualization.enabled) {
+                window.app.updateAudioVisualization();
+            }
+        };
+
         window.app.audioVisualization = {
             enabled: true,
             update: window.app.updateAudioVisualization
         };
-        
+
         console.log('Basic audio visualization created');
         return true;
     },
@@ -512,87 +743,52 @@ window.app.uiBridge = {
     setSpikiness: (value) => {
         try {
             window.app.spikiness = value;
-            
-            if (window.app.ballGeometry && window.app.originalPositions) {
-                // Apply spiky effect if spikiness > 0
-                if (value > 0) {
-                    if (typeof window.applySpikyEffect === 'function') {
-                        window.applySpikyEffect(window.app, value);
-                    } else if (typeof window.app.applySpikyEffect === 'function') {
-                        window.app.applySpikyEffect(value);
-                    } else {
-                        window.app.applyBasicSpikyEffect(value);
-                    }
-                } else if (typeof window.app.resetDeformation === 'function') {
-                    // Reset deformation if spikiness is 0
-                    window.app.resetDeformation(0.5);
-                }
-                
-                // Store spikiness in localStorage for persistence
-                try { localStorage.setItem('ballSpikiness', value); } catch(e) {}
-                console.log(`Spikiness set to ${value.toFixed(2)}`);
+
+            // Skip applying effects during initial load
+            if (!window.app.initialLoadComplete || document.readyState !== 'complete') {
+                console.log('Skipping spikiness application during initialization');
+                try { localStorage.setItem('ballSpikiness', value); } catch (e) { }
                 return true;
             }
-            
-            console.warn('Spikiness control not available');
-            return false;
+
+            // Only apply effect if user explicitly interacted with the control
+            if (window.app.userInitiatedSpikiness) {
+                if (value > 0 && typeof window.app.applyDeformationInteraction === 'function') {
+                    console.log(`Applying interactive deformation with value ${value}`);
+                    // Use interactive deformation instead of simple spiky effect
+                    window.app.applyDeformationInteraction(value);
+                } else if (value === 0 && typeof window.app.resetDeformation === 'function') {
+                    console.log('Resetting deformation');
+                    window.app.resetDeformation(0.1);
+                }
+            }
+
+            // Store in localStorage for persistence
+            try { localStorage.setItem('ballSpikiness', value); } catch (e) { }
+            return true;
         } catch (e) {
             console.error('Error setting spikiness:', e);
             return false;
         }
     },
-    
-    applyBasicSpikyEffect: (intensity) => {
-        if (!window.app.ballGeometry || !window.app.originalPositions) return;
-        
-        const positions = window.app.ballGeometry.attributes.position;
-        
-        // Apply spikiness to all vertices
-        for (let i = 0; i < positions.count; i++) {
-            const originalX = window.app.originalPositions[i * 3];
-            const originalY = window.app.originalPositions[i * 3 + 1];
-            const originalZ = window.app.originalPositions[i * 3 + 2];
-            
-            // Normalize the original position to get direction vector
-            const length = Math.sqrt(
-                originalX * originalX + 
-                originalY * originalY + 
-                originalZ * originalZ
-            );
-            
-            // Calculate spiky position
-            positions.array[i * 3] = originalX + (originalX / length) * intensity;
-            positions.array[i * 3 + 1] = originalY + (originalY / length) * intensity;
-            positions.array[i * 3 + 2] = originalZ + (originalZ / length) * intensity;
-        }
-        
-        positions.needsUpdate = true;
-        window.app.ballGeometry.computeVertexNormals();
-        
-        // Update wireframe if it exists
-        if (window.app.wireMesh) {
-            const wireGeo = new THREE.EdgesGeometry(window.app.ballGeometry);
-            window.app.wireMesh.geometry = wireGeo;
-        }
-    },
-    
+
     // Gradient customization
     setGradientColors: (innerColor, middleColor, outerColor) => {
         try {
             if (typeof window.app.updateGradientTexture === 'function') {
                 window.app.updateGradientTexture(innerColor, middleColor, outerColor);
-                
+
                 // Store colors in localStorage for persistence
                 try {
                     localStorage.setItem('ballInnerColor', innerColor);
                     localStorage.setItem('ballMiddleColor', middleColor);
                     localStorage.setItem('ballOuterColor', outerColor);
-                } catch(e) {}
-                
+                } catch (e) { }
+
                 console.log('Gradient colors updated');
                 return true;
             }
-            
+
             console.warn('Gradient texture update function not available');
             return false;
         } catch (e) {
@@ -600,25 +796,25 @@ window.app.uiBridge = {
             return false;
         }
     },
-    
+
     // Improved function to reset colors to default
     resetColors: () => {
         try {
             const defaultInner = '#FF00FF';  // Magenta
             const defaultMiddle = '#8800FF'; // Purple
             const defaultOuter = '#00FFFF'; // Cyan
-            
+
             return window.app.uiBridge.setGradientColors(defaultInner, defaultMiddle, defaultOuter);
         } catch (e) {
             console.error('Error resetting colors:', e);
             return false;
         }
     },
-    
+
     // Menu state synchronization
     syncToggleStates: () => {
         if (!window.menuSystem) return false;
-        
+
         try {
             // Call the existing sync method if available
             if (typeof window.menuSystem.syncToggleStates === 'function') {
@@ -630,7 +826,7 @@ window.app.uiBridge = {
         }
         return false;
     },
-    
+
     // Load persisted settings from localStorage
     loadPersistedSettings: () => {
         try {
@@ -639,37 +835,39 @@ window.app.uiBridge = {
             if (volume !== null && window.app.masterGain) {
                 window.app.masterGain.gain.value = parseFloat(volume);
             }
-            
+
             // Load audio state
             const audioEnabled = localStorage.getItem('ballAudioEnabled');
             if (audioEnabled !== null) {
                 window.app.uiBridge.toggleAudio(audioEnabled === 'true');
             }
-            
+
             // Load wireframe state
             const wireframeEnabled = localStorage.getItem('ballWireframeEnabled');
             if (wireframeEnabled !== null) {
                 window.app.uiBridge.toggleWireframe(wireframeEnabled === 'true');
             }
-            
+
             // Load rainbow state
             const rainbowEnabled = localStorage.getItem('ballRainbowEnabled');
             if (rainbowEnabled !== null) {
                 window.app.uiBridge.toggleRainbowMode(rainbowEnabled === 'true');
             }
-            
+
             // Load visualization state
             const visualizationEnabled = localStorage.getItem('ballVisualizationEnabled');
             if (visualizationEnabled !== null) {
                 window.app.uiBridge.toggleAudioVisualization(visualizationEnabled === 'true');
             }
-            
+
             // Load spikiness
             const spikiness = localStorage.getItem('ballSpikiness');
             if (spikiness !== null) {
-                window.app.uiBridge.setSpikiness(parseFloat(spikiness));
+                window.app.spikiness = parseFloat(spikiness);
+                // Don't automatically apply it, just store the value
+                console.log(`Loaded spikiness value: ${window.app.spikiness} (not applied yet)`);
             }
-            
+
             // Load gradient colors
             const innerColor = localStorage.getItem('ballInnerColor');
             const middleColor = localStorage.getItem('ballMiddleColor');
@@ -677,7 +875,7 @@ window.app.uiBridge = {
             if (innerColor && middleColor && outerColor) {
                 window.app.uiBridge.setGradientColors(innerColor, middleColor, outerColor);
             }
-            
+
             console.log('Persisted settings loaded successfully');
             return true;
         } catch (e) {
@@ -693,32 +891,166 @@ window.app.debug = true;
 // Function to initialize the application
 function init() {
     console.log('Initializing application...');
-    
-    // Create renderer
+
+    // Create renderer first
     initRenderer();
-    
+
     // Create scene
     initScene();
-    
+
     // Create camera
     initCamera();
-    
+
     // Create lighting
     initLighting();
-    
+
     // Create fancy ball
     createFancyBall();
-    
+
     // Add OrbitControls for camera manipulation
     initControls();
-    
+
     // Start animation loop
     animate();
-    
+
     // Initialize audio system
     initializeAudio();
-    
-    console.log('Initialization complete');
+
+    console.log('Core application initialized');
+
+    // Mark initial load as complete
+    window.app.initialLoadComplete = true;
+
+    // Fix the script loading timing
+    setTimeout(() => {
+        // Make sure THREE is available to the loaded scripts
+        window.THREE = THREE;
+
+        // Add basic functions before loading scripts
+        if (!window.app.applyBasicSpikyEffect) {
+            window.app.applyBasicSpikyEffect = function (intensity) {
+                // Implementation from above...
+                // (Copy the function implementation here if needed)
+            };
+        }
+
+        // Now load the scripts
+        const mouseControlsScript = document.createElement('script');
+        mouseControlsScript.src = './src/core/mouse-controls.js';
+        mouseControlsScript.onload = function() {
+          console.log("Mouse controls script loaded successfully");
+          
+          // Use a delay to ensure the app is fully initialized before calling setup
+          setTimeout(() => {
+            if (typeof window.setupMouseButtonEffects === 'function') {
+              window.setupMouseButtonEffects();
+            } else if (window.setupMouseButtonEffects) {
+              window.setupMouseButtonEffects();
+            } else {
+              console.warn("setupMouseButtonEffects function not found after script load");
+              
+              // Create simplified version as fallback
+              const fallbackSetup = function() {
+                // Prevent context menu
+                window.addEventListener('contextmenu', e => {
+                  // Only prevent default if in a special mode
+                  if (window.app && window.app.mouseControls && 
+                      (window.app.mouseControls.isBlackholeModeActive || 
+                       window.app.mouseControls.isSpikinessModeActive)) {
+                    e.preventDefault();
+                  }
+                });
+                
+                // Mouse button handling
+                window.addEventListener('mousedown', e => {
+                  // Handle different mouse buttons
+                  switch(e.button) {
+                    case 1: // Middle click - toggle camera inside/outside
+                      e.preventDefault();
+                      if (window.app && window.app.uiBridge && window.app.uiBridge.toggleCameraPosition) {
+                        window.app.uiBridge.toggleCameraPosition();
+                      }
+                      break;
+                      
+                    case 2: // Right click - blackhole effect (not explosion)
+                      if (window.app && window.app.uiBridge && window.app.uiBridge.createBlackholeEffect) {
+                        console.log("Right click - toggling blackhole effect via fallback");
+                        window.app.uiBridge.createBlackholeEffect();
+                        e.preventDefault();
+                      }
+                      break;
+                      
+                    case 3: // First side button - explosion
+                      if (window.app && window.app.uiBridge && window.app.uiBridge.createExplosion) {
+                        console.log("Side button - creating explosion via fallback");
+                        window.app.uiBridge.createExplosion();
+                      }
+                      break;
+                      
+                    case 4: // Second side button - magnetic effect
+                      if (window.app && window.app.uiBridge && window.app.uiBridge.createMagneticEffect) {
+                        console.log("Side button - toggling magnetic effect via fallback");
+                        window.app.uiBridge.createMagneticEffect();
+                      }
+                      break;
+                  }
+                });
+                
+                // Add wheel handler for zooming in/out
+                window.addEventListener('wheel', function(e) {
+                  e.preventDefault();
+                  
+                  // Get current camera position
+                  if (window.app && window.app.camera) {
+                    const cameraPos = window.app.camera.position.clone();
+                    const distance = cameraPos.length();
+                    
+                    // Determine zoom direction
+                    const zoomDirection = Math.sign(e.deltaY);
+                    
+                    // Calculate new distance
+                    let newDistance = distance + zoomDirection * 0.1;
+                    newDistance = Math.max(0.5, Math.min(4.0, newDistance));
+                    
+                    // Set new camera position
+                    const newPos = cameraPos.normalize().multiplyScalar(newDistance);
+                    window.app.camera.position.copy(newPos);
+                    
+                    // Handle inside/outside transition
+                    if (newDistance < 0.9) {
+                      // Make material translucent
+                      if (window.app.ballMesh && window.app.ballMesh.material) {
+                        window.app.ballMesh.material.opacity = 0.4;
+                        window.app.ballMesh.material.side = THREE.BackSide;
+                        window.app.insidePullMode = true;
+                      }
+                    } else {
+                      // Restore normal material
+                      if (window.app.ballMesh && window.app.ballMesh.material) {
+                        window.app.ballMesh.material.opacity = 0.8;
+                        window.app.ballMesh.material.side = THREE.DoubleSide;
+                        window.app.insidePullMode = false;
+                      }
+                    }
+                  }
+                }, { passive: false });
+                
+                console.log("Fallback mouse controls set up");
+              };
+              
+              fallbackSetup();
+            }
+          }, 1000); // Use a longer delay to ensure app is fully initialized
+        };
+        document.head.appendChild(mouseControlsScript);
+        
+        // Load ui-connections.js with correct path
+        const uiConnectionsScript = document.createElement('script');
+        uiConnectionsScript.src = './src/core/ui-connections.js';
+        document.head.appendChild(uiConnectionsScript);
+        
+        console.log('Additional scripts loaded');
+    }, 500);
 }
 
 // Initialize renderer
@@ -729,7 +1061,7 @@ function initRenderer() {
         window.app.renderer.setSize(window.innerWidth, window.innerHeight);
         window.app.renderer.setPixelRatio(window.devicePixelRatio);
         window.app.renderer.setClearColor(0x000000);
-        
+
         // Append to container
         const container = document.getElementById('container');
         if (container) {
@@ -750,12 +1082,14 @@ function initScene() {
     try {
         console.log('Initializing scene...');
         window.app.scene = new THREE.Scene();
-        
+
         // Add a debug grid to help with orientation
         if (window.app.debug) {
             const gridHelper = new THREE.GridHelper(10, 10);
+            gridHelper.visible = window.app.showGrid || false; // Only show if explicitly enabled
             window.app.scene.add(gridHelper);
-            console.log('Debug grid added to scene');
+            window.app.gridHelper = gridHelper;
+            console.log('Debug grid added to scene (visibility: ' + gridHelper.visible + ')');
         }
     } catch (error) {
         console.error('Error initializing scene:', error);
@@ -782,7 +1116,7 @@ function initCamera() {
 function initLighting() {
     try {
         console.log('Initializing lighting...');
-        
+
         // Create lighting as per your fancy ball implementation
         const hemilight = new THREE.HemisphereLight(0xffffff, 0x000000, 1);
         hemilight.position.set(0, 1, 0).normalize();
@@ -814,7 +1148,7 @@ function initLighting() {
 function createFancyBall() {
     try {
         console.log('Creating fancy interactive ball...');
-        
+
         // Create an icosahedron geometry with subdivision level 4 for smoother deformation
         const geo = new THREE.IcosahedronGeometry(1.0, 4);
 
@@ -826,27 +1160,27 @@ function createFancyBall() {
             const canvas = document.createElement('canvas');
             canvas.width = 512;
             canvas.height = 512;
-            
+
             const context = canvas.getContext('2d');
-            
+
             // Create gradient
             const gradient = context.createRadialGradient(
                 canvas.width / 2, canvas.height / 2, 0,
                 canvas.width / 2, canvas.height / 2, canvas.width / 2
             );
-            
+
             // Add gradient colors
             gradient.addColorStop(0, colorStart);
             gradient.addColorStop(0.5, colorMid);
             gradient.addColorStop(1, colorEnd);
-            
+
             // Fill with gradient
             context.fillStyle = gradient;
             context.fillRect(0, 0, canvas.width, canvas.height);
-            
+
             const texture = new THREE.CanvasTexture(canvas);
             texture.needsUpdate = true;
-            
+
             return texture;
         };
 
@@ -892,7 +1226,7 @@ function createFancyBall() {
         ballGroup.add(mesh);
         ballGroup.add(wireMesh);
         window.app.scene.add(ballGroup);
-        
+
         // Store references for later use
         window.app.ballGroup = ballGroup;
         window.app.ballMesh = mesh;
@@ -903,18 +1237,18 @@ function createFancyBall() {
         // Store materials in userData for rainbow effect
         window.app.ballGroup.userData.mat = mat;
         window.app.ballGroup.userData.wireMat = wireMat;
-        
+
         window.app.ballGeometry = geo;
         window.app.originalPositions = originalPositions;
-        window.app.updateGradientTexture = function(newColorStart, newColorMid, newColorEnd) {
+        window.app.updateGradientTexture = function (newColorStart, newColorMid, newColorEnd) {
             // Create a new texture with updated colors
             gradientTexture = createGradientTexture(newColorStart, newColorMid, newColorEnd);
-            
+
             // Apply it to the material
             mat.map = gradientTexture;
             mat.needsUpdate = true;
         };
-        
+
         // Create a sphere to visualize the touch point
         const touchSphere = new THREE.Mesh(
             new THREE.SphereGeometry(0.05, 16, 16),
@@ -923,7 +1257,7 @@ function createFancyBall() {
         touchSphere.visible = false;
         window.app.scene.add(touchSphere);
         window.app.touchSphere = touchSphere;
-        
+
         // Set up interaction variables
         window.app.mouse = new THREE.Vector2();
         window.app.mouseWorld = new THREE.Vector3();
@@ -934,16 +1268,16 @@ function createFancyBall() {
         window.app.touchPoint = null;
         window.app.targetScale = 1.0;
         window.app.currentScale = 1.0;
-        
+
         // Mark ball as created
         window.app.ballCreated = true;
-        
+
         // Initialize audio connection with the ball
         initializeAudioForBall();
-        
+
         // Set up interaction listeners
         setupInteraction();
-        
+
         console.log('Ball created successfully');
     } catch (error) {
         console.error('Error creating ball:', error);
@@ -960,7 +1294,7 @@ function initializeAudioForBall() {
                 console.log('Setting up enhanced audio for ball...');
                 window.audioSystem.setupEnhancedAudio(window.app);
             }
-            
+
             // Connect to ball using the ball-audio-connector
             if (typeof window.autoConnectBallAudio === 'function') {
                 console.log('Auto-connecting ball audio...');
@@ -969,7 +1303,7 @@ function initializeAudioForBall() {
                 console.log('Manually connecting ball audio...');
                 window.connectAudioToExistingBall(window.app.ballGroup);
             }
-            
+
             // Initialize positional audio listener
             if (window.app.camera && !window.app.camera.children.find(child => child instanceof THREE.AudioListener)) {
                 console.log('Adding audio listener to camera...');
@@ -977,7 +1311,7 @@ function initializeAudioForBall() {
                 window.app.camera.add(listener);
                 window.app.audioListener = listener;
             }
-            
+
             console.log('Audio initialization for ball complete');
         } catch (error) {
             console.error('Error initializing audio for ball:', error);
@@ -993,96 +1327,96 @@ function setupInteraction() {
         // (-1 to +1) for both components
         window.app.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
         window.app.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-        
+
         // Update the raycaster with the new mouse position
         window.app.raycaster.setFromCamera(window.app.mouse, window.app.camera);
-        
+
         // Move the point light to follow the mouse
         window.app.pointLight.position.copy(window.app.raycaster.ray.direction).multiplyScalar(2).add(window.app.camera.position);
-        
+
         // Calculate objects intersecting the ray
         const intersects = window.app.raycaster.intersectObject(window.app.ballMesh);
-        
+
         // Change appearance when hovered or touched
         if (intersects.length > 0) {
             if (!window.app.isHovered) {
                 document.body.style.cursor = 'pointer';
-                
+
                 // Change wireframe color smoothly
                 gsapFade(window.app.wireMesh.material.color, { r: 1, g: 0, b: 1 }, 0.3);
-                
+
                 // Smoothly change gradient colors
                 window.app.updateGradientTexture('#FF77FF', '#AA55FF', '#55FFFF');
-                
+
                 window.app.isHovered = true;
-                
+
                 // Play hover sound if available
                 if (window.app.audioContext && typeof window.app.soundSynth?.playTone === 'function') {
                     window.app.soundSynth.playTone(330, 0.05, 0.1);
                 }
             }
-            
+
             // Store the intersection point for deformation
             window.app.touchPoint = intersects[0].point.clone();
             window.app.touchSphere.position.copy(window.app.touchPoint);
             window.app.touchSphere.visible = true;
-            
+
             // Apply deformation when hovering
             applyDeformation(window.app.touchPoint, 0.2, 0.3);
-            
+
             // Get facet information for audio
             const facetIndex = intersects[0].faceIndex;
             const position = intersects[0].uv || { u: 0.5, v: 0.5 };
-            
+
             // Emit facet event for audio system to pick up
             if (window.app.ballGroup && typeof window.app.ballGroup.emit === 'function') {
-                window.app.ballGroup.emit('facetHover', { 
-                    facet: facetIndex, 
-                    position: position 
+                window.app.ballGroup.emit('facetHover', {
+                    facet: facetIndex,
+                    position: position
                 });
             }
         } else {
             if (window.app.isHovered) {
                 document.body.style.cursor = 'default';
-                
+
                 // Reset wireframe color smoothly
                 gsapFade(window.app.wireMesh.material.color, { r: 0, g: 1, b: 1 }, 0.3);
-                
+
                 // Reset gradient colors
                 window.app.updateGradientTexture('#FF00FF', '#8800FF', '#00FFFF');
-                
+
                 window.app.isHovered = false;
             }
-            
+
             window.app.touchPoint = null;
             window.app.touchSphere.visible = false;
-            
+
             // Gradually restore the original shape
             resetDeformation(0.1);
         }
-        
+
         // Handle dragging
         if (window.app.isDragging) {
             const deltaMove = {
                 x: event.clientX - window.app.previousMousePosition.x,
                 y: event.clientY - window.app.previousMousePosition.y
             };
-            
+
             // Rotate the ball based on mouse movement
             window.app.ballGroup.rotation.y += deltaMove.x * 0.01;
             window.app.ballGroup.rotation.x += deltaMove.y * 0.01;
-            
+
             window.app.previousMousePosition = {
                 x: event.clientX,
                 y: event.clientY
             };
         }
-        
+
         // Add audio feedback for hovering/moving over facets
         if (intersects.length > 0 && window.app.audioContext && window.app.isHovered) {
             // Get the facet index
             const facetIndex = intersects[0].faceIndex || 0;
-            
+
             // Try different methods to play facet sound
             if (typeof window.app.playFacetSound === 'function') {
                 window.app.playFacetSound(window.app, facetIndex, ballData.touchPoint);
@@ -1094,34 +1428,34 @@ function setupInteraction() {
 
     function onPointerDown(event) {
         window.app.isDragging = true;
-        
+
         window.app.previousMousePosition = {
             x: event.clientX,
             y: event.clientY
         };
-        
+
         // Check if we're clicking on the ball
         window.app.raycaster.setFromCamera(window.app.mouse, window.app.camera);
         const intersects = window.app.raycaster.intersectObject(window.app.ballMesh);
-        
+
         if (intersects.length > 0) {
             // Set target scale for smooth animation
             window.app.targetScale = 1.1;
-            
+
             // Change color more dramatically on click
             window.app.updateGradientTexture('#FFAAFF', '#CC66FF', '#66FFFF');
-            
+
             // Emit click event for audio system
             if (window.app.ballGroup && typeof window.app.ballGroup.emit === 'function') {
                 window.app.ballGroup.emit('click', {});
             }
-            
+
             // Play click sound directly if available
             if (window.app.audioContext) {
                 // Try global function first
                 if (typeof window.playClickSound === 'function') {
                     window.playClickSound(window.app);
-                } 
+                }
                 // Then try app method
                 else if (typeof window.app.playClickSound === 'function') {
                     window.app.playClickSound(window.app);
@@ -1136,10 +1470,10 @@ function setupInteraction() {
 
     function onPointerUp() {
         window.app.isDragging = false;
-        
+
         // Reset target scale for smooth animation
         window.app.targetScale = 1.0;
-        
+
         // Reset colors if not hovering
         if (!window.app.isHovered) {
             window.app.updateGradientTexture('#FF00FF', '#8800FF', '#00FFFF');
@@ -1151,25 +1485,25 @@ function setupInteraction() {
         const startColor = { r: colorObj.r, g: colorObj.g, b: colorObj.b };
         const startTime = Date.now();
         const endTime = startTime + (duration * 1000);
-        
+
         function updateColor() {
             const now = Date.now();
             const elapsed = now - startTime;
             const progress = Math.min(elapsed / (duration * 1000), 1);
-            
+
             // Simple easing function
             const eased = progress * (2 - progress);
-            
+
             // Interpolate colors
             colorObj.r = startColor.r + (targetColor.r - startColor.r) * eased;
             colorObj.g = startColor.g + (targetColor.g - startColor.g) * eased;
             colorObj.b = startColor.b + (targetColor.b - startColor.b) * eased;
-            
+
             if (progress < 1) {
                 requestAnimationFrame(updateColor);
             }
         }
-        
+
         updateColor();
     }
 
@@ -1177,7 +1511,7 @@ function setupInteraction() {
     function applyDeformation(point, intensity, radius) {
         // Get position attribute for direct manipulation
         const positions = window.app.ballGeometry.attributes.position;
-        
+
         // Apply deformation to each vertex based on distance from touch point
         for (let i = 0; i < positions.count; i++) {
             const vertexPosition = new THREE.Vector3(
@@ -1185,45 +1519,45 @@ function setupInteraction() {
                 positions.array[i * 3 + 1],
                 positions.array[i * 3 + 2]
             );
-            
+
             // Calculate world position of the vertex
             const worldPosition = vertexPosition.clone()
                 .applyMatrix4(window.app.ballMesh.matrixWorld);
-            
+
             // Calculate distance from touch point
             const distance = worldPosition.distanceTo(point);
-            
+
             // Only affect vertices within radius
             if (distance < radius) {
                 // Calculate direction vector from touch point to vertex
                 const direction = worldPosition.clone().sub(point).normalize();
-                
+
                 // Calculate deformation factor based on distance (closer = more deformation)
                 const factor = (1 - (distance / radius)) * intensity;
-                
+
                 // Move vertex in the direction from touch point (inward deformation)
                 const deformation = direction.multiplyScalar(-factor);
-                
+
                 // Apply deformation (in local space)
                 const localDeformation = deformation.clone()
                     .applyMatrix4(window.app.ballMesh.matrixWorld.clone().invert());
-                
+
                 // Get original position (pre-deformation)
                 const originalX = window.app.originalPositions[i * 3];
                 const originalY = window.app.originalPositions[i * 3 + 1];
                 const originalZ = window.app.originalPositions[i * 3 + 2];
-                
+
                 // Apply deformation and blend with original position
                 positions.array[i * 3] = originalX + localDeformation.x;
                 positions.array[i * 3 + 1] = originalY + localDeformation.y;
                 positions.array[i * 3 + 2] = originalZ + localDeformation.z;
             }
         }
-        
+
         // Update wireframe to match the deformed shape
         const wireGeo = new THREE.EdgesGeometry(window.app.ballGeometry);
         window.app.wireMesh.geometry = wireGeo;
-        
+
         // Mark attributes as needing update
         positions.needsUpdate = true;
         window.app.ballGeometry.computeVertexNormals();
@@ -1233,21 +1567,21 @@ function setupInteraction() {
     function resetDeformation(speed) {
         const positions = window.app.ballGeometry.attributes.position;
         let needsUpdate = false;
-        
+
         for (let i = 0; i < positions.count; i++) {
             const currentX = positions.array[i * 3];
             const currentY = positions.array[i * 3 + 1];
             const currentZ = positions.array[i * 3 + 2];
-            
+
             const originalX = window.app.originalPositions[i * 3];
             const originalY = window.app.originalPositions[i * 3 + 1];
             const originalZ = window.app.originalPositions[i * 3 + 2];
-            
+
             // Move vertices gradually back to their original positions
             positions.array[i * 3] = currentX + (originalX - currentX) * speed;
             positions.array[i * 3 + 1] = currentY + (originalY - currentY) * speed;
             positions.array[i * 3 + 2] = currentZ + (originalZ - currentZ) * speed;
-            
+
             // Check if there's still significant deformation
             if (Math.abs(positions.array[i * 3] - originalX) > 0.001 ||
                 Math.abs(positions.array[i * 3 + 1] - originalY) > 0.001 ||
@@ -1255,12 +1589,12 @@ function setupInteraction() {
                 needsUpdate = true;
             }
         }
-        
+
         if (needsUpdate) {
             // Update wireframe to match the deformed shape
             const wireGeo = new THREE.EdgesGeometry(window.app.ballGeometry);
             window.app.wireMesh.geometry = wireGeo;
-            
+
             positions.needsUpdate = true;
             window.app.ballGeometry.computeVertexNormals();
         }
@@ -1273,7 +1607,7 @@ function setupInteraction() {
     window.addEventListener('touchmove', (e) => onPointerMove(e.touches[0]));
     window.addEventListener('touchstart', (e) => onPointerDown(e.touches[0]));
     window.addEventListener('touchend', onPointerUp);
-    
+
     // Make these functions available
     window.app.onPointerMove = onPointerMove;
     window.app.onPointerDown = onPointerDown;
@@ -1289,7 +1623,7 @@ function initControls() {
         window.app.controls = new OrbitControls(window.app.camera, window.app.renderer.domElement);
         window.app.controls.enableDamping = true;
         window.app.controls.dampingFactor = 0.05;
-        
+
         // Disable controls when interacting with ball
         window.app.controls.enabled = false;
     } catch (error) {
@@ -1300,24 +1634,24 @@ function initControls() {
 // Animation function to make the mesh scale pulse based on time
 function updateMeshScale() {
     if (!window.app.ballGroup) return;
-    
+
     // Smoothly transition to target scale
     window.app.currentScale += (window.app.targetScale - window.app.currentScale) * 0.1;
-    
+
     // Only apply automated scale changes if not being interacted with
     if (!window.app.isDragging && !window.app.isHovered) {
         // Add subtle breathing animation
         const breathingScale = Math.sin(Date.now() * 0.001) * 0.05 + 1;
         window.app.ballGroup.scale.set(
-            breathingScale * window.app.currentScale, 
-            breathingScale * window.app.currentScale, 
+            breathingScale * window.app.currentScale,
+            breathingScale * window.app.currentScale,
             breathingScale * window.app.currentScale
         );
     } else {
         // Just apply the target scale
         window.app.ballGroup.scale.set(
-            window.app.currentScale, 
-            window.app.currentScale, 
+            window.app.currentScale,
+            window.app.currentScale,
             window.app.currentScale
         );
     }
@@ -1326,7 +1660,7 @@ function updateMeshScale() {
 // Animation function to make the mesh continuously rotate when not interacted with
 function updateMeshRotation() {
     if (!window.app.ballGroup) return;
-    
+
     // Only auto-rotate if not being dragged
     if (!window.app.isDragging) {
         window.app.ballGroup.rotation.x += 0.003;
@@ -1337,14 +1671,14 @@ function updateMeshRotation() {
 // Animation function to make the mesh move in a circular path
 function updateMeshPosition() {
     if (!window.app.ballGroup) return;
-    
+
     // Only apply automatic position changes if not being interacted with
     if (!window.app.isDragging && !window.app.isHovered) {
         // Calculate new position with smooth sine wave movement
         const time = Date.now() * 0.0005;
         const newX = Math.sin(time) * 0.3;
         const newY = Math.cos(time * 1.3) * 0.2;
-        
+
         // Apply position with smoothing
         window.app.ballGroup.position.x += (newX - window.app.ballGroup.position.x) * 0.05;
         window.app.ballGroup.position.y += (newY - window.app.ballGroup.position.y) * 0.05;
@@ -1354,57 +1688,86 @@ function updateMeshPosition() {
 // Main animation loop that runs continuously
 function animate() {
     requestAnimationFrame(animate);
-    
-    updateMeshScale();
-    updateMeshRotation();
-    updateMeshPosition();
-    
+
+    // Check if camera is inside the ball
+    const cameraIsInside = window.app.camera && window.app.camera.position.length() < 0.9;
+
+    // Only do auto-movement when camera is outside
+    if (!cameraIsInside) {
+        updateMeshScale();
+        updateMeshRotation();
+        updateMeshPosition();
+        
+        // Reset material properties when outside
+        if (window.app.ballMesh && window.app.ballMesh.material && window.app._originalOpacity) {
+            window.app.ballMesh.material.opacity = window.app._originalOpacity;
+            window.app.ballMesh.material.side = THREE.DoubleSide;
+        }
+    } else {
+        // Special handling for interior view
+        if (window.app.ballMesh && window.app.ballMesh.material) {
+            if (!window.app._originalOpacity) {
+                window.app._originalOpacity = window.app.ballMesh.material.opacity;
+            }
+            window.app.ballMesh.material.opacity = 0.4; // More transparent
+            window.app.ballMesh.material.side = THREE.BackSide; // Show inside faces
+        }
+        
+        // Add subtle camera motion for immersive feel
+        const time = Date.now() * 0.0005;
+        window.app.camera.position.x += Math.sin(time) * 0.0005;
+        window.app.camera.position.y += Math.cos(time) * 0.0003;
+    }
+
     // Update rainbow mode if enabled
     if (window.app.isRainbowMode) {
         updateRainbowMode(window.app);
     }
-    
+
     // Add audio visualization update if available
     if (window.app.analyser && window.app.analyserData) {
         window.app.analyser.getByteFrequencyData(window.app.analyserData);
-        
+
         // If we have a visualization update function, call it
         if (typeof window.updateAudioVisualization === 'function') {
             window.updateAudioVisualization(window.app);
         }
     }
-    
+
     // Update the ball's position-based sound
     if (window.app.audioContext && window.app.isHovered && typeof window.playToneForPosition === 'function') {
         // Get normalized ball position in viewport
         const position = new THREE.Vector3();
         window.app.ballGroup.getWorldPosition(position);
-        
+
         // Project position to screen coordinates
         position.project(window.app.camera);
-        
+
         // Play position-based sound (limited rate)
         if (Math.random() < 0.05) { // Only 5% chance each frame to avoid too many sounds
             window.playToneForPosition(window.app, position.x, position.y);
         }
     }
-    
+
     if (window.app.controls) {
         window.app.controls.update();
     }
-    
+
     if (window.app.renderer && window.app.scene && window.app.camera) {
         window.app.renderer.render(window.app.scene, window.app.camera);
     }
 }
 
+// Make sure to update the reference
+window.app.animate = animate;
+
 // Handle window resize
 function onWindowResize() {
     if (!window.app.camera || !window.app.renderer) return;
-    
+
     window.app.camera.aspect = window.innerWidth / window.innerHeight;
     window.app.camera.updateProjectionMatrix();
-    
+
     window.app.renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
@@ -1422,14 +1785,14 @@ function showError(message) {
 // Initialize audio when document is ready
 function initializeAudio() {
     console.log('Initializing audio for ball...');
-    
+
     // Try multiple methods to ensure audio initialization happens
     if (typeof window.initializeAudio === 'function') {
         window.initializeAudio().then(audioContext => {
             if (audioContext) {
                 window.app.audioContext = audioContext;
                 console.log('Audio system initialized via global initializeAudio');
-                
+
                 // Ensure facet audio is initialized
                 if (typeof window.initFacetAudio === 'function') {
                     window.initFacetAudio();
@@ -1437,7 +1800,7 @@ function initializeAudio() {
             }
         }).catch(error => {
             console.error('Failed to initialize audio:', error);
-            
+
             // Try facet audio as fallback
             if (typeof window.initFacetAudio === 'function') {
                 window.initFacetAudio();
@@ -1448,14 +1811,14 @@ function initializeAudio() {
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             window.app.audioContext = new AudioContext();
-            
+
             // Create master gain node
             window.app.masterGain = window.app.audioContext.createGain();
             window.app.masterGain.gain.value = 0.5;
             window.app.masterGain.connect(window.app.audioContext.destination);
-            
+
             console.log('Audio context created directly');
-            
+
             // Ensure facet audio is initialized
             if (typeof window.initFacetAudio === 'function') {
                 window.initFacetAudio();
@@ -1470,7 +1833,7 @@ function initializeAudio() {
 window.app.setRainbowMode = function (enabled) {
     // Set the flag directly first
     window.app.isRainbowMode = enabled;
-    
+
     // If enabled is true, ensure rainbow mode is on, otherwise ensure it's off
     if (enabled) {
         if (!window.app.isRainbowMode) {
@@ -1481,14 +1844,14 @@ window.app.setRainbowMode = function (enabled) {
             toggleRainbowMode(window.app);
         }
     }
-    
+
     console.log(`Rainbow mode ${enabled ? 'enabled' : 'disabled'}`);
     return window.app.isRainbowMode;
 };
 
 // Optional: Add these if you want the menu buttons to do something
 window.app.createExplosion = function () {
-    console.log('Explosion triggered');
+    console.log('Explosion effect triggered');
     // TODO: Implement explosion effect
 };
 window.app.createBlackholeEffect = function () {
@@ -1507,7 +1870,7 @@ window.addEventListener('resize', onWindowResize);
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM loaded, initializing application...');
     init();
-    
+
     // Let other components know the scene is ready
     window.dispatchEvent(new Event('sceneReady'));
 
@@ -1532,68 +1895,366 @@ window.app.createFancyBall = createFancyBall;
 window.app.init = init;
 window.app.animate = animate;
 
-// Add these implementations to main.js
+// Emergency function to recreate the ball if it's missing
+window.recoverBall = function () {
+    console.log('Attempting to recover missing ball...');
 
-window.app.createExplosion = function() {
-  console.log('Explosion effect triggered');
-  
-  // Get the ball mesh
-  const ball = window.app.ballGroup;
-  if (!ball) return;
-  
-  // Temporarily hide the ball
-  const originalVisibility = ball.visible;
-  ball.visible = false;
-  
-  // Create particles
-  const particleCount = 100;
-  const particles = new THREE.Group();
-  const particleGeometry = new THREE.SphereGeometry(0.05, 8, 8);
-  const particleMaterial = new THREE.MeshBasicMaterial({
-    color: 0xFF00FF,
-    transparent: true
-  });
-  
-  for (let i = 0; i < particleCount; i++) {
-    const particle = new THREE.Mesh(particleGeometry, particleMaterial);
-    const angle = Math.random() * Math.PI * 2;
-    const radius = Math.random() * 0.2 + 0.2;
+    // Clean up any lingering explosion particles
+    if (window.app.explosionParticles) {
+        window.app.scene.remove(window.app.explosionParticles);
+        window.app.explosionParticles.geometry.dispose();
+        window.app.explosionParticles.material.dispose();
+        window.app.explosionParticles = null;
+        window.app.isExploded = false;
+        console.log('Explosion particles cleaned up');
+    }
+
+    // Check if ball exists
+    if (!window.app.ballGroup || !window.app.ballMesh) {
+        console.log('Ball missing, recreating...');
+        window.app.createFancyBall();
+        return 'Ball recreated';
+    }
+
+    // Make ball visible if it exists but is hidden
+    if (window.app.ballGroup && !window.app.ballGroup.visible) {
+        window.app.ballGroup.visible = true;
+        console.log('Ball was invisible, now visible');
+        return 'Ball visibility restored';
+    }
+
+    return 'Ball seems to be OK';
+};
+
+// Update the setSpikiness function in window.app.uiBridge
+
+window.app.uiBridge.setSpikiness = function (value) {
+    try {
+        window.app.spikiness = value;
+
+        // Skip applying effects during initial load
+        if (!window.app.initialLoadComplete || document.readyState !== 'complete') {
+            console.log('Skipping spikiness application during initialization');
+            try { localStorage.setItem('ballSpikiness', value); } catch (e) { }
+            return true;
+        }
+
+        // Only apply effect if user explicitly interacted with the control
+        if (window.app.userInitiatedSpikiness) {
+            if (value > 0 && typeof window.app.applyDeformationInteraction === 'function') {
+                console.log(`Applying interactive deformation with value ${value}`);
+                // Use interactive deformation instead of simple spiky effect
+                window.app.applyDeformationInteraction(value);
+            } else if (value === 0 && typeof window.app.resetDeformation === 'function') {
+                console.log('Resetting deformation');
+                window.app.resetDeformation(0.1);
+            }
+        }
+
+        // Store in localStorage for persistence
+        try { localStorage.setItem('ballSpikiness', value); } catch (e) { }
+        return true;
+    } catch (e) {
+        console.error('Error setting spikiness:', e);
+        return false;
+    }
+};
+
+// Add this to your UI bridge to make spikiness modes accessible from UI
+
+// Toggle between inside and outside deformation modes
+window.app.uiBridge.toggleDeformationMode = function () {
+    if (window.app.mouseControls && window.app.mouseControls.isSpikinessModeActive) {
+        window.app.insidePullMode = !window.app.insidePullMode;
+        console.log(`Deformation mode: ${window.app.insidePullMode ? 'Internal Pull' : 'External Push'}`);
+
+        // Apply the current effect with the new mode
+        if (window.app.spikiness > 0 && window.app.applyDeformationInteraction) {
+            window.app.userInitiatedSpikiness = true;
+            window.app.applyDeformationInteraction(window.app.spikiness * 2);
+        }
+
+        return window.app.insidePullMode;
+    }
+    return false;
+};
+
+// Add this function anywhere after the initCamera function
+
+// Function to toggle camera position between inside and outside the ball
+window.app.uiBridge.toggleCameraPosition = function () {
+  if (!window.app.camera || !window.app.ballGroup) return false;
+
+  // Get current camera distance
+  const cameraDistance = window.app.camera.position.length();
+
+  // If we're already inside, move back outside
+  if (cameraDistance < 0.9) {
+    console.log('Moving camera outside the ball');
     
-    particle.position.set(
-      Math.cos(angle) * radius,
-      Math.sin(angle) * radius,
-      Math.random() * 2 - 1
-    );
+    // Animate camera move outward
+    const targetPosition = window.app.camera.position.clone().normalize().multiplyScalar(2.5);
     
-    particle.userData.velocity = new THREE.Vector3(
-      particle.position.x * Math.random() * 0.1,
-      particle.position.y * Math.random() * 0.1,
-      particle.position.z * Math.random() * 0.1
-    );
+    if (window.gsap) {
+      gsap.to(window.app.camera.position, {
+        x: targetPosition.x,
+        y: targetPosition.y,
+        z: targetPosition.z,
+        duration: 1.0,
+        ease: "power2.inOut",
+        onUpdate: function() {
+          // Update camera during animation
+          if (window.app.controls) {
+            window.app.controls.update();
+          }
+        },
+        onComplete: function() {
+          // Restore original material properties
+          if (window.app.ballMesh && window.app.ballMesh.material && window.app._originalOpacity) {
+            window.app.ballMesh.material.opacity = window.app._originalOpacity;
+            window.app.ballMesh.material.side = THREE.DoubleSide;
+          }
+        }
+      });
+    } else {
+      // Simple fallback without gsap
+      window.app.camera.position.copy(targetPosition);
+      
+      // Restore original material properties
+      if (window.app.ballMesh && window.app.ballMesh.material && window.app._originalOpacity) {
+        window.app.ballMesh.material.opacity = window.app._originalOpacity;
+        window.app.ballMesh.material.side = THREE.DoubleSide;
+      }
+    }
     
-    particles.add(particle);
+    // Enable orbit controls when outside
+    if (window.app.controls) {
+      window.app.controls.enabled = true;
+    }
+    
+    // Switch deformation mode
+    window.app.insidePullMode = false;
+    
+    return false;
+  } else {
+    console.log('Moving camera inside the ball');
+    
+    // Move camera inside
+    // Shrink to 10% of current distance - toward center
+    const targetPosition = window.app.camera.position.clone().normalize().multiplyScalar(0.5);
+    
+    if (window.gsap) {
+      gsap.to(window.app.camera.position, {
+        x: targetPosition.x,
+        y: targetPosition.y,
+        z: targetPosition.z,
+        duration: 1.0,
+        ease: "power2.inOut",
+        onUpdate: function() {
+          // Update camera during animation
+          if (window.app.controls) {
+            window.app.controls.update();
+          }
+        },
+        onComplete: function() {
+          // Make material translucent when viewing from inside
+          if (window.app.ballMesh && window.app.ballMesh.material) {
+            if (!window.app._originalOpacity) {
+              window.app._originalOpacity = window.app.ballMesh.material.opacity;
+            }
+            window.app.ballMesh.material.opacity = 0.4;
+            window.app.ballMesh.material.side = THREE.BackSide;
+          }
+        }
+      });
+    } else {
+      // Simple fallback without gsap
+      window.app.camera.position.copy(targetPosition);
+      
+      // Make material translucent when viewing from inside
+      if (window.app.ballMesh && window.app.ballMesh.material) {
+        if (!window.app._originalOpacity) {
+          window.app._originalOpacity = window.app.ballMesh.material.opacity;
+        }
+        window.app.ballMesh.material.opacity = 0.4;
+        window.app.ballMesh.material.side = THREE.BackSide;
+      }
+    }
+    
+    // Disable orbit controls when inside to prevent getting lost
+    if (window.app.controls) {
+      window.app.controls.enabled = false;
+    }
+    
+    // Enable inside pull mode when going inside
+    window.app.insidePullMode = true;
+    
+    return true;
   }
-  
-  window.app.scene.add(particles);
-  
-  // Handle particle animation
-  let elapsed = 0;
-  function animateParticles() {
-    elapsed += 0.016; // Approx 60fps
+};
+
+// Add this enhanced explosion effect with proper ball restoration
+
+window.app.uiBridge.createExplosion = function() {
+  try {
+    console.log('Creating explosion effect');
     
-    particles.children.forEach(particle => {
-      particle.position.add(particle.userData.velocity);
-      particle.material.opacity = 1 - (elapsed / 2);
+    // If explosion already in progress, don't create another one
+    if (window.app.isExploded) {
+      return false;
+    }
+    
+    window.app.isExploded = true;
+    
+    // Store original ball visibility
+    const originalBallVisible = window.app.ballGroup.visible;
+    
+    // Hide the ball during explosion
+    window.app.ballGroup.visible = false;
+    
+    // Create explosion particles
+    const particleCount = 300;
+    const particleGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const velocities = [];
+    const sizes = new Float32Array(particleCount);
+    const colors = new Float32Array(particleCount * 3);
+    
+    // Create particles in a sphere shape
+    for (let i = 0; i < particleCount; i++) {
+      // Random position on a sphere
+      const phi = Math.acos(-1 + (2 * Math.random()));
+      const theta = Math.random() * Math.PI * 2;
+      
+      const x = Math.sin(phi) * Math.cos(theta);
+      const y = Math.sin(phi) * Math.sin(theta);
+      const z = Math.cos(phi);
+      
+      // Initial position at 80% of sphere radius
+      positions[i * 3] = x * 0.8;
+      positions[i * 3 + 1] = y * 0.8;
+      positions[i * 3 + 2] = z * 0.8;
+      
+      // Random size
+      sizes[i] = Math.random() * 0.05 + 0.02;
+      
+      // Hot colors for explosion (yellows, oranges, reds)
+      colors[i * 3] = Math.random() * 0.2 + 0.8; // Red (0.8-1.0)
+      colors[i * 3 + 1] = Math.random() * 0.6; // Green (0.0-0.6) 
+      colors[i * 3 + 2] = Math.random() * 0.1; // Blue (0.0-0.1)
+      
+      // Create velocity vector (direction * speed)
+      velocities.push(new THREE.Vector3(x, y, z).multiplyScalar(0.02 + Math.random() * 0.03));
+    }
+    
+    // Set geometry attributes
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    
+    // Create particle material
+    const particleMaterial = new THREE.PointsMaterial({
+      size: 0.05,
+      vertexColors: true,
+      blending: THREE.AdditiveBlending,
+      transparent: true,
+      opacity: 0.8
     });
     
-    if (elapsed < 2) {
-      requestAnimationFrame(animateParticles);
-    } else {
-      // Remove particles and restore ball
-      window.app.scene.remove(particles);
-      ball.visible = originalVisibility;
+    // Create particle system
+    const particleSystem = new THREE.Points(particleGeometry, particleMaterial);
+    window.app.scene.add(particleSystem);
+    window.app.explosionParticles = particleSystem;
+    window.app.explosionParticles.userData = {
+      velocities: velocities,
+      creationTime: Date.now()
+    };
+    
+    // Play explosion sound if available
+    if (window.app.soundManager && typeof window.app.soundManager.play === 'function') {
+      window.app.soundManager.play('explosion');
     }
+    
+    // Animation function for explosion
+    const updateExplosion = function() {
+      if (!window.app.explosionParticles) return;
+      
+      const positions = window.app.explosionParticles.geometry.attributes.position;
+      const velocities = window.app.explosionParticles.userData.velocities;
+      
+      // Calculate age of explosion
+      const age = Date.now() - window.app.explosionParticles.userData.creationTime;
+      
+      // Auto-cleanup after 2 seconds
+      if (age > 2000) {
+        window.app.scene.remove(window.app.explosionParticles);
+        window.app.explosionParticles.geometry.dispose();
+        window.app.explosionParticles.material.dispose();
+        window.app.explosionParticles = null;
+        window.app.isExploded = false;
+        
+        // Restore ball
+        window.app.ballGroup.visible = originalBallVisible;
+        
+        console.log("Explosion complete - ball restored");
+        return;
+      }
+      
+      // Update each particle position
+      for (let i = 0; i < positions.count; i++) {
+        const velocity = velocities[i];
+        
+        // Apply velocity
+        positions.array[i * 3] += velocity.x;
+        positions.array[i * 3 + 1] += velocity.y;
+        positions.array[i * 3 + 2] += velocity.z;
+        
+        // Add slight gravity
+        velocity.y -= 0.0002;
+        
+        // Apply drag
+        velocity.multiplyScalar(0.98);
+      }
+      
+      // Update opacity based on age
+      window.app.explosionParticles.material.opacity = 1.0 - (age / 2000);
+      
+      positions.needsUpdate = true;
+      
+      // Request next frame
+      requestAnimationFrame(updateExplosion);
+    };
+    
+    // Start the explosion animation
+    updateExplosion();
+    
+    // Safety timeout to ensure ball gets restored
+    setTimeout(() => {
+      if (window.app.isExploded) {
+        console.log("Safety timeout - restoring ball");
+        
+        // Clean up explosion if it still exists
+        if (window.app.explosionParticles) {
+          window.app.scene.remove(window.app.explosionParticles);
+          window.app.explosionParticles.geometry.dispose();
+          window.app.explosionParticles.material.dispose();
+          window.app.explosionParticles = null;
+        }
+        
+        // Restore ball
+        window.app.ballGroup.visible = true;
+        window.app.isExploded = false;
+      }
+    }, 3000);
+    
+    return true;
+  } catch (e) {
+    console.error("Error creating explosion:", e);
+    
+    // Emergency recovery
+    if (window.app.ballGroup) {
+      window.app.ballGroup.visible = true;
+    }
+    window.app.isExploded = false;
+    return false;
   }
-  
-  animateParticles();
 };

@@ -178,7 +178,7 @@ function checkBallIntersection(event, isClick = false) {
             const now = Date.now();
             if (facetIndex !== lastFacetIndex || now - lastPlayTime > MIN_TIME_BETWEEN_SOUNDS) {
                 // Log the facet detection safely
-                console.log(`Ball facet ${facetIndex} detected at position (${position.u.toFixed(2)}, ${position.v.toFixed(2)})`);
+                // console.log(`Ball facet ${facetIndex} detected at position (${position.u.toFixed(2)}, ${position.v.toFixed(2)})`);
                 
                 // Play facet sound
                 playSoothingFacetSound(facetIndex, position);
@@ -227,9 +227,9 @@ function playSoothingFacetSound(facetIndex, position) {
     }
     
     try {
-        if (LOG_AUDIO_EVENTS) {
-            console.log(`Playing soothing sound for facet ${facetIndex}`);
-        }
+        // if (LOG_AUDIO_EVENTS) {
+        //     console.log(`Playing soothing sound for facet ${facetIndex}`);
+        // }
         
         flashAudioIndicator('blue');
         
@@ -401,9 +401,9 @@ function playClickSound() {
     }
     
     try {
-        if (LOG_AUDIO_EVENTS) {
-            console.log("Playing click sound");
-        }
+        // if (LOG_AUDIO_EVENTS) {
+        //     console.log("Playing click sound");
+        // }
         
         flashAudioIndicator('green');
         

@@ -679,3 +679,14 @@ canvas {
 .diagnostic-panel li {
   margin-bottom: 3px;
 }
+
+/* Add to your styles.css */
+.control-button.active {
+  background-color: #8800ff;
+  border-color: #ff00ff;
+  color: white;
+}
+.control-button .icon {
+  display: inline-block;
+  margin-right: 8px;
+}
