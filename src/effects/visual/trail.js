@@ -1,7 +1,10 @@
 // effects/trail.js - Motion trail effect
 import * as THREE from 'three';
 
+console.log("[🌀 EFFECT] blackhole.js loaded");
 export function createTrailEffect(app) {
+      console.log("[🌀 EFFECT] createBlackholeEffect called");
+
     // Create particle system for trail
     const particleCount = 50;
     const particles = new THREE.BufferGeometry();

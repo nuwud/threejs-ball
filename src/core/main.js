@@ -2,7 +2,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { updateRainbowMode, toggleRainbowMode } from '../effects/visual/rainbow.js';
-//import { initMouseControls } from '../controls/mouse-controls.js';
+import { callEffect } from '../effects/effectManager.js';
+import {
+    updateEffects,
+    createBlackholeEffect,
+    toggleBlackholeEffect,
+    updateBlackholeEffect
+} from '../effects/effectManager.js';
 
 // Define window.app and uiBridge as early as possible
 window.app = window.app || {};
@@ -82,6 +88,23 @@ window.app.uiBridge = {
         } catch (e) {
             console.error('Error toggling audio:', e);
             return false;
+        }
+    },
+
+    // Add this method to your app.uiBridge object
+    toggleBlackholeEffect: () => {
+        if (window.toggleBlackholeEffect) {
+            return window.toggleBlackholeEffect(window.app);
+        } else {
+            console.log("Toggling blackhole effect");
+            if (window.app.isBlackholeActive) {
+                window.app.uiBridge.removeBlackholeVisuals();
+                
+                return false;
+            } else {
+                window.app.uiBridge.createBlackholeEffect();
+                return true;
+            }
         }
     },
 
@@ -208,6 +231,21 @@ window.app.uiBridge = {
         return true;
     },
 
+    createBlackholeEffect: () => {
+        // Try both approaches to ensure it works
+        if (window.createBlackholeEffect) {
+            console.log("Calling window.createBlackholeEffect directly");
+            return window.createBlackholeEffect(window.app);
+        } else {
+            console.log("Calling via callEffect");
+            return callEffect('blackhole', window.app);
+        }
+    },
+
+    createMagneticEffect: () => {
+        callEffect('magnetic', window.app);
+    },
+
     // Effects methods with improved implementation
     createExplosion: () => {
         try {
@@ -224,76 +262,71 @@ window.app.uiBridge = {
             return false;
         }
     },
+    //         if (window.app.isBlackholeActive) {
+    //             // Create blackhole effect
+    //             window.app.createBlackholeVisuals();
 
-    createBlackholeEffect: () => {
-        try {
-            window.app.isBlackholeActive = !window.app.isBlackholeActive;
+    //             // Start updating the blackhole effect
+    //             if (!window.app.blackholeUpdateFunction) {
+    //                 window.app.blackholeUpdateFunction = function () {
+    //                     if (!window.app.isBlackholeActive || !window.app.blackholeCenter) return;
 
-            if (window.app.isBlackholeActive) {
-                // Create blackhole effect
-                window.app.createBlackholeVisuals();
+    //                     // Rotate the blackhole
+    //                     if (window.app.blackholeRing) {
+    //                         window.app.blackholeRing.rotation.z += 0.01;
+    //                     }
 
-                // Start updating the blackhole effect
-                if (!window.app.blackholeUpdateFunction) {
-                    window.app.blackholeUpdateFunction = function () {
-                        if (!window.app.isBlackholeActive || !window.app.blackholeCenter) return;
+    //                     // Make particles orbit
+    //                     if (window.app.blackholeParticles) {
+    //                         window.app.blackholeParticles.rotation.z += 0.005;
+    //                     }
 
-                        // Rotate the blackhole
-                        if (window.app.blackholeRing) {
-                            window.app.blackholeRing.rotation.z += 0.01;
-                        }
+    //                     // Apply gravitational pull to the ball
+    //                     if (window.app.ballGroup) {
+    //                         const blackholePos = new THREE.Vector3(0, 0, 0);
+    //                         const ballPos = window.app.ballGroup.position.clone();
+    //                         const direction = new THREE.Vector3().subVectors(blackholePos, ballPos).normalize();
+    //                         const distance = ballPos.distanceTo(blackholePos);
 
-                        // Make particles orbit
-                        if (window.app.blackholeParticles) {
-                            window.app.blackholeParticles.rotation.z += 0.005;
-                        }
+    //                         // Only apply if ball is far enough from center to avoid extreme pulls
+    //                         if (distance > 0.2 && distance < 5) {
+    //                             // Newton's gravitational formula (simplified)
+    //                             const force = 0.05 / (distance * distance);
+    //                             window.app.ballGroup.position.add(direction.multiplyScalar(force));
 
-                        // Apply gravitational pull to the ball
-                        if (window.app.ballGroup) {
-                            const blackholePos = new THREE.Vector3(0, 0, 0);
-                            const ballPos = window.app.ballGroup.position.clone();
-                            const direction = new THREE.Vector3().subVectors(blackholePos, ballPos).normalize();
-                            const distance = ballPos.distanceTo(blackholePos);
+    //                             // Also apply some rotation based on the force
+    //                             window.app.ballGroup.rotation.x += force * 0.1;
+    //                             window.app.ballGroup.rotation.y += force * 0.15;
+    //                         }
+    //                     }
+    //                 };
 
-                            // Only apply if ball is far enough from center to avoid extreme pulls
-                            if (distance > 0.2 && distance < 5) {
-                                // Newton's gravitational formula (simplified)
-                                const force = 0.05 / (distance * distance);
-                                window.app.ballGroup.position.add(direction.multiplyScalar(force));
+    //                 // Hook into animation loop
+    //                 const originalAnimate = window.app.animate;
+    //                 window.app.animate = function () {
+    //                     originalAnimate();
+    //                     if (window.app.blackholeUpdateFunction) {
+    //                         window.app.blackholeUpdateFunction();
+    //                     }
+    //                 };
+    //             }
 
-                                // Also apply some rotation based on the force
-                                window.app.ballGroup.rotation.x += force * 0.1;
-                                window.app.ballGroup.rotation.y += force * 0.15;
-                            }
-                        }
-                    };
+    //             console.log('Blackhole effect activated');
+    //         } else {
+    //             // Clean up blackhole
+    //             window.app.removeBlackholeVisuals();
+    //             console.log('Blackhole effect deactivated');
+    //         }
 
-                    // Hook into animation loop
-                    const originalAnimate = window.app.animate;
-                    window.app.animate = function () {
-                        originalAnimate();
-                        if (window.app.blackholeUpdateFunction) {
-                            window.app.blackholeUpdateFunction();
-                        }
-                    };
-                }
+    //         // Store state in localStorage for persistence
+    //         try { localStorage.setItem('ballBlackHoleActive', window.app.isBlackholeActive); } catch (e) { }
 
-                console.log('Blackhole effect activated');
-            } else {
-                // Clean up blackhole
-                window.app.removeBlackholeVisuals();
-                console.log('Blackhole effect deactivated');
-            }
-
-            // Store state in localStorage for persistence
-            try { localStorage.setItem('ballBlackHoleActive', window.app.isBlackholeActive); } catch (e) { }
-
-            return true;
-        } catch (e) {
-            console.error('Error toggling blackhole effect:', e);
-            return false;
-        }
-    },
+    //         return true;
+    //     } catch (e) {
+    //         console.error('Error toggling blackhole effect:', e);
+    //         return false;
+    //     }
+    // },
 
     createBlackholeVisuals: () => {
         if (!window.app.scene) return;
@@ -400,49 +433,49 @@ window.app.uiBridge = {
         return true;
     },
 
-    createMagneticEffect: () => {
-        try {
-            window.app.isMagneticActive = !window.app.isMagneticActive;
+    // createMagneticEffect: () => {
+    //     try {
+    //         window.app.isMagneticActive = !window.app.isMagneticActive;
 
-            if (window.app.isMagneticActive) {
-                // Create the magnetic trail
-                window.app.createMagneticTrail();
+    //         if (window.app.isMagneticActive) {
+    //             // Create the magnetic trail
+    //             window.app.createMagneticTrail();
 
-                // Create update function if it doesn't exist
-                if (!window.app.updateMagneticTrailFunction) {
-                    window.app.updateMagneticTrailFunction = function () {
-                        if (!window.app.isMagneticActive) return;
+    //             // Create update function if it doesn't exist
+    //             if (!window.app.updateMagneticTrailFunction) {
+    //                 window.app.updateMagneticTrailFunction = function () {
+    //                     if (!window.app.isMagneticActive) return;
 
-                        // Update the trail and particles
-                        window.app.updateMagneticTrail();
-                    };
+    //                     // Update the trail and particles
+    //                     window.app.updateMagneticTrail();
+    //                 };
 
-                    // Add to animation loop
-                    const originalAnimate = window.app.animate;
-                    window.app.animate = function () {
-                        originalAnimate();
-                        if (window.app.updateMagneticTrailFunction) {
-                            window.app.updateMagneticTrailFunction();
-                        }
-                    };
-                }
+    //                 // Add to animation loop
+    //                 const originalAnimate = window.app.animate;
+    //                 window.app.animate = function () {
+    //                     originalAnimate();
+    //                     if (window.app.updateMagneticTrailFunction) {
+    //                         window.app.updateMagneticTrailFunction();
+    //                     }
+    //                 };
+    //             }
 
-                console.log('Magnetic effect activated');
-            } else {
-                // Clean up the trail
-                window.app.removeMagneticTrail();
-                console.log('Magnetic effect deactivated');
-            }
+    //             console.log('Magnetic effect activated');
+    //         } else {
+    //             // Clean up the trail
+    //             window.app.removeMagneticTrail();
+    //             console.log('Magnetic effect deactivated');
+    //         }
 
-            // Store state in localStorage for persistence
-            try { localStorage.setItem('ballMagneticActive', window.app.isMagneticActive); } catch (e) { }
+    //         // Store state in localStorage for persistence
+    //         try { localStorage.setItem('ballMagneticActive', window.app.isMagneticActive); } catch (e) { }
 
-            return true;
-        } catch (e) {
-            console.error('Error toggling magnetic effect:', e);
-            return false;
-        }
-    },
+    //         return true;
+    //     } catch (e) {
+    //         console.error('Error toggling magnetic effect:', e);
+    //         return false;
+    //     }
+    // },
 
     // Create the magnetic trail visuals
     createMagneticTrail: () => {
@@ -888,6 +921,29 @@ window.app.uiBridge = {
 // Debug flag to help troubleshoot
 window.app.debug = true;
 
+// Alias uiBridge methods to app-level if needed
+window.app.createBlackholeVisuals = window.app.uiBridge.createBlackholeVisuals;
+window.app.removeBlackholeVisuals = window.app.uiBridge.removeBlackholeVisuals;
+window.app.createMagneticTrail = window.app.uiBridge.createMagneticTrail;
+window.app.removeMagneticTrail = window.app.uiBridge.removeMagneticTrail;
+window.app.createBlackholeEffect = window.app.uiBridge.createBlackholeEffect;
+window.app.createExplosion = window.app.uiBridge.createExplosion;
+window.app.createMagneticEffect = window.app.uiBridge.createMagneticEffect;
+
+// Assign effect manager methods to window.effectManager
+window.effectManager = {
+    updateEffects,
+    createBlackholeEffect,
+    toggleBlackholeEffect,
+    updateBlackholeEffect
+};
+
+// Also expose for direct access
+window.updateEffects = updateEffects;
+window.createBlackholeEffect = createBlackholeEffect;
+window.toggleBlackholeEffect = toggleBlackholeEffect;
+window.updateBlackholeEffect = updateBlackholeEffect;
+
 // Function to initialize the application
 function init() {
     console.log('Initializing application...');
@@ -937,126 +993,126 @@ function init() {
         // Now load the scripts
         const mouseControlsScript = document.createElement('script');
         mouseControlsScript.src = './src/core/mouse-controls.js';
-        mouseControlsScript.onload = function() {
-          console.log("Mouse controls script loaded successfully");
-          
-          // Also load our emergency fix script
-          const fixScript = document.createElement('script');
-          fixScript.src = './src/core/mouse-controls-fix.js';
-          document.head.appendChild(fixScript);
-          
-          // Use a delay to ensure the app is fully initialized before calling setup
-          setTimeout(() => {
-            if (typeof window.setupMouseButtonEffects === 'function') {
-              window.setupMouseButtonEffects();
-            } else if (window.setupMouseButtonEffects) {
-              window.setupMouseButtonEffects();
-            } else {
-              console.warn("setupMouseButtonEffects function not found after script load");
-              
-              // Create simplified version as fallback
-              const fallbackSetup = function() {
-                // Prevent context menu
-                window.addEventListener('contextmenu', e => {
-                  // Only prevent default if in a special mode
-                  if (window.app && window.app.mouseControls && 
-                      (window.app.mouseControls.isBlackholeModeActive || 
-                       window.app.mouseControls.isSpikinessModeActive)) {
-                    e.preventDefault();
-                  }
-                });
-                
-                // Mouse button handling
-                window.addEventListener('mousedown', e => {
-                  // Handle different mouse buttons
-                  switch(e.button) {
-                    case 1: // Middle click - toggle camera inside/outside
-                      e.preventDefault();
-                      if (window.app && window.app.uiBridge && window.app.uiBridge.toggleCameraPosition) {
-                        window.app.uiBridge.toggleCameraPosition();
-                      }
-                      break;
-                      
-                    case 2: // Right click - blackhole effect (not explosion)
-                      if (window.app && window.app.uiBridge && window.app.uiBridge.createBlackholeEffect) {
-                        console.log("Right click - toggling blackhole effect via fallback");
-                        window.app.uiBridge.createBlackholeEffect();
-                        e.preventDefault();
-                      }
-                      break;
-                      
-                    case 3: // First side button - explosion
-                      if (window.app && window.app.uiBridge && window.app.uiBridge.createExplosion) {
-                        console.log("Side button - creating explosion via fallback");
-                        window.app.uiBridge.createExplosion();
-                      }
-                      break;
-                      
-                    case 4: // Second side button - magnetic effect
-                      if (window.app && window.app.uiBridge && window.app.uiBridge.createMagneticEffect) {
-                        console.log("Side button - toggling magnetic effect via fallback");
-                        window.app.uiBridge.createMagneticEffect();
-                      }
-                      break;
-                  }
-                });
-                
-                // Add wheel handler for zooming in/out
-                window.addEventListener('wheel', function(e) {
-                  e.preventDefault();
-                  
-                  // Get current camera position
-                  if (window.app && window.app.camera) {
-                    const cameraPos = window.app.camera.position.clone();
-                    const distance = cameraPos.length();
-                    
-                    // Determine zoom direction
-                    const zoomDirection = Math.sign(e.deltaY);
-                    
-                    // Calculate new distance
-                    let newDistance = distance + zoomDirection * 0.1;
-                    newDistance = Math.max(0.5, Math.min(4.0, newDistance));
-                    
-                    // Set new camera position
-                    const newPos = cameraPos.normalize().multiplyScalar(newDistance);
-                    window.app.camera.position.copy(newPos);
-                    
-                    // Handle inside/outside transition
-                    if (newDistance < 0.9) {
-                      // Make material translucent
-                      if (window.app.ballMesh && window.app.ballMesh.material) {
-                        window.app.ballMesh.material.opacity = 0.4;
-                        window.app.ballMesh.material.side = THREE.BackSide;
-                        window.app.insidePullMode = true;
-                      }
-                    } else {
-                      // Restore normal material
-                      if (window.app.ballMesh && window.app.ballMesh.material) {
-                        window.app.ballMesh.material.opacity = 0.8;
-                        window.app.ballMesh.material.side = THREE.DoubleSide;
-                        window.app.insidePullMode = false;
-                      }
-                    }
-                  }
-                }, { passive: false });
-                
-                console.log("Fallback mouse controls set up");
-              };
-              
-              fallbackSetup();
-            }
-          }, 1000); // Use a longer delay to ensure app is fully initialized
+        mouseControlsScript.onload = function () {
+            console.log("Mouse controls script loaded successfully");
+
+            // Also load our emergency fix script
+            const fixScript = document.createElement('script');
+            fixScript.src = './src/core/mouse-controls-fix.js';
+            document.head.appendChild(fixScript);
+
+            // Use a delay to ensure the app is fully initialized before calling setup
+            setTimeout(() => {
+                if (typeof window.setupMouseButtonEffects === 'function') {
+                    window.setupMouseButtonEffects();
+                } else if (window.setupMouseButtonEffects) {
+                    window.setupMouseButtonEffects();
+                } else {
+                    console.warn("setupMouseButtonEffects function not found after script load");
+
+                    // Create simplified version as fallback
+                    const fallbackSetup = function () {
+                        // Prevent context menu
+                        window.addEventListener('contextmenu', e => {
+                            // Only prevent default if in a special mode
+                            if (window.app && window.app.mouseControls &&
+                                (window.app.mouseControls.isBlackholeModeActive ||
+                                    window.app.mouseControls.isSpikinessModeActive)) {
+                                e.preventDefault();
+                            }
+                        });
+
+                        // Mouse button handling
+                        window.addEventListener('mousedown', e => {
+                            // Handle different mouse buttons
+                            switch (e.button) {
+                                case 1: // Middle click - toggle camera inside/outside
+                                    e.preventDefault();
+                                    if (window.app && window.app.uiBridge && window.app.uiBridge.toggleCameraPosition) {
+                                        window.app.uiBridge.toggleCameraPosition();
+                                    }
+                                    break;
+
+                                case 2: // Right click - blackhole effect (not explosion)
+                                    if (window.app && window.app.uiBridge && window.app.uiBridge.createBlackholeEffect) {
+                                        console.log("Right click - toggling blackhole effect via fallback");
+                                        window.app.uiBridge.createBlackholeEffect();
+                                        e.preventDefault();
+                                    }
+                                    break;
+
+                                case 3: // First side button - explosion
+                                    if (window.app && window.app.uiBridge && window.app.uiBridge.createExplosion) {
+                                        console.log("Side button - creating explosion via fallback");
+                                        window.app.uiBridge.createExplosion();
+                                    }
+                                    break;
+
+                                case 4: // Second side button - magnetic effect
+                                    if (window.app && window.app.uiBridge && window.app.uiBridge.createMagneticEffect) {
+                                        console.log("Side button - toggling magnetic effect via fallback");
+                                        window.app.uiBridge.createMagneticEffect();
+                                    }
+                                    break;
+                            }
+                        });
+
+                        // Add wheel handler for zooming in/out
+                        window.addEventListener('wheel', function (e) {
+                            e.preventDefault();
+
+                            // Get current camera position
+                            if (window.app && window.app.camera) {
+                                const cameraPos = window.app.camera.position.clone();
+                                const distance = cameraPos.length();
+
+                                // Determine zoom direction
+                                const zoomDirection = Math.sign(e.deltaY);
+
+                                // Calculate new distance
+                                let newDistance = distance + zoomDirection * 0.1;
+                                newDistance = Math.max(0.5, Math.min(4.0, newDistance));
+
+                                // Set new camera position
+                                const newPos = cameraPos.normalize().multiplyScalar(newDistance);
+                                window.app.camera.position.copy(newPos);
+
+                                // Handle inside/outside transition
+                                if (newDistance < 0.9) {
+                                    // Make material translucent
+                                    if (window.app.ballMesh && window.app.ballMesh.material) {
+                                        window.app.ballMesh.material.opacity = 0.4;
+                                        window.app.ballMesh.material.side = THREE.BackSide;
+                                        window.app.insidePullMode = true;
+                                    }
+                                } else {
+                                    // Restore normal material
+                                    if (window.app.ballMesh && window.app.ballMesh.material) {
+                                        window.app.ballMesh.material.opacity = 0.8;
+                                        window.app.ballMesh.material.side = THREE.DoubleSide;
+                                        window.app.insidePullMode = false;
+                                    }
+                                }
+                            }
+                        }, { passive: false });
+
+                        console.log("Fallback mouse controls set up");
+                    };
+
+                    fallbackSetup();
+                }
+            }, 1000); // Use a longer delay to ensure app is fully initialized
         };
         document.head.appendChild(mouseControlsScript);
-        
+
         // Load ui-connections.js with correct path
         const uiConnectionsScript = document.createElement('script');
         uiConnectionsScript.src = './src/core/ui-connections.js';
         document.head.appendChild(uiConnectionsScript);
-        
+
         console.log('Additional scripts loaded');
     }, 500);
-}
+};
 
 // Initialize renderer
 function initRenderer() {
@@ -1080,7 +1136,7 @@ function initRenderer() {
         console.error('Error initializing renderer:', error);
         showError('Failed to initialize renderer');
     }
-}
+};
 
 // Initialize scene
 function initScene() {
@@ -1099,7 +1155,7 @@ function initScene() {
     } catch (error) {
         console.error('Error initializing scene:', error);
     }
-}
+};
 
 // Initialize camera
 function initCamera() {
@@ -1115,7 +1171,7 @@ function initCamera() {
     } catch (error) {
         console.error('Error initializing camera:', error);
     }
-}
+};
 
 // Initialize lighting
 function initLighting() {
@@ -1147,7 +1203,7 @@ function initLighting() {
     } catch (error) {
         console.error('Error initializing lighting:', error);
     }
-}
+};
 
 // Create the fancy interactive ball
 function createFancyBall() {
@@ -1288,7 +1344,7 @@ function createFancyBall() {
         console.error('Error creating ball:', error);
         showError('Failed to create ball');
     }
-}
+};
 
 // Initialize audio connection with the ball
 function initializeAudioForBall() {
@@ -1322,7 +1378,7 @@ function initializeAudioForBall() {
             console.error('Error initializing audio for ball:', error);
         }
     }, 500);
-}
+};
 
 // Enhanced setupInteraction function with improved audio integration
 function setupInteraction() {
@@ -1619,7 +1675,7 @@ function setupInteraction() {
     window.app.onPointerUp = onPointerUp;
     window.app.applyDeformation = applyDeformation;
     window.app.resetDeformation = resetDeformation;
-}
+};
 
 // Initialize orbit controls
 function initControls() {
@@ -1634,7 +1690,7 @@ function initControls() {
     } catch (error) {
         console.error('Error initializing controls:', error);
     }
-}
+};
 
 // Animation function to make the mesh scale pulse based on time
 function updateMeshScale() {
@@ -1660,7 +1716,7 @@ function updateMeshScale() {
             window.app.currentScale
         );
     }
-}
+};
 
 // Animation function to make the mesh continuously rotate when not interacted with
 function updateMeshRotation() {
@@ -1671,7 +1727,7 @@ function updateMeshRotation() {
         window.app.ballGroup.rotation.x += 0.003;
         window.app.ballGroup.rotation.y += 0.004;
     }
-}
+};
 
 // Animation function to make the mesh move in a circular path
 function updateMeshPosition() {
@@ -1688,7 +1744,7 @@ function updateMeshPosition() {
         window.app.ballGroup.position.x += (newX - window.app.ballGroup.position.x) * 0.05;
         window.app.ballGroup.position.y += (newY - window.app.ballGroup.position.y) * 0.05;
     }
-}
+};
 
 // Main animation loop that runs continuously
 function animate() {
@@ -1702,7 +1758,7 @@ function animate() {
         updateMeshScale();
         updateMeshRotation();
         updateMeshPosition();
-        
+
         // Reset material properties when outside
         if (window.app.ballMesh && window.app.ballMesh.material && window.app._originalOpacity) {
             window.app.ballMesh.material.opacity = window.app._originalOpacity;
@@ -1717,7 +1773,7 @@ function animate() {
             window.app.ballMesh.material.opacity = 0.4; // More transparent
             window.app.ballMesh.material.side = THREE.BackSide; // Show inside faces
         }
-        
+
         // Add subtle camera motion for immersive feel
         const time = Date.now() * 0.0005;
         window.app.camera.position.x += Math.sin(time) * 0.0005;
@@ -1758,10 +1814,22 @@ function animate() {
         window.app.controls.update();
     }
 
+    // Add this direct call to updateEffects
+    if (window.app && window.effectManager && window.effectManager.updateEffects) {
+        console.log("Calling effectManager.updateEffects"); // Add this line
+        window.effectManager.updateEffects(window.app);
+    } else if (window.updateEffects) {
+        console.log("Calling window.updateEffects"); // Add this line
+        window.updateEffects(window.app);
+    } else {
+        console.log("No updateEffects function found"); // Add this line
+    }
+
+
     if (window.app.renderer && window.app.scene && window.app.camera) {
         window.app.renderer.render(window.app.scene, window.app.camera);
     }
-}
+};
 
 // Make sure to update the reference
 window.app.animate = animate;
@@ -1774,7 +1842,7 @@ function onWindowResize() {
     window.app.camera.updateProjectionMatrix();
 
     window.app.renderer.setSize(window.innerWidth, window.innerHeight);
-}
+};
 
 // Show error message
 function showError(message) {
@@ -1785,7 +1853,7 @@ function showError(message) {
     } else {
         console.error(message);
     }
-}
+};
 
 // Initialize audio when document is ready
 function initializeAudio() {
@@ -1832,7 +1900,7 @@ function initializeAudio() {
             console.error('Could not create audio context:', e);
         }
     }
-}
+};
 
 // Add missing implementations for menu triggers
 window.app.setRainbowMode = function (enabled) {
@@ -1859,10 +1927,13 @@ window.app.createExplosion = function () {
     console.log('Explosion effect triggered');
     // TODO: Implement explosion effect
 };
+
 window.app.createBlackholeEffect = function () {
     console.log('Blackhole effect triggered');
     // TODO: Implement blackhole effect
+
 };
+
 window.app.createMagneticEffect = function () {
     console.log('Magnetic effect triggered');
     // TODO: Implement magnetic effect
@@ -1988,278 +2059,278 @@ window.app.uiBridge.toggleDeformationMode = function () {
 
 // Function to toggle camera position between inside and outside the ball
 window.app.uiBridge.toggleCameraPosition = function () {
-  if (!window.app.camera || !window.app.ballGroup) return false;
+    if (!window.app.camera || !window.app.ballGroup) return false;
 
-  // Get current camera distance
-  const cameraDistance = window.app.camera.position.length();
+    // Get current camera distance
+    const cameraDistance = window.app.camera.position.length();
 
-  // If we're already inside, move back outside
-  if (cameraDistance < 0.9) {
-    console.log('Moving camera outside the ball');
-    
-    // Animate camera move outward
-    const targetPosition = window.app.camera.position.clone().normalize().multiplyScalar(2.5);
-    
-    if (window.gsap) {
-      gsap.to(window.app.camera.position, {
-        x: targetPosition.x,
-        y: targetPosition.y,
-        z: targetPosition.z,
-        duration: 1.0,
-        ease: "power2.inOut",
-        onUpdate: function() {
-          // Update camera during animation
-          if (window.app.controls) {
-            window.app.controls.update();
-          }
-        },
-        onComplete: function() {
-          // Restore original material properties
-          if (window.app.ballMesh && window.app.ballMesh.material && window.app._originalOpacity) {
-            window.app.ballMesh.material.opacity = window.app._originalOpacity;
-            window.app.ballMesh.material.side = THREE.DoubleSide;
-          }
-        }
-      });
-    } else {
-      // Simple fallback without gsap
-      window.app.camera.position.copy(targetPosition);
-      
-      // Restore original material properties
-      if (window.app.ballMesh && window.app.ballMesh.material && window.app._originalOpacity) {
-        window.app.ballMesh.material.opacity = window.app._originalOpacity;
-        window.app.ballMesh.material.side = THREE.DoubleSide;
-      }
-    }
-    
-    // Enable orbit controls when outside
-    if (window.app.controls) {
-      window.app.controls.enabled = true;
-    }
-    
-    // Switch deformation mode
-    window.app.insidePullMode = false;
-    
-    return false;
-  } else {
-    console.log('Moving camera inside the ball');
-    
-    // Move camera inside
-    // Shrink to 10% of current distance - toward center
-    const targetPosition = window.app.camera.position.clone().normalize().multiplyScalar(0.5);
-    
-    if (window.gsap) {
-      gsap.to(window.app.camera.position, {
-        x: targetPosition.x,
-        y: targetPosition.y,
-        z: targetPosition.z,
-        duration: 1.0,
-        ease: "power2.inOut",
-        onUpdate: function() {
-          // Update camera during animation
-          if (window.app.controls) {
-            window.app.controls.update();
-          }
-        },
-        onComplete: function() {
-          // Make material translucent when viewing from inside
-          if (window.app.ballMesh && window.app.ballMesh.material) {
-            if (!window.app._originalOpacity) {
-              window.app._originalOpacity = window.app.ballMesh.material.opacity;
+    // If we're already inside, move back outside
+    if (cameraDistance < 0.9) {
+        console.log('Moving camera outside the ball');
+
+        // Animate camera move outward
+        const targetPosition = window.app.camera.position.clone().normalize().multiplyScalar(2.5);
+
+        if (window.gsap) {
+            gsap.to(window.app.camera.position, {
+                x: targetPosition.x,
+                y: targetPosition.y,
+                z: targetPosition.z,
+                duration: 1.0,
+                ease: "power2.inOut",
+                onUpdate: function () {
+                    // Update camera during animation
+                    if (window.app.controls) {
+                        window.app.controls.update();
+                    }
+                },
+                onComplete: function () {
+                    // Restore original material properties
+                    if (window.app.ballMesh && window.app.ballMesh.material && window.app._originalOpacity) {
+                        window.app.ballMesh.material.opacity = window.app._originalOpacity;
+                        window.app.ballMesh.material.side = THREE.DoubleSide;
+                    }
+                }
+            });
+        } else {
+            // Simple fallback without gsap
+            window.app.camera.position.copy(targetPosition);
+
+            // Restore original material properties
+            if (window.app.ballMesh && window.app.ballMesh.material && window.app._originalOpacity) {
+                window.app.ballMesh.material.opacity = window.app._originalOpacity;
+                window.app.ballMesh.material.side = THREE.DoubleSide;
             }
-            window.app.ballMesh.material.opacity = 0.4;
-            window.app.ballMesh.material.side = THREE.BackSide;
-          }
         }
-      });
+
+        // Enable orbit controls when outside
+        if (window.app.controls) {
+            window.app.controls.enabled = true;
+        }
+
+        // Switch deformation mode
+        window.app.insidePullMode = false;
+
+        return false;
     } else {
-      // Simple fallback without gsap
-      window.app.camera.position.copy(targetPosition);
-      
-      // Make material translucent when viewing from inside
-      if (window.app.ballMesh && window.app.ballMesh.material) {
-        if (!window.app._originalOpacity) {
-          window.app._originalOpacity = window.app.ballMesh.material.opacity;
+        console.log('Moving camera inside the ball');
+
+        // Move camera inside
+        // Shrink to 10% of current distance - toward center
+        const targetPosition = window.app.camera.position.clone().normalize().multiplyScalar(0.5);
+
+        if (window.gsap) {
+            gsap.to(window.app.camera.position, {
+                x: targetPosition.x,
+                y: targetPosition.y,
+                z: targetPosition.z,
+                duration: 1.0,
+                ease: "power2.inOut",
+                onUpdate: function () {
+                    // Update camera during animation
+                    if (window.app.controls) {
+                        window.app.controls.update();
+                    }
+                },
+                onComplete: function () {
+                    // Make material translucent when viewing from inside
+                    if (window.app.ballMesh && window.app.ballMesh.material) {
+                        if (!window.app._originalOpacity) {
+                            window.app._originalOpacity = window.app.ballMesh.material.opacity;
+                        }
+                        window.app.ballMesh.material.opacity = 0.4;
+                        window.app.ballMesh.material.side = THREE.BackSide;
+                    }
+                }
+            });
+        } else {
+            // Simple fallback without gsap
+            window.app.camera.position.copy(targetPosition);
+
+            // Make material translucent when viewing from inside
+            if (window.app.ballMesh && window.app.ballMesh.material) {
+                if (!window.app._originalOpacity) {
+                    window.app._originalOpacity = window.app.ballMesh.material.opacity;
+                }
+                window.app.ballMesh.material.opacity = 0.4;
+                window.app.ballMesh.material.side = THREE.BackSide;
+            }
         }
-        window.app.ballMesh.material.opacity = 0.4;
-        window.app.ballMesh.material.side = THREE.BackSide;
-      }
+
+        // Disable orbit controls when inside to prevent getting lost
+        if (window.app.controls) {
+            window.app.controls.enabled = false;
+        }
+
+        // Enable inside pull mode when going inside
+        window.app.insidePullMode = true;
+
+        return true;
     }
-    
-    // Disable orbit controls when inside to prevent getting lost
-    if (window.app.controls) {
-      window.app.controls.enabled = false;
-    }
-    
-    // Enable inside pull mode when going inside
-    window.app.insidePullMode = true;
-    
-    return true;
-  }
 };
 
 // Add this enhanced explosion effect with proper ball restoration
 
-window.app.uiBridge.createExplosion = function() {
-  try {
-    console.log('Creating explosion effect');
-    
-    // If explosion already in progress, don't create another one
-    if (window.app.isExploded) {
-      return false;
-    }
-    
-    window.app.isExploded = true;
-    
-    // Store original ball visibility
-    const originalBallVisible = window.app.ballGroup.visible;
-    
-    // Hide the ball during explosion
-    window.app.ballGroup.visible = false;
-    
-    // Create explosion particles
-    const particleCount = 300;
-    const particleGeometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(particleCount * 3);
-    const velocities = [];
-    const sizes = new Float32Array(particleCount);
-    const colors = new Float32Array(particleCount * 3);
-    
-    // Create particles in a sphere shape
-    for (let i = 0; i < particleCount; i++) {
-      // Random position on a sphere
-      const phi = Math.acos(-1 + (2 * Math.random()));
-      const theta = Math.random() * Math.PI * 2;
-      
-      const x = Math.sin(phi) * Math.cos(theta);
-      const y = Math.sin(phi) * Math.sin(theta);
-      const z = Math.cos(phi);
-      
-      // Initial position at 80% of sphere radius
-      positions[i * 3] = x * 0.8;
-      positions[i * 3 + 1] = y * 0.8;
-      positions[i * 3 + 2] = z * 0.8;
-      
-      // Random size
-      sizes[i] = Math.random() * 0.05 + 0.02;
-      
-      // Hot colors for explosion (yellows, oranges, reds)
-      colors[i * 3] = Math.random() * 0.2 + 0.8; // Red (0.8-1.0)
-      colors[i * 3 + 1] = Math.random() * 0.6; // Green (0.0-0.6) 
-      colors[i * 3 + 2] = Math.random() * 0.1; // Blue (0.0-0.1)
-      
-      // Create velocity vector (direction * speed)
-      velocities.push(new THREE.Vector3(x, y, z).multiplyScalar(0.02 + Math.random() * 0.03));
-    }
-    
-    // Set geometry attributes
-    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    
-    // Create particle material
-    const particleMaterial = new THREE.PointsMaterial({
-      size: 0.05,
-      vertexColors: true,
-      blending: THREE.AdditiveBlending,
-      transparent: true,
-      opacity: 0.8
-    });
-    
-    // Create particle system
-    const particleSystem = new THREE.Points(particleGeometry, particleMaterial);
-    window.app.scene.add(particleSystem);
-    window.app.explosionParticles = particleSystem;
-    window.app.explosionParticles.userData = {
-      velocities: velocities,
-      creationTime: Date.now()
-    };
-    
-    // Play explosion sound if available
-    if (window.app.soundManager && typeof window.app.soundManager.play === 'function') {
-      window.app.soundManager.play('explosion');
-    }
-    
-    // Animation function for explosion
-    const updateExplosion = function() {
-      if (!window.app.explosionParticles) return;
-      
-      const positions = window.app.explosionParticles.geometry.attributes.position;
-      const velocities = window.app.explosionParticles.userData.velocities;
-      
-      // Calculate age of explosion
-      const age = Date.now() - window.app.explosionParticles.userData.creationTime;
-      
-      // Auto-cleanup after 2 seconds
-      if (age > 2000) {
-        window.app.scene.remove(window.app.explosionParticles);
-        window.app.explosionParticles.geometry.dispose();
-        window.app.explosionParticles.material.dispose();
-        window.app.explosionParticles = null;
-        window.app.isExploded = false;
-        
-        // Restore ball
-        window.app.ballGroup.visible = originalBallVisible;
-        
-        console.log("Explosion complete - ball restored");
-        return;
-      }
-      
-      // Update each particle position
-      for (let i = 0; i < positions.count; i++) {
-        const velocity = velocities[i];
-        
-        // Apply velocity
-        positions.array[i * 3] += velocity.x;
-        positions.array[i * 3 + 1] += velocity.y;
-        positions.array[i * 3 + 2] += velocity.z;
-        
-        // Add slight gravity
-        velocity.y -= 0.0002;
-        
-        // Apply drag
-        velocity.multiplyScalar(0.98);
-      }
-      
-      // Update opacity based on age
-      window.app.explosionParticles.material.opacity = 1.0 - (age / 2000);
-      
-      positions.needsUpdate = true;
-      
-      // Request next frame
-      requestAnimationFrame(updateExplosion);
-    };
-    
-    // Start the explosion animation
-    updateExplosion();
-    
-    // Safety timeout to ensure ball gets restored
-    setTimeout(() => {
-      if (window.app.isExploded) {
-        console.log("Safety timeout - restoring ball");
-        
-        // Clean up explosion if it still exists
-        if (window.app.explosionParticles) {
-          window.app.scene.remove(window.app.explosionParticles);
-          window.app.explosionParticles.geometry.dispose();
-          window.app.explosionParticles.material.dispose();
-          window.app.explosionParticles = null;
+window.app.uiBridge.createExplosion = function () {
+    try {
+        console.log('Creating explosion effect');
+
+        // If explosion already in progress, don't create another one
+        if (window.app.isExploded) {
+            return false;
         }
-        
-        // Restore ball
-        window.app.ballGroup.visible = true;
+
+        window.app.isExploded = true;
+
+        // Store original ball visibility
+        const originalBallVisible = window.app.ballGroup.visible;
+
+        // Hide the ball during explosion
+        window.app.ballGroup.visible = false;
+
+        // Create explosion particles
+        const particleCount = 300;
+        const particleGeometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const velocities = [];
+        const sizes = new Float32Array(particleCount);
+        const colors = new Float32Array(particleCount * 3);
+
+        // Create particles in a sphere shape
+        for (let i = 0; i < particleCount; i++) {
+            // Random position on a sphere
+            const phi = Math.acos(-1 + (2 * Math.random()));
+            const theta = Math.random() * Math.PI * 2;
+
+            const x = Math.sin(phi) * Math.cos(theta);
+            const y = Math.sin(phi) * Math.sin(theta);
+            const z = Math.cos(phi);
+
+            // Initial position at 80% of sphere radius
+            positions[i * 3] = x * 0.8;
+            positions[i * 3 + 1] = y * 0.8;
+            positions[i * 3 + 2] = z * 0.8;
+
+            // Random size
+            sizes[i] = Math.random() * 0.05 + 0.02;
+
+            // Hot colors for explosion (yellows, oranges, reds)
+            colors[i * 3] = Math.random() * 0.2 + 0.8; // Red (0.8-1.0)
+            colors[i * 3 + 1] = Math.random() * 0.6; // Green (0.0-0.6) 
+            colors[i * 3 + 2] = Math.random() * 0.1; // Blue (0.0-0.1)
+
+            // Create velocity vector (direction * speed)
+            velocities.push(new THREE.Vector3(x, y, z).multiplyScalar(0.02 + Math.random() * 0.03));
+        }
+
+        // Set geometry attributes
+        particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        // Create particle material
+        const particleMaterial = new THREE.PointsMaterial({
+            size: 0.05,
+            vertexColors: true,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+            opacity: 0.8
+        });
+
+        // Create particle system
+        const particleSystem = new THREE.Points(particleGeometry, particleMaterial);
+        window.app.scene.add(particleSystem);
+        window.app.explosionParticles = particleSystem;
+        window.app.explosionParticles.userData = {
+            velocities: velocities,
+            creationTime: Date.now()
+        };
+
+        // Play explosion sound if available
+        if (window.app.soundManager && typeof window.app.soundManager.play === 'function') {
+            window.app.soundManager.play('explosion');
+        }
+
+        // Animation function for explosion
+        const updateExplosion = function () {
+            if (!window.app.explosionParticles) return;
+
+            const positions = window.app.explosionParticles.geometry.attributes.position;
+            const velocities = window.app.explosionParticles.userData.velocities;
+
+            // Calculate age of explosion
+            const age = Date.now() - window.app.explosionParticles.userData.creationTime;
+
+            // Auto-cleanup after 2 seconds
+            if (age > 2000) {
+                window.app.scene.remove(window.app.explosionParticles);
+                window.app.explosionParticles.geometry.dispose();
+                window.app.explosionParticles.material.dispose();
+                window.app.explosionParticles = null;
+                window.app.isExploded = false;
+
+                // Restore ball
+                window.app.ballGroup.visible = originalBallVisible;
+
+                console.log("Explosion complete - ball restored");
+                return;
+            }
+
+            // Update each particle position
+            for (let i = 0; i < positions.count; i++) {
+                const velocity = velocities[i];
+
+                // Apply velocity
+                positions.array[i * 3] += velocity.x;
+                positions.array[i * 3 + 1] += velocity.y;
+                positions.array[i * 3 + 2] += velocity.z;
+
+                // Add slight gravity
+                velocity.y -= 0.0002;
+
+                // Apply drag
+                velocity.multiplyScalar(0.98);
+            }
+
+            // Update opacity based on age
+            window.app.explosionParticles.material.opacity = 1.0 - (age / 2000);
+
+            positions.needsUpdate = true;
+
+            // Request next frame
+            requestAnimationFrame(updateExplosion);
+        };
+
+        // Start the explosion animation
+        updateExplosion();
+
+        // Safety timeout to ensure ball gets restored
+        setTimeout(() => {
+            if (window.app.isExploded) {
+                console.log("Safety timeout - restoring ball");
+
+                // Clean up explosion if it still exists
+                if (window.app.explosionParticles) {
+                    window.app.scene.remove(window.app.explosionParticles);
+                    window.app.explosionParticles.geometry.dispose();
+                    window.app.explosionParticles.material.dispose();
+                    window.app.explosionParticles = null;
+                }
+
+                // Restore ball
+                window.app.ballGroup.visible = true;
+                window.app.isExploded = false;
+            }
+        }, 3000);
+
+        return true;
+    } catch (e) {
+        console.error("Error creating explosion:", e);
+
+        // Emergency recovery
+        if (window.app.ballGroup) {
+            window.app.ballGroup.visible = true;
+        }
         window.app.isExploded = false;
-      }
-    }, 3000);
-    
-    return true;
-  } catch (e) {
-    console.error("Error creating explosion:", e);
-    
-    // Emergency recovery
-    if (window.app.ballGroup) {
-      window.app.ballGroup.visible = true;
+        return false;
     }
-    window.app.isExploded = false;
-    return false;
-  }
 };

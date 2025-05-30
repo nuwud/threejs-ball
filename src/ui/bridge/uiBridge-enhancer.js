@@ -4,7 +4,12 @@
  */
 import * as THREE from 'three';
 import { createParticleExplosion, updateParticleExplosion } from '../../effects/visual/explosion.js';
-import { createBlackholeEffect, removeBlackholeEffect, updateBlackholeEffect } from '../../effects/visual/blackhole.js';
+import { 
+  createBlackholeEffect, 
+  removeBlackholeEffect, 
+  updateBlackholeEffect,
+  toggleBlackholeEffect 
+} from '../../effects/effectManager.js';
 import { createTrailEffect, updateTrailEffect } from '../../effects/visual/trail.js';
 import { updateRainbowMode, toggleRainbowMode } from '../../effects/visual/rainbow.js';
 import { createGradientTexture, updateGradientColors } from '../../effects/visual/gradients.js';

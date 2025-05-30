@@ -1,12 +1,16 @@
 // effects/blackhole.js - Blackhole visual effect
 import * as THREE from 'three';
 
+console.log("[🌀 EFFECT] blackhole.js loaded");
+
 // Global variables for storing effect elements
 let blackholeEffect = null;
 let blackholeRingParticles = [];
 
 // Create blackhole effect
 function createBlackholeEffect(app) {
+    console.log("[🌀 EFFECT] createBlackholeEffect called");
+    
     // Make sure we don't have an existing effect
     if (blackholeEffect) {
         app.scene.remove(blackholeEffect);
@@ -39,9 +43,13 @@ function createBlackholeEffect(app) {
     // Create ring particles around the blackhole
     createBlackholeRing(app);
 
-    // Play blackhole sound
-    if (app.soundSynth) {
+    // Play blackhole sound - FIX: Try soundManager first, then fallback to soundSynth
+    if (app.soundManager && typeof app.soundManager.play === 'function') {
+        app.soundManager.play('blackhole', true);
+    } else if (app.soundSynth && typeof app.soundSynth.playSpecialSound === 'function') {
         app.soundSynth.playSpecialSound('blackhole', true);
+    } else {
+        console.warn('No audio system available for blackhole sound');
     }
 
     // Automatically remove after a few seconds
@@ -69,8 +77,10 @@ function removeBlackholeEffect(app) {
     // Reset gravitational pull
     app.gravitationalPull = 0;
 
-    // Stop blackhole sound
-    if (app.soundSynth) {
+    // Stop blackhole sound - FIX: Try both approaches
+    if (app.soundManager && typeof app.soundManager.stop === 'function') {
+        app.soundManager.stop('blackhole');
+    } else if (app.soundSynth && typeof app.soundSynth.stopSpecialSound === 'function') {
         app.soundSynth.stopSpecialSound('blackhole');
     }
 }

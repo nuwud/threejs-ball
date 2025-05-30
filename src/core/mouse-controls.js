@@ -289,44 +289,18 @@
         function updateBlackholeEffect() {
           if (!window.app.blackholeCenter) return;
           
-          // Optimize animation by using the timestamp for smooth motion
-          const time = performance.now() * 0.001;
-          
-          // Rotate ring with time-based animation
-          if (window.app.blackholeRing) {
-            window.app.blackholeRing.rotation.z = time * 0.5; // Use absolute time instead of increments
-            // Only update lookAt occasionally to improve performance
-            if (Math.floor(time * 2) % 3 === 0) {
-              window.app.blackholeRing.lookAt(window.app.camera.position);
-            }
-          }
-          
-          // Animate particles with time-based rotation
-          if (window.app.blackholeParticles) {
-            window.app.blackholeParticles.rotation.y = time * 0.3;
-          }
-          
-          // Apply gravitational pull to ball - optimize calculations
-          if (window.app.ballGroup) {
-            const blackholePos = window.app.blackholeCenter.position;
-            const ballPos = window.app.ballGroup.position;
-            
-            // Use temporary vector to avoid creating new objects every frame
-            if (!window.app._tempVector) window.app._tempVector = new THREE.Vector3();
-            const direction = window.app._tempVector.subVectors(blackholePos, ballPos);
-            
-            const distanceSq = direction.lengthSq();
-            const distance = Math.sqrt(distanceSq);
-            
-            if (distance > 0.1 && distance < 5) {
-              direction.normalize();
-              const force = 0.01 / distanceSq; // More efficient calculation
-              
-              window.app.ballGroup.position.addScaledVector(direction, force);
-              
-              // Add smooth rotation for effect
-              window.app.ballGroup.rotation.x += force * 0.1 * Math.sin(time);
-              window.app.ballGroup.rotation.y += force * 0.15 * Math.cos(time);
+          // Import and use the effectManager's implementation if available
+          try {
+            import('../effects/effectManager.js')
+              .then(({updateBlackholeEffect}) => {
+                updateBlackholeEffect(window.app);
+              });
+          } catch (e) {
+            console.warn('Could not import effectManager, using fallback blackhole update');
+            // Minimal fallback implementation
+            const time = performance.now() * 0.001;
+            if (window.app.blackholeRing) {
+              window.app.blackholeRing.rotation.z = time * 0.5;
             }
           }
         }

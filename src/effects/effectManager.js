@@ -1,9 +1,9 @@
 // effects.js - Handles visual effects for the 3D ball
 import * as THREE from 'three';
-import { createParticleExplosion as originalCreateParticleExplosion, updateParticleExplosion as originalUpdateParticleExplosion } from './visual/explosion.js';
+//import { createParticleExplosion as originalCreateParticleExplosion, updateParticleExplosion as originalUpdateParticleExplosion } from './visual/explosion.js';
 import { createTrailEffect, updateTrailEffect } from './visual/trail.js';
 import { highlightFacet, updateFacetHighlights } from './deformation/facet.js';
-import { createGradientTexture as originalCreateGradientTexture, updateGradientColors as originalUpdateGradientColors } from './visual/gradients.js';
+//import { createGradientTexture as originalCreateGradientTexture, updateGradientColors as originalUpdateGradientColors } from './visual/gradients.js';
 
 // Global state for effects
 const effectState = {
@@ -192,12 +192,12 @@ function createParticleExplosion(app) {
             effectState.particleSystem.geometry.dispose();
             effectState.particleSystem.material.dispose();
             effectState.particleSystem = null;
-            
+
             // Show the ball again if it was an explosion effect
             if (effectState.isExploded) {
                 app.ballGroup.visible = true;
                 effectState.isExploded = false;
-                
+
                 // Reset colors
                 updateGradientColors(app, defaultColors.start, defaultColors.mid, defaultColors.end);
             }
@@ -257,7 +257,7 @@ function explodeEffect(app) {
     if (app.showStatus) {
         app.showStatus('Explosion Effect!');
     }
-    
+
     return effectState.isExploded;
 }
 
@@ -537,7 +537,7 @@ function toggleMagneticMode(app) {
         if (app.soundManager) {
             app.soundManager.play('magnetic', true);
         }
-        
+
         app.isMagneticMode = true;
     } else {
         // Turn off magnetic effect
@@ -553,7 +553,7 @@ function toggleMagneticMode(app) {
         if (app.soundManager) {
             app.soundManager.stop('magnetic');
         }
-        
+
         app.isMagneticMode = false;
     }
 
@@ -600,6 +600,25 @@ function updateMagneticParticles(app) {
 
 // Create blackhole effect
 function createBlackholeEffect(app) {
+    console.log("[🌀 EFFECT] createBlackholeEffect called");
+
+    // CRITICAL FIX: Force removal of any existing blackhole effects first
+    if (effectState.blackholeEffect || app._blackholeSound) {
+        console.log("[🌀 EFFECT] Forcing cleanup of existing blackhole before creating new one");
+        removeBlackholeEffect(app);
+
+        // Allow time for cleanup to complete
+        setTimeout(() => {
+            actuallyCreateBlackholeEffect(app);
+        }, 100);
+        return;
+    }
+
+    actuallyCreateBlackholeEffect(app);
+}
+
+// Move the actual creation logic to a separate function
+function actuallyCreateBlackholeEffect(app) {
     // Make sure we don't have an existing effect
     if (effectState.blackholeEffect) {
         app.scene.remove(effectState.blackholeEffect);
@@ -618,39 +637,123 @@ function createBlackholeEffect(app) {
         blackholeMaterial
     );
 
-    // Position it slightly offset from the ball
-    effectState.blackholeEffect.position.set(
-        app.ballGroup.position.x + 1,
-        app.ballGroup.position.y,
-        app.ballGroup.position.z
-    );
+    // Position it in front of the camera, slightly offset to the right
+    const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(app.camera.quaternion);
+    const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(app.camera.quaternion);
+
+    effectState.blackholeEffect.position.copy(app.camera.position)
+        .add(cameraDirection.multiplyScalar(3))
+        .add(cameraRight.multiplyScalar(1.5));
 
     app.scene.add(effectState.blackholeEffect);
 
-    // Start gravitational pull
-    effectState.gravitationalPull = 1.0;
-    app.gravitationalPull = 1.0;
-
+    // Higher initial gravitational pull for more dramatic effect
+    effectState.gravitationalPull = 2.0;
+    app.gravitationalPull = 2.0;
+    
     // Create ring particles around the blackhole
     createBlackholeRing(app);
 
-    // Play blackhole sound
-    if (app.soundManager) {
+    // IMPROVED SOUND HANDLING: Create direct sound if other methods fail
+    let soundPlayed = false;
+
+    if (app.soundManager && typeof app.soundManager.play === 'function') {
+        console.log("[🔊 AUDIO] Playing blackhole sound via soundManager");
         app.soundManager.play('blackhole', true);
+        soundPlayed = true;
+    }
+    
+    if (!soundPlayed && app.soundSynth && typeof app.soundSynth.playSpecialSound === 'function') {
+        console.log("[🔊 AUDIO] Playing blackhole sound via soundSynth");
+        app.soundSynth.playSpecialSound('blackhole', true);
+        soundPlayed = true;
+    }
+    
+    // Direct WebAudio implementation for bass sound if other methods fail
+    if (!soundPlayed) {
+        console.log("[🔊 AUDIO] Playing blackhole sound via direct WebAudio API");
+        try {
+            const ctx = app.audioContext || new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const filter = ctx.createBiquadFilter();
+
+            // Deep bass configuration
+            osc.type = 'sine';
+            osc.frequency.value = 30; // Very low frequency for deep bass
+
+            filter.type = 'lowpass';
+            filter.frequency.value = 80;
+
+            osc.connect(filter);
+            filter.connect(gain);
+
+            // Connect to master gain if available
+            if (app.masterGain) {
+                gain.connect(app.masterGain);
+            } else {
+                gain.connect(ctx.destination);
+            }
+
+            // Set initial volume to zero and ramp up
+            gain.gain.value = 0;
+            gain.gain.setValueAtTime(0, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.8, ctx.currentTime + 0.5);
+
+            osc.start();
+
+            // Store for cleanup
+            app._blackholeSound = {
+                ctx: ctx,
+                osc: osc,
+                gain: gain,
+                filter: filter,
+                stop: function () {
+                    console.log("[🔊 AUDIO] Stopping blackhole sound");
+                    try {
+                        this.gain.gain.setValueAtTime(this.gain.gain.value, ctx.currentTime);
+                        this.gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+
+                        setTimeout(() => {
+                            try {
+                                this.osc.stop();
+                                this.osc.disconnect();
+                                this.filter.disconnect();
+                                this.gain.disconnect();
+                            } catch (e) {
+                                console.error("Error in oscillator cleanup:", e);
+                            }
+                        }, 250);
+                    } catch (e) {
+                        console.error("Error in sound stop:", e);
+                        try {
+                            this.osc.stop();
+                            this.gain.gain.value = 0;
+                        } catch (err) { }
+                    }
+                }
+            };
+
+            soundPlayed = true;
+        } catch (e) {
+            console.warn('Could not create blackhole bass sound', e);
+        }
     }
 
     if (app.showStatus) {
-        app.showStatus('Blackhole Effect Activated');
+        app.showStatus('Blackhole Effect Activated - Hold Right-Click');
     }
 
-    // Automatically remove after a few seconds
-    setTimeout(() => {
-        removeBlackholeEffect(app);
-    }, 5000);
+    // REMOVED: Automatic timeout - now controlled by mouse release
+    // setTimeout(() => {
+    //     removeBlackholeEffect(app);
+    // }, 5000);
 }
 
-// Remove blackhole effect
+// Remove blackhole effect - improved with reliable cleanup
 function removeBlackholeEffect(app) {
+    console.log("[🌀 EFFECT] Removing blackhole effect and cleaning up");
+
     if (effectState.blackholeEffect) {
         app.scene.remove(effectState.blackholeEffect);
         effectState.blackholeEffect = null;
@@ -664,21 +767,151 @@ function removeBlackholeEffect(app) {
     }
     effectState.blackholeRingParticles = [];
 
-    // Reset gravitational pull
+    // Reset gravitational pull state
     effectState.gravitationalPull = 0;
     app.gravitationalPull = 0;
 
-    // Stop blackhole sound
+    // IMPROVED AUDIO CLEANUP
+    // Stop managed sound
     if (app.soundManager) {
+        console.log("[🔊 AUDIO] Stopping blackhole sound via soundManager");
         app.soundManager.stop('blackhole');
     }
+    if (app.soundSynth && typeof app.soundSynth.stopSpecialSound === 'function') {
+        console.log("[🔊 AUDIO] Stopping blackhole sound via soundSynth");
+        app.soundSynth.stopSpecialSound('blackhole');
+    }
 
-    // Reset deformation
-    resetDeformation(app, 0.5);
+    // Reset post-processing distortion effects
+    if (app.blackholeDistortionPass) {
+        console.log("[🌀 EFFECT] Resetting post-processing distortion effects");
+        app.blackholeDistortionPass.uniforms.intensity.value = 0;
+    }
+
+    // THOROUGH WEB AUDIO CLEANUP
+    // IMPROVED AUDIO CLEANUP - with immediate stoppage
+    if (app._blackholeSound) {
+        console.log("[🔊 AUDIO] Forcefully stopping blackhole sound");
+        try {
+            // STEP 1: Immediately kill gain to silence the sound
+            if (app._blackholeSound.gain) {
+                app._blackholeSound.gain.gain.cancelScheduledValues(app._blackholeSound.ctx.currentTime);
+                app._blackholeSound.gain.gain.setValueAtTime(0, app._blackholeSound.ctx.currentTime);
+            }
+
+            // STEP 2: Immediately stop oscillator - no delay
+            if (app._blackholeSound.osc) {
+                try {
+                    app._blackholeSound.osc.stop(0);
+                    app._blackholeSound.osc.disconnect();
+
+                    console.log("[🔊 AUDIO] Oscillator immediately stopped");
+                } catch (e) {
+                    console.error("Could not stop oscillator:", e);
+                }
+            }
+
+            // Immediately disconnect everything, don't wait
+            if (app._blackholeSound.filter) app._blackholeSound.filter.disconnect();
+            if (app._blackholeSound.gain) app._blackholeSound.gain.disconnect();
+
+            // STEP 4: Nullify references immediately
+            app._blackholeSound = null;
+            console.log("[🔊 AUDIO] All blackhole audio resources released");
+
+        } catch (e) {
+            console.error("Error with audio cleanup:", e);
+            // Last resort emergency cleanup
+            app._blackholeSound = null;
+        }
+    }
+
+    // IMPROVED MESH RESTORATION
+    // Force complete mesh reset with 100% restoration
+    resetDeformation(app, 1.0);
 
     if (app.showStatus) {
         app.showStatus('Blackhole Effect Completed');
     }
+
+    // IMPROVED BALL POSITION RESET - Always reset position
+    // Store current position for transition
+    const currentPosition = app.ballGroup.position.clone();
+
+    // Always aggressively reset deformation first
+    resetDeformation(app, 1.0);
+
+    // Calculate target position (closer to origin)
+    // If very far away, bring closer but preserve direction
+    const distanceFromOrigin = currentPosition.length();
+    let targetPosition;
+
+    if (distanceFromOrigin > 3) {
+        // Bring back to a position 2 units from origin in same direction
+        console.log("[🌀 EFFECT] Ball was very far away, snapping to closer position");
+        targetPosition = new THREE.Vector3(0, 0, 2);
+    } else if (distanceFromOrigin > 2) {
+        targetPosition = currentPosition.clone().normalize().multiplyScalar(2);
+    } else if (distanceFromOrigin > 0.5) {
+        // If somewhat far, bring even closer
+        targetPosition = currentPosition.clone().normalize().multiplyScalar(0.5);
+    } else {
+        // If already close, just slightly nudge toward origin
+        targetPosition = new THREE.Vector3(0, 0, 0);
+    }
+
+    // Smoothly animate return with easing
+    const startTime = Date.now();
+    const duration = 1200; // milliseconds
+
+    // Also reset rotation to make it look more natural
+    const startRotation = {
+        x: app.ballGroup.rotation.x,
+        y: app.ballGroup.rotation.y,
+        z: app.ballGroup.rotation.z
+    };
+
+    // Target a slight rotation that looks intentional
+    const targetRotation = {
+        x: 0,
+        y: 0,
+        z: 0
+    };
+
+    function returnBall() {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // Ease out cubic for smooth deceleration
+        const t = 1 - Math.pow(1 - progress, 3);
+
+        app.ballGroup.position.lerpVectors(currentPosition, targetPosition, t);
+
+        // Update rotation
+        app.ballGroup.rotation.x = startRotation.x + (targetRotation.x - startRotation.x) * t;
+        app.ballGroup.rotation.y = startRotation.y + (targetRotation.y - startRotation.y) * t;
+        app.ballGroup.rotation.z = startRotation.z + (targetRotation.z - startRotation.z) * t;
+
+        // Continue animation if not done
+        if (progress < 1) {
+            requestAnimationFrame(returnBall);
+        } else {
+            console.log("[🌀 EFFECT] Ball position fully reset");
+
+            // Apply one final reset to ensure the mesh is perfectly clean
+            resetDeformation(app, 1.0);
+
+            // Force reset any other ball properties that might be affected
+            if (app.ballGroup && app.ballGroup.userData && app.ballGroup.userData.mat) {
+                if (app.ballGroup.userData.mat.emissive) {
+                    app.ballGroup.userData.mat.emissive.set(0x000000);
+                    app.ballGroup.userData.mat.emissiveIntensity = 0;
+                }
+            }
+        }
+    }
+
+    returnBall();
 }
 
 // Create particles forming a ring around the blackhole
@@ -825,16 +1058,21 @@ function updateBlackholeEffect(app) {
             .subVectors(effectState.blackholeEffect.position, app.ballGroup.position)
             .normalize();
 
+        const distance = app.ballGroup.position.distanceTo(effectState.blackholeEffect.position);
+
+        // Non-linear gravitational pull (stronger when closer - inverse square law)
+        const pullStrength = 0.4 * effectState.gravitationalPull * (1 / Math.max(0.5, distance));
+
         // Move ball slightly towards blackhole
         app.ballGroup.position.add(
-            pullDirection.clone().multiplyScalar(0.005 * effectState.gravitationalPull)
+            pullDirection.clone().multiplyScalar(1.00 * effectState.gravitationalPull)
         );
 
         // Apply deformation to the ball (stretched towards blackhole)
         applyGravitationalDeformation(app, effectState.blackholeEffect.position, effectState.gravitationalPull);
 
         // Gradually increase pull
-        effectState.gravitationalPull += 0.01;
+        effectState.gravitationalPull = Math.min(6.0, effectState.gravitationalPull + 0.03);
         app.gravitationalPull = effectState.gravitationalPull;
     }
 
@@ -856,6 +1094,36 @@ function updateBlackholeEffect(app) {
 
         // Pulse opacity
         particle.material.opacity = 0.5 + Math.cos(newAngle * 5) * 0.5;
+    }
+
+    // Add this to updateBlackholeEffect function
+    // Create a subtle screen-space distortion for immersive effect
+    if (app.composer && app.renderPass) {
+        // Adjust post-processing intensity based on distance
+        const distanceToCam = app.camera.position.distanceTo(effectState.blackholeEffect.position);
+        const distortionIntensity = Math.min(1.0, 3.0 / distanceToCam) * effectState.gravitationalPull * 0.1;
+
+        // If using a custom shader, update its uniforms
+        if (app.blackholeDistortionPass) {
+            app.blackholeDistortionPass.uniforms.intensity.value = distortionIntensity;
+            app.blackholeDistortionPass.uniforms.blackholePosition.value.copy(
+                effectState.blackholeEffect.position.clone().project(app.camera)
+            );
+        }
+    }
+}
+
+// Function to toggle blackhole effect on/off
+function toggleBlackholeEffect(app) {
+    // Check if blackhole effect is already active
+    if (effectState.blackholeEffect) {
+        // If active, remove it
+        removeBlackholeEffect(app);
+        return false;
+    } else {
+        // If not active, create it
+        createBlackholeEffect(app);
+        return true;
     }
 }
 
@@ -1012,6 +1280,36 @@ function updateAudioVisualization(app) {
     }
 }
 
+// Function to toggle audio visualization on/off
+function toggleAudioVisualization(app) {
+    // Create the visualization if it doesn't exist
+    if (!effectState.audioVisualization) {
+        createAudioVisualization(app);
+    }
+
+    // Toggle visibility
+    if (effectState.audioVisualization) {
+        effectState.audioVisualization.visible = !effectState.audioVisualization.visible;
+
+        // Play/stop sound if available
+        if (app.soundManager) {
+            if (effectState.audioVisualization.visible) {
+                app.soundManager.play('visualization', true);
+            } else {
+                app.soundManager.stop('visualization');
+            }
+        }
+
+        if (app.showStatus) {
+            app.showStatus(`Audio Visualization ${effectState.audioVisualization.visible ? 'Enabled' : 'Disabled'}`);
+        }
+
+        return effectState.audioVisualization.visible;
+    }
+
+    return false;
+}
+
 // Initialize effects system if needed
 function initializeEffects(app) {
     // Set up event listeners for 3D interaction
@@ -1035,10 +1333,10 @@ function initializeEffects(app) {
 
         // Mark as initialized
         app._effectsInitialized = true;
-        
+
         return true;
     }
-    
+
     return false;
 }
 
@@ -1127,12 +1425,30 @@ function registerEffect(name, handlers) {
  * @param {any[]} args
  * @returns {any}
  */
-function callEffect(name, ...args) {
-    if (effectRegistry[name]?.toggle) {
-        return effectRegistry[name].toggle(...args);
+function callEffect(effectName, app, ...args) {
+    switch (effectName) {
+        case 'blackhole':
+            return createBlackholeEffect(app);
+        case 'magnetic':
+            return toggleMagneticMode(app);
+        case 'explosion':
+            return createParticleExplosion(app);
+        case 'rainbow':
+            return toggleRainbowMode(app);
+        case 'spiky':
+            return toggleSpikyMode(app);
+        case 'audioVisualization':
+            return toggleAudioVisualization(app);
+        case 'plane':
+            return effectRegistry.plane.toggle(app, ...args);
+        // Fall back to registry for other effects
+        default:
+            if (effectRegistry[effectName]?.toggle) {
+                return effectRegistry[effectName].toggle(app, ...args);
+            }
+            console.warn(`Unknown effect '${effectName}'`);
+            return false;
     }
-    console.warn(`[effectManager] Effect "${name}" not registered or missing toggle.`);
-    return false;
 }
 
 /**
@@ -1182,6 +1498,7 @@ export {
     createBlackholeEffect,
     removeBlackholeEffect,
     updateBlackholeEffect,
+    toggleBlackholeEffect,
     updateRainbowMode,
     toggleRainbowMode,
     createGradientTexture,
@@ -1195,6 +1512,8 @@ export {
     resetDeformation,
     createAudioVisualization,
     updateAudioVisualization,
+    toggleAudioVisualization,
+    applyGravitationalDeformation,
     initializeEffects,
     registerEffect,
     callEffect,
@@ -1213,3 +1532,4 @@ export function logOrphanedEffects() {
         console.warn('[effectManager] Orphaned effect functions:', orphaned);
     }
 }
+
