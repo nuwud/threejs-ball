@@ -14,9 +14,6 @@ import {
 // Define window.app and uiBridge as early as possible
 window.app = window.app || {};
 
-// Global blackhole state tracking
-let blackholeActivated = false;
-
 // Make it accessible to other scripts
 window.blackholeActivated = false;
 
