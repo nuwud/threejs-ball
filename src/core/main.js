@@ -7,11 +7,18 @@ import {
     updateEffects,
     createBlackholeEffect,
     toggleBlackholeEffect,
-    updateBlackholeEffect
+    updateBlackholeEffect,
+    removeBlackholeEffect
 } from '../effects/effectManager.js';
 
 // Define window.app and uiBridge as early as possible
 window.app = window.app || {};
+
+// Global blackhole state tracking
+let blackholeActivated = false;
+
+// Make it accessible to other scripts
+window.blackholeActivated = false;
 
 // Attach uiBridge with all control bridges before DOMContentLoaded
 window.app.uiBridge = {
@@ -93,19 +100,7 @@ window.app.uiBridge = {
 
     // Add this method to your app.uiBridge object
     toggleBlackholeEffect: () => {
-        if (window.toggleBlackholeEffect) {
-            return window.toggleBlackholeEffect(window.app);
-        } else {
-            console.log("Toggling blackhole effect");
-            if (window.app.isBlackholeActive) {
-                window.app.uiBridge.removeBlackholeVisuals();
-                
-                return false;
-            } else {
-                window.app.uiBridge.createBlackholeEffect();
-                return true;
-            }
-        }
+        return callEffect('blackhole', window.app);
     },
 
     playTestSound: () => {
@@ -262,220 +257,6 @@ window.app.uiBridge = {
             return false;
         }
     },
-    //         if (window.app.isBlackholeActive) {
-    //             // Create blackhole effect
-    //             window.app.createBlackholeVisuals();
-
-    //             // Start updating the blackhole effect
-    //             if (!window.app.blackholeUpdateFunction) {
-    //                 window.app.blackholeUpdateFunction = function () {
-    //                     if (!window.app.isBlackholeActive || !window.app.blackholeCenter) return;
-
-    //                     // Rotate the blackhole
-    //                     if (window.app.blackholeRing) {
-    //                         window.app.blackholeRing.rotation.z += 0.01;
-    //                     }
-
-    //                     // Make particles orbit
-    //                     if (window.app.blackholeParticles) {
-    //                         window.app.blackholeParticles.rotation.z += 0.005;
-    //                     }
-
-    //                     // Apply gravitational pull to the ball
-    //                     if (window.app.ballGroup) {
-    //                         const blackholePos = new THREE.Vector3(0, 0, 0);
-    //                         const ballPos = window.app.ballGroup.position.clone();
-    //                         const direction = new THREE.Vector3().subVectors(blackholePos, ballPos).normalize();
-    //                         const distance = ballPos.distanceTo(blackholePos);
-
-    //                         // Only apply if ball is far enough from center to avoid extreme pulls
-    //                         if (distance > 0.2 && distance < 5) {
-    //                             // Newton's gravitational formula (simplified)
-    //                             const force = 0.05 / (distance * distance);
-    //                             window.app.ballGroup.position.add(direction.multiplyScalar(force));
-
-    //                             // Also apply some rotation based on the force
-    //                             window.app.ballGroup.rotation.x += force * 0.1;
-    //                             window.app.ballGroup.rotation.y += force * 0.15;
-    //                         }
-    //                     }
-    //                 };
-
-    //                 // Hook into animation loop
-    //                 const originalAnimate = window.app.animate;
-    //                 window.app.animate = function () {
-    //                     originalAnimate();
-    //                     if (window.app.blackholeUpdateFunction) {
-    //                         window.app.blackholeUpdateFunction();
-    //                     }
-    //                 };
-    //             }
-
-    //             console.log('Blackhole effect activated');
-    //         } else {
-    //             // Clean up blackhole
-    //             window.app.removeBlackholeVisuals();
-    //             console.log('Blackhole effect deactivated');
-    //         }
-
-    //         // Store state in localStorage for persistence
-    //         try { localStorage.setItem('ballBlackHoleActive', window.app.isBlackholeActive); } catch (e) { }
-
-    //         return true;
-    //     } catch (e) {
-    //         console.error('Error toggling blackhole effect:', e);
-    //         return false;
-    //     }
-    // },
-
-    createBlackholeVisuals: () => {
-        if (!window.app.scene) return;
-
-        // Remove any existing blackhole
-        window.app.removeBlackholeVisuals();
-
-        // Create dark center sphere
-        const blackholeMaterial = new THREE.MeshBasicMaterial({
-            color: 0x000000,
-            transparent: true,
-            opacity: 0.8,
-            side: THREE.DoubleSide
-        });
-
-        const blackholeGeometry = new THREE.SphereGeometry(0.3, 32, 32);
-        const blackholeCenter = new THREE.Mesh(blackholeGeometry, blackholeMaterial);
-        blackholeCenter.position.set(0, 0, 0); // Place at center
-        window.app.scene.add(blackholeCenter);
-        window.app.blackholeCenter = blackholeCenter;
-
-        // Create glowing ring
-        const ringGeometry = new THREE.RingGeometry(0.5, 0.8, 32);
-        const ringMaterial = new THREE.MeshBasicMaterial({
-            color: 0x6600FF,
-            transparent: true,
-            opacity: 0.6,
-            side: THREE.DoubleSide
-        });
-
-        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-        ring.position.set(0, 0, 0);
-        window.app.scene.add(ring);
-        window.app.blackholeRing = ring;
-
-        // Create particle system for accretion disk
-        const particleCount = 1000;
-        const particleGeometry = new THREE.BufferGeometry();
-        const particlePositions = new Float32Array(particleCount * 3);
-        const particleColors = new Float32Array(particleCount * 3);
-
-        for (let i = 0; i < particleCount; i++) {
-            // Random position in a disk
-            const radius = 0.5 + Math.random() * 1.0; // Between 0.5 and 1.5
-            const angle = Math.random() * Math.PI * 2;
-
-            // Add some vertical spread for thickness
-            const height = (Math.random() - 0.5) * 0.1;
-
-            particlePositions[i * 3] = Math.cos(angle) * radius;
-            particlePositions[i * 3 + 1] = Math.sin(angle) * radius;
-            particlePositions[i * 3 + 2] = height;
-
-            // Blue-purple colors with variation
-            particleColors[i * 3] = Math.random() * 0.2;       // R - low red
-            particleColors[i * 3 + 1] = Math.random() * 0.3;   // G - low green
-            particleColors[i * 3 + 2] = 0.5 + Math.random() * 0.5; // B - high blue
-        }
-
-        particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
-        particleGeometry.setAttribute('color', new THREE.BufferAttribute(particleColors, 3));
-
-        const particleMaterial = new THREE.PointsMaterial({
-            size: 0.02,
-            vertexColors: true,
-            transparent: true,
-            opacity: 0.8,
-            blending: THREE.AdditiveBlending
-        });
-
-        const particles = new THREE.Points(particleGeometry, particleMaterial);
-        window.app.scene.add(particles);
-        window.app.blackholeParticles = particles;
-
-        // Apply post-processing if available
-        if (typeof THREE.EffectComposer === 'function') {
-            try {
-                // Create bloom effect
-                console.log('Setting up bloom effect for blackhole');
-            } catch (e) {
-                console.error('Error setting up post-processing:', e);
-            }
-        }
-
-        return true;
-    },
-
-    removeBlackholeVisuals: () => {
-        if (window.app.blackholeCenter) {
-            window.app.scene.remove(window.app.blackholeCenter);
-            window.app.blackholeCenter = null;
-        }
-
-        if (window.app.blackholeRing) {
-            window.app.scene.remove(window.app.blackholeRing);
-            window.app.blackholeRing = null;
-        }
-
-        if (window.app.blackholeParticles) {
-            window.app.scene.remove(window.app.blackholeParticles);
-            window.app.blackholeParticles = null;
-        }
-
-        return true;
-    },
-
-    // createMagneticEffect: () => {
-    //     try {
-    //         window.app.isMagneticActive = !window.app.isMagneticActive;
-
-    //         if (window.app.isMagneticActive) {
-    //             // Create the magnetic trail
-    //             window.app.createMagneticTrail();
-
-    //             // Create update function if it doesn't exist
-    //             if (!window.app.updateMagneticTrailFunction) {
-    //                 window.app.updateMagneticTrailFunction = function () {
-    //                     if (!window.app.isMagneticActive) return;
-
-    //                     // Update the trail and particles
-    //                     window.app.updateMagneticTrail();
-    //                 };
-
-    //                 // Add to animation loop
-    //                 const originalAnimate = window.app.animate;
-    //                 window.app.animate = function () {
-    //                     originalAnimate();
-    //                     if (window.app.updateMagneticTrailFunction) {
-    //                         window.app.updateMagneticTrailFunction();
-    //                     }
-    //                 };
-    //             }
-
-    //             console.log('Magnetic effect activated');
-    //         } else {
-    //             // Clean up the trail
-    //             window.app.removeMagneticTrail();
-    //             console.log('Magnetic effect deactivated');
-    //         }
-
-    //         // Store state in localStorage for persistence
-    //         try { localStorage.setItem('ballMagneticActive', window.app.isMagneticActive); } catch (e) { }
-
-    //         return true;
-    //     } catch (e) {
-    //         console.error('Error toggling magnetic effect:', e);
-    //         return false;
-    //     }
-    // },
 
     // Create the magnetic trail visuals
     createMagneticTrail: () => {
@@ -930,6 +711,16 @@ window.app.createBlackholeEffect = window.app.uiBridge.createBlackholeEffect;
 window.app.createExplosion = window.app.uiBridge.createExplosion;
 window.app.createMagneticEffect = window.app.uiBridge.createMagneticEffect;
 
+// Expose effectManager functions globally for cleanup
+window.effectManager = {
+  removeBlackholeEffect,
+  createBlackholeEffect,
+  updateBlackholeEffect
+};
+
+// Also expose the removeBlackholeEffect function directly
+window.removeBlackholeEffect = removeBlackholeEffect;
+
 // Assign effect manager methods to window.effectManager
 window.effectManager = {
     updateEffects,
@@ -1033,12 +824,8 @@ function init() {
                                     }
                                     break;
 
-                                case 2: // Right click - blackhole effect (not explosion)
-                                    if (window.app && window.app.uiBridge && window.app.uiBridge.createBlackholeEffect) {
-                                        console.log("Right click - toggling blackhole effect via fallback");
-                                        window.app.uiBridge.createBlackholeEffect();
-                                        e.preventDefault();
-                                    }
+                                case 2: // Right click - handled by mouse-controls-fix.js
+                                    // Do nothing - let the long-press system handle this
                                     break;
 
                                 case 3: // First side button - explosion
@@ -1384,6 +1171,28 @@ function initializeAudioForBall() {
 function setupInteraction() {
     // Function to handle mouse/touch movement for interaction
     function onPointerMove(event) {
+        // CRITICAL: Only block hover during blackhole cleanup phase, not during active blackhole
+        if (window.blackholeActivated === true &&
+            window.effectState &&
+            window.effectState.isBlackholeActive === true) {
+            // During active blackhole, allow normal pointer tracking for blackhole deformation
+            // but skip hover-specific effects like wireframe color changes
+            window.app.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            window.app.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            window.app.raycaster.setFromCamera(window.app.mouse, window.app.camera);
+
+            // Update point light position
+            window.app.pointLight.position.copy(window.app.raycaster.ray.direction).multiplyScalar(2).add(window.app.camera.position);
+
+            // Skip hover effects but allow blackhole to work
+            return;
+        }
+
+        // Block hover effects briefly after cleanup (much shorter period)
+        if (Date.now() - (window._lastBlackholeCleanup || 0) < 50) {
+            return; // Very brief 50ms protection instead of 100ms
+        }
+
         // Calculate mouse position in normalized device coordinates
         // (-1 to +1) for both components
         window.app.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -1753,8 +1562,12 @@ function animate() {
     // Check if camera is inside the ball
     const cameraIsInside = window.app.camera && window.app.camera.position.length() < 0.9;
 
-    // Only do auto-movement when camera is outside
-    if (!cameraIsInside) {
+    // FIXED: Only do auto-movement when camera is outside AND no blackhole effects are active AND not paused
+    if (!cameraIsInside && 
+        !window.blackholeActivated && 
+        !window.app.isBlackholeActive && 
+        !window.app._autoMovementPaused) {  // Added this check
+        
         updateMeshScale();
         updateMeshRotation();
         updateMeshPosition();
@@ -1764,14 +1577,14 @@ function animate() {
             window.app.ballMesh.material.opacity = window.app._originalOpacity;
             window.app.ballMesh.material.side = THREE.DoubleSide;
         }
-    } else {
+    } else if (cameraIsInside) {
         // Special handling for interior view
         if (window.app.ballMesh && window.app.ballMesh.material) {
             if (!window.app._originalOpacity) {
                 window.app._originalOpacity = window.app.ballMesh.material.opacity;
             }
-            window.app.ballMesh.material.opacity = 0.4; // More transparent
-            window.app.ballMesh.material.side = THREE.BackSide; // Show inside faces
+            window.app.ballMesh.material.opacity = 0.4;
+            window.app.ballMesh.material.side = THREE.BackSide;
         }
 
         // Add subtle camera motion for immersive feel
@@ -1789,23 +1602,18 @@ function animate() {
     if (window.app.analyser && window.app.analyserData) {
         window.app.analyser.getByteFrequencyData(window.app.analyserData);
 
-        // If we have a visualization update function, call it
         if (typeof window.updateAudioVisualization === 'function') {
             window.updateAudioVisualization(window.app);
         }
     }
 
-    // Update the ball's position-based sound
+    // Update position-based sound
     if (window.app.audioContext && window.app.isHovered && typeof window.playToneForPosition === 'function') {
-        // Get normalized ball position in viewport
         const position = new THREE.Vector3();
         window.app.ballGroup.getWorldPosition(position);
-
-        // Project position to screen coordinates
         position.project(window.app.camera);
 
-        // Play position-based sound (limited rate)
-        if (Math.random() < 0.05) { // Only 5% chance each frame to avoid too many sounds
+        if (Math.random() < 0.05) {
             window.playToneForPosition(window.app, position.x, position.y);
         }
     }
@@ -1814,17 +1622,34 @@ function animate() {
         window.app.controls.update();
     }
 
-    // Add this direct call to updateEffects
-    if (window.app && window.effectManager && window.effectManager.updateEffects) {
-        console.log("Calling effectManager.updateEffects"); // Add this line
-        window.effectManager.updateEffects(window.app);
-    } else if (window.updateEffects) {
-        console.log("Calling window.updateEffects"); // Add this line
-        window.updateEffects(window.app);
+    // BLACKHOLE EFFECT HANDLING
+    if (window.effectState &&
+        window.effectState.blackholeEffect &&
+        window.effectState.isBlackholeActive === true &&
+        window.app.isBlackholeActive === true &&
+        window.blackholeActivated === true) {
+        
+        if (window.updateBlackholeEffect) {
+            window.updateBlackholeEffect(window.app);
+        }
     } else {
-        console.log("No updateEffects function found"); // Add this line
+        // FORCE ball to stay at origin when blackhole is not active
+        if (window.app.ballGroup && 
+            (window.app.isBlackholeActive === false || !window.blackholeActivated)) {
+            const pos = window.app.ballGroup.position;
+            if (pos.length() > 0.01) {
+                window.app.ballGroup.position.set(0, 0, 0);
+                window.app.ballGroup.rotation.set(0, 0, 0);
+            }
+        }
     }
 
+    // Update effects
+    if (window.app && window.effectManager && window.effectManager.updateEffects) {
+        window.effectManager.updateEffects(window.app);
+    } else if (window.updateEffects) {
+        window.updateEffects(window.app);
+    }
 
     if (window.app.renderer && window.app.scene && window.app.camera) {
         window.app.renderer.render(window.app.scene, window.app.camera);
@@ -2333,4 +2158,278 @@ window.app.uiBridge.createExplosion = function () {
         window.app.isExploded = false;
         return false;
     }
+};
+
+// Make resetDeformation available globally for cleanup
+window.app.resetDeformation = function (speed = 0.1) {
+    if (!window.app.ballGeometry || !window.app.originalPositions) {
+        console.warn("Cannot reset deformation: missing geometry or original positions");
+        return;
+    }
+
+    const positions = window.app.ballGeometry.attributes.position;
+    let needsUpdate = false;
+
+    for (let i = 0; i < positions.count; i++) {
+        const currentX = positions.array[i * 3];
+        const currentY = positions.array[i * 3 + 1];
+        const currentZ = positions.array[i * 3 + 2];
+
+        const originalX = window.app.originalPositions[i * 3];
+        const originalY = window.app.originalPositions[i * 3 + 1];
+        const originalZ = window.app.originalPositions[i * 3 + 2];
+
+        // Move vertices gradually back to their original positions
+        positions.array[i * 3] = currentX + (originalX - currentX) * speed;
+        positions.array[i * 3 + 1] = currentY + (originalY - currentY) * speed;
+        positions.array[i * 3 + 2] = currentZ + (originalZ - currentZ) * speed;
+
+        needsUpdate = true;
+    }
+
+    if (needsUpdate) {
+        // Update wireframe
+        const wireGeo = new THREE.EdgesGeometry(window.app.ballGeometry);
+        window.app.wireMesh.geometry = wireGeo;
+
+        positions.needsUpdate = true;
+        window.app.ballGeometry.computeVertexNormals();
+    }
+};
+
+// src/core/mouse-controls-fix.js
+// Replace the forceBlackholeCleanup function completely:
+
+function forceBlackholeCleanup() {
+    console.log("[🌀 CLEANUP] COMPLETE blackhole termination - restoring to initial state");
+
+    if (!window.app) return;
+
+    // STEP 1: Stop all blackhole systems immediately
+    window.app.isBlackholeActive = false;
+    window.app.blackholeActive = false;
+    window.app.gravitationalPull = 0;
+    window.blackholeActivated = false;
+
+    if (window.effectState) {
+        window.effectState.blackholeEffect = null;
+        window.effectState.isBlackholeActive = false;
+        window.effectState.gravitationalPull = 0;
+        window.effectState.blackholeRingParticles = [];
+    }
+
+    // STEP 2: Stop all animations immediately
+    if (window.gsap && window.app.ballGroup) {
+        window.gsap.killTweensOf(window.app.ballGroup.position);
+        window.gsap.killTweensOf(window.app.ballGroup.rotation);
+        window.gsap.killTweensOf(window.app.ballGroup.scale);
+    }
+
+    // STEP 3: Reset ball state variables to initial values
+    window.app.isHovered = false;
+    window.app.isDragging = false;
+    window.app.touchPoint = null;
+    window.app.targetScale = 1.0;
+    window.app.currentScale = 1.0;
+    window.app.spikiness = 0;
+
+    // STEP 4: IMMEDIATE position/rotation/scale reset to initial state
+    if (window.app.ballGroup) {
+        // Force immediate reset to exact initial state
+        window.app.ballGroup.position.set(0, 0, 0);
+        window.app.ballGroup.rotation.set(0, 0, 0);
+        window.app.ballGroup.scale.set(1, 1, 1);
+
+        // Clear any userData that might affect behavior
+        if (window.app.ballGroup.userData) {
+            window.app.ballGroup.userData.isDeformed = false;
+            window.app.ballGroup.userData.effectIntensity = 0;
+            window.app.ballGroup.userData.gravitationalPull = 0;
+        }
+
+        console.log("[🌀 CLEANUP] Ball transform reset to initial state (0,0,0)");
+    }
+
+    // STEP 5: Complete geometry restoration to original vertices
+    const ballMesh = window.app.ballGroup?.userData?.mesh || window.app.ballMesh;
+    const ballGeometry = ballMesh?.geometry || window.app.ballGeometry || window.app.ballGroup?.userData?.geo;
+
+    if (ballGeometry && window.app.originalPositions) {
+        const positions = ballGeometry.attributes.position;
+
+        // Restore EVERY vertex to exact original position
+        for (let i = 0; i < positions.array.length; i++) {
+            positions.array[i] = window.app.originalPositions[i];
+        }
+
+        positions.needsUpdate = true;
+        ballGeometry.computeVertexNormals();
+
+        // Update wireframe to match restored geometry
+        if (window.app.ballGroup?.userData?.wireMesh) {
+            try {
+                const newWireGeo = new THREE.EdgesGeometry(ballGeometry);
+                window.app.ballGroup.userData.wireMesh.geometry.dispose();
+                window.app.ballGroup.userData.wireMesh.geometry = newWireGeo;
+            } catch (e) {
+                console.warn("Wireframe update failed:", e);
+            }
+        }
+
+        console.log("[🌀 CLEANUP] Geometry completely restored to original vertices");
+    }
+
+    // STEP 6: Reset materials to initial state (from createFancyBall)
+    if (window.app.ballGroup?.userData?.mat) {
+        const mat = window.app.ballGroup.userData.mat;
+        mat.emissive.set(0x000000);
+        mat.emissiveIntensity = 0;
+        mat.opacity = 0.8; // Initial opacity from createFancyBall
+        mat.needsUpdate = true;
+    }
+
+    if (window.app.ballGroup?.userData?.wireMat) {
+        const wireMat = window.app.ballGroup.userData.wireMat;
+        wireMat.color.set(0x00FFFF); // Initial cyan color
+        wireMat.opacity = 0.5; // Initial wireframe opacity
+        wireMat.needsUpdate = true;
+    }
+
+    // STEP 7: Reset gradient to initial colors (from createFancyBall)
+    if (window.app.updateGradientTexture) {
+        window.app.updateGradientTexture('#FF00FF', '#8800FF', '#00FFFF');
+    }
+
+    // STEP 8: Reset UI state
+    document.body.style.cursor = 'default';
+
+    // STEP 9: Remove all blackhole visuals from scene
+    if (window.app.scene) {
+        const toRemove = [];
+        window.app.scene.traverse((obj) => {
+            if (obj.material && obj.geometry) {
+                // Remove dark spheres (blackhole centers)
+                if (obj.geometry.type === 'SphereGeometry' &&
+                    obj.material.color &&
+                    obj.material.color.r === 0 &&
+                    obj.material.color.g === 0 &&
+                    obj.material.color.b === 0) {
+                    toRemove.push(obj);
+                }
+                // Remove purple/magenta particles
+                if (obj.material.color &&
+                    obj.material.color.r > 0.8 &&
+                    obj.material.color.g < 0.2 &&
+                    obj.material.color.b > 0.8) {
+                    toRemove.push(obj);
+                }
+            }
+        });
+
+        toRemove.forEach(obj => {
+            if (obj.parent) obj.parent.remove(obj);
+            if (obj.geometry) obj.geometry.dispose();
+            if (obj.material) obj.material.dispose();
+        });
+
+        if (toRemove.length > 0) {
+            console.log(`[🌀 CLEANUP] Removed ${toRemove.length} blackhole objects`);
+        }
+    }
+
+    // STEP 10: Stop blackhole audio
+    if (window.app._blackholeSound) {
+        try {
+            if (window.app._blackholeSound.osc) window.app._blackholeSound.osc.stop(0);
+            window.app._blackholeSound = null;
+        } catch (e) {
+            window.app._blackholeSound = null;
+        }
+    }
+
+    // STEP 11: Call any additional cleanup functions
+    if (window.removeBlackholeEffect) {
+        window.removeBlackholeEffect(window.app);
+    }
+
+    // STEP 12: Set cleanup timestamp
+    window._lastBlackholeCleanup = Date.now();
+
+    // STEP 13: Multiple verification passes to ensure complete restoration
+    setTimeout(() => {
+        if (window.app.ballGroup) {
+            // Force position/rotation again in case something overwrote it
+            window.app.ballGroup.position.set(0, 0, 0);
+            window.app.ballGroup.rotation.set(0, 0, 0);
+            window.app.ballGroup.scale.set(1, 1, 1);
+
+            // Ensure all state is cleared
+            window.app.isHovered = false;
+            window.app.touchPoint = null;
+            window.app.isDragging = false;
+
+            console.log("[🌀 VERIFY] Ball verified at initial state (0,0,0)");
+        }
+    }, 50);
+
+    // STEP 14: Final verification
+    setTimeout(() => {
+        if (window.app.ballGroup) {
+            // Final enforcement of initial state
+            window.app.ballGroup.position.set(0, 0, 0);
+            window.app.ballGroup.rotation.set(0, 0, 0);
+            window.app.ballGroup.scale.set(1, 1, 1);
+
+            console.log("[🌀 FINAL] Ball locked at initial state");
+        }
+    }, 200);
+
+    console.log("[🌀 CLEANUP] Complete restoration to initial state finished");
+}
+
+// src/core/main.js
+// Add this after createFancyBall() function:
+
+// Store the true initial state for restoration
+window.app.initialState = {
+    position: { x: 0, y: 0, z: 0 },
+    rotation: { x: 0, y: 0, z: 0 },
+    scale: { x: 1, y: 1, z: 1 },
+    colors: {
+        gradient: ['#FF00FF', '#8800FF', '#00FFFF'],
+        wireframe: 0x00FFFF,
+        opacity: 0.8
+    }
+};
+
+// Enhanced resetToInitialState function
+window.app.resetToInitialState = function () {
+    if (!window.app.ballGroup) return;
+
+    const initial = window.app.initialState;
+
+    // Reset transform
+    window.app.ballGroup.position.set(initial.position.x, initial.position.y, initial.position.z);
+    window.app.ballGroup.rotation.set(initial.rotation.x, initial.rotation.y, initial.rotation.z);
+    window.app.ballGroup.scale.set(initial.scale.x, initial.scale.y, initial.scale.z);
+
+    // Reset geometry
+    if (window.app.resetDeformation) {
+        window.app.resetDeformation(1.0);
+    }
+
+    // Reset colors
+    if (window.app.updateGradientTexture) {
+        window.app.updateGradientTexture(...initial.colors.gradient);
+    }
+
+    // Reset state variables
+    window.app.isHovered = false;
+    window.app.isDragging = false;
+    window.app.touchPoint = null;
+    window.app.targetScale = 1.0;
+    window.app.currentScale = 1.0;
+    window.app.spikiness = 0;
+
+    console.log('Ball reset to initial state');
 };

@@ -4,7 +4,7 @@
  * Uses pooled audio nodes and manages sound lifecycles
  */
 
-import { soundManager } from '../audioSystem.js';
+
 
 // Utility functions to interact with soundManager
 function getAudioContext() {

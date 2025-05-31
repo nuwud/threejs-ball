@@ -1,7 +1,4 @@
-import * as THREE from 'three';
-
 // Import additional modules from the new architecture
-import { soundManager as externalSoundManager, getListener } from './playback/sound-manager.js';
 import { toggleAudioVisualization, updateAudioVisualization as externalUpdateAudioVisualization, createAudioVisualization } from './visualization/audioVisualizor.js';
 import { AudioNodePool } from '../fixes/utils/node-pool.js';
 import { SoundScheduler } from './playback/scheduler.js';
@@ -291,38 +288,22 @@ const soundManager = {
     scheduler: null,
     circuitBreaker: null,
 
-    // Initialize all sounds
+    // Initialize all sounds - UPDATED to use THREE.js sound manager as base
     init: function () {
         if (this.initialized) return true;
 
-        console.log("Initializing sound manager with synthesized sounds...");
+        console.log("Initializing unified sound manager...");
 
         try {
-            // Create audio context
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            // Initialize the THREE.js sound manager first
+            threejsSoundManager.init();
 
-            // Modern browsers require user interaction
-            if (this.audioContext.state === 'suspended') {
-                this.setupAutoplayHandler();
-            }
+            // Use its audio context
+            this.audioContext = threejsSoundManager.getContext();
+            this.masterGain = threejsSoundManager.masterGain;
 
-            // Create sound synthesizer
+            // Create our enhanced synthesizer
             this.soundSynth = new SoundSynthesizer(this.audioContext);
-
-            // Create master gain node
-            this.masterGain = this.audioContext.createGain();
-            this.masterGain.gain.value = 0.5;
-            this.masterGain.connect(this.audioContext.destination);
-
-            // Create references for the synthesized sounds
-            this.sounds = {
-                hover: { type: 'synth', name: 'hover' },
-                click: { type: 'special', name: 'click' },
-                explosion: { type: 'special', name: 'explosion' },
-                spike: { type: 'synth', name: 'spike' },
-                rainbow: { type: 'special', name: 'rainbow' },
-                blackhole: { type: 'special', name: 'blackhole' } // Add this line
-            };
 
             // Set up enhanced components from new architecture
             this.nodePool = new AudioNodePool(this.audioContext, 24);
@@ -342,15 +323,22 @@ const soundManager = {
                 this.circuitBreaker.initialize();
             }
 
-            // Add event listener for page visibility changes
-            document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+            // Create unified sound registry
+            this.sounds = {
+                hover: { type: 'synth', name: 'hover' },
+                click: { type: 'special', name: 'click' },
+                explosion: { type: 'special', name: 'explosion' },
+                spike: { type: 'synth', name: 'spike' },
+                rainbow: { type: 'special', name: 'rainbow' },
+                blackhole: { type: 'special', name: 'blackhole' } // Consolidated here
+            };
 
             this.initialized = true;
-            console.log("Sound manager initialized with synthesized sounds");
+            console.log("Unified sound manager initialized");
 
             return true;
         } catch (e) {
-            console.error("Error initializing sound manager:", e);
+            console.error("Error initializing unified sound manager:", e);
             return false;
         }
     },
@@ -396,23 +384,20 @@ const soundManager = {
             if (!this.initialized) this.init();
             if (!this.soundSynth) return;
 
-            // Resume audio context if it's suspended
-            if (this.audioContext.state === 'suspended') {
-                this.audioContext.resume().catch(e => {
-                    console.warn("Error resuming audio context:", e);
-                });
+            const sound = this.sounds[name];
+            if (!sound) {
+                // Try THREE.js sound manager as fallback
+                threejsSoundManager.play(name, loop);
+                return;
             }
 
-            const sound = this.sounds[name];
-            if (!sound) return;
-
-            // Use the appropriate synthesizer method
+            // Handle special sounds (including blackhole) through synthesizer
             if (sound.type === 'special') {
                 this.soundSynth.playSpecialSound(sound.name, loop);
                 return;
             }
 
-            // For synth sounds
+            // Handle synth sounds
             switch (sound.name) {
                 case 'hover':
                     this.soundSynth.playWarmPad(440, 0.2);
@@ -424,13 +409,31 @@ const soundManager = {
                     this.soundSynth.playClickSound();
             }
 
-            // Record sound for circuit breaker
-            if (this.scheduler && typeof this.scheduler.recordSoundPlayed === 'function') {
+            // Record for circuit breaker
+            if (this.scheduler?.recordSoundPlayed) {
                 this.scheduler.recordSoundPlayed();
             }
         } catch (e) {
             console.error("Error playing sound:", e);
-            this.recordFailure();
+            // Fallback to THREE.js sound manager
+            threejsSoundManager.play(name, loop);
+        }
+    },
+
+    // Stop a sound
+    stop: function (name) {
+        try {
+            if (!this.initialized || !this.soundSynth) return;
+
+            const sound = this.sounds[name];
+            if (sound?.type === 'special') {
+                this.soundSynth.stopSpecialSound(sound.name);
+            }
+
+            // Also stop in THREE.js sound manager
+            threejsSoundManager.stop(name);
+        } catch (e) {
+            console.error("Error stopping sound:", e);
         }
     },
 
@@ -455,22 +458,6 @@ const soundManager = {
 
         if (this.scheduler && typeof this.scheduler.setContinuousMode === 'function') {
             this.scheduler.setContinuousMode(enabled);
-        }
-    },
-
-    // Stop a sound
-    stop: function (name) {
-        try {
-            if (!this.initialized || !this.soundSynth) return;
-
-            const sound = this.sounds[name];
-            if (!sound) return;
-
-            if (sound.type === 'special') {
-                this.soundSynth.stopSpecialSound(sound.name);
-            }
-        } catch (e) {
-            console.error("Error stopping sound:", e);
         }
     },
 

@@ -57,9 +57,8 @@ function setupEventListeners(app) {
     
     window.addEventListener('contextmenu', e => {
         e.preventDefault();
-        // Right-click trigger explosion
-        ensureAudioInitialized(app);
-        createParticleExplosion(app);
+        // Context menu disabled - effects handled elsewhere
+        return false;
     });
     
     // Double click to toggle rainbow mode
@@ -284,9 +283,9 @@ function onPointerDown(event, app) {
             app.targetScale = 1.1;
             
             // Change color more dramatically on click (optional, adjust baseMat)
-            const baseMat = app.ballGroup.userData.baseMat;
-            if (baseMat) {
-                baseMat.color.set(0xCC66FF); // Example click color
+            const clickBaseMat = app.ballGroup.userData.baseMat;
+            if (clickBaseMat) {
+                clickBaseMat.color.set(0xCC66FF); // Example click color
             }
             
             // Play click sound

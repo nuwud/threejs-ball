@@ -212,143 +212,8 @@
         window.app.scene.add(touchSphere);
         window.app.touchSphere = touchSphere;
       }
-      
-      // Create blackhole at specific point
-      function createBlackholeAtPoint(point) {
-        console.log('Creating blackhole at point:', point);
-        
-        // Remove existing blackhole
-        removeBlackhole();
-        
-        // Create blackhole center
-        const blackholeMaterial = new THREE.MeshBasicMaterial({
-          color: 0x000000,
-          transparent: true,
-          opacity: 0.8
-        });
-        
-        const blackholeGeometry = new THREE.SphereGeometry(0.2, 32, 32);
-        const blackholeCenter = new THREE.Mesh(blackholeGeometry, blackholeMaterial);
-        blackholeCenter.position.copy(point);
-        window.app.scene.add(blackholeCenter);
-        window.app.blackholeCenter = blackholeCenter;
-        
-        // Create glowing ring
-        const ringGeometry = new THREE.RingGeometry(0.3, 0.5, 32);
-        const ringMaterial = new THREE.MeshBasicMaterial({
-          color: 0x6600FF,
-          transparent: true,
-          opacity: 0.6,
-          side: THREE.DoubleSide
-        });
-        
-        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-        ring.position.copy(point);
-        ring.lookAt(window.app.camera.position);
-        window.app.scene.add(ring);
-        window.app.blackholeRing = ring;
-        
-        // Create particles
-        const particleCount = 500;
-        const particleGeometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(particleCount * 3);
-        const colors = new Float32Array(particleCount * 3);
-        
-        for (let i = 0; i < particleCount; i++) {
-          // Calculate particle positions in a disk around the blackhole
-          const radius = 0.3 + Math.random() * 0.5;
-          const angle = Math.random() * Math.PI * 2;
-          const height = (Math.random() - 0.5) * 0.3;
-          
-          positions[i * 3] = point.x + Math.cos(angle) * radius;
-          positions[i * 3 + 1] = point.y + height;
-          positions[i * 3 + 2] = point.z + Math.sin(angle) * radius;
-          
-          // Purple/blue colors
-          colors[i * 3] = 0.5 + Math.random() * 0.5; // R
-          colors[i * 3 + 1] = 0; // G
-          colors[i * 3 + 2] = 0.8 + Math.random() * 0.2; // B
-        }
-        
-        particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-        
-        const particleMaterial = new THREE.PointsMaterial({
-          size: 0.02,
-          vertexColors: true,
-          transparent: true,
-          opacity: 0.7,
-          blending: THREE.AdditiveBlending
-        });
-        
-        const particles = new THREE.Points(particleGeometry, particleMaterial);
-        window.app.scene.add(particles);
-        window.app.blackholeParticles = particles;
-        
-        // Function to update blackhole effect
-        function updateBlackholeEffect() {
-          if (!window.app.blackholeCenter) return;
-          
-          // Import and use the effectManager's implementation if available
-          try {
-            import('../effects/effectManager.js')
-              .then(({updateBlackholeEffect}) => {
-                updateBlackholeEffect(window.app);
-              });
-          } catch (e) {
-            console.warn('Could not import effectManager, using fallback blackhole update');
-            // Minimal fallback implementation
-            const time = performance.now() * 0.001;
-            if (window.app.blackholeRing) {
-              window.app.blackholeRing.rotation.z = time * 0.5;
-            }
-          }
-        }
-        
-        // Store the update function
-        window.app.updateBlackholeEffect = updateBlackholeEffect;
-        
-        // Add it to the animation loop if not already added
-        if (!window.app.blackholeAnimationAdded) {
-          const originalAnimate = window.app.animate;
-          window.app.animate = function() {
-            originalAnimate();
-            if (window.app.updateBlackholeEffect) {
-              window.app.updateBlackholeEffect();
-            }
-          };
-          window.app.blackholeAnimationAdded = true;
-        }
-        
-        // Set state
-        window.app.isBlackholeActive = true;
-        return true;
-      }
-      
-      // Function to remove blackhole effect
-      function removeBlackhole() {
-        // Remove existing blackhole
-        if (window.app.blackholeCenter) {
-          window.app.scene.remove(window.app.blackholeCenter);
-          window.app.blackholeCenter = null;
-        }
-        if (window.app.blackholeRing) {
-          window.app.scene.remove(window.app.blackholeRing);
-          window.app.blackholeRing = null;
-        }
-        if (window.app.blackholeParticles) {
-          window.app.scene.remove(window.app.blackholeParticles);
-          window.app.blackholeParticles = null;
-        }
-        
-        // Reset state
-        window.app.isBlackholeActive = false;
-        return true;
-      }
-      
+
       // Make functions globally available
-      window.app.createBlackholeAtPoint = createBlackholeAtPoint;
-      window.app.removeBlackhole = removeBlackhole;
       window.app.handleMouseWheel = handleMouseWheel;
       globalHandleMouseWheel = handleMouseWheel;
       
@@ -364,36 +229,6 @@
       });
       
       window.addEventListener('mousedown', function(event) {
-        // If in blackhole mode and right click, create blackhole
-        if (event.button === 2 && window.app.mouseControls && 
-            window.app.mouseControls.isBlackholeModeActive) {
-          
-          event.preventDefault();
-          
-          // Calculate mouse position in normalized device coordinates
-          const mouse = new THREE.Vector2(
-            (event.clientX / window.innerWidth) * 2 - 1,
-            -(event.clientY / window.innerHeight) * 2 + 1
-          );
-          
-          // Update the picking ray
-          const raycaster = new THREE.Raycaster();
-          raycaster.setFromCamera(mouse, window.app.camera);
-          
-          // Get intersection with ball or place along ray
-          const intersects = raycaster.intersectObject(window.app.ballGroup, true);
-          
-          if (intersects.length > 0) {
-            // Create blackhole at intersection point
-            createBlackholeAtPoint(intersects[0].point);
-          } else {
-            // Create blackhole along the ray at a fixed distance
-            const blackholePos = new THREE.Vector3();
-            raycaster.ray.at(2, blackholePos);
-            createBlackholeAtPoint(blackholePos);
-          }
-        }
-        
         // Call original handler if available
         if (window.app.onPointerDown) {
           window.app.onPointerDown(event);
@@ -449,12 +284,8 @@
             }
             break;
             
-          case 2: // Right click - blackhole toggle
-            event.preventDefault();
-            console.log("Right click - toggle blackhole effect");
-            if (window.app.uiBridge && window.app.uiBridge.createBlackholeEffect) {
-              window.app.uiBridge.createBlackholeEffect();
-            }
+          case 2: // Right click - handled by mouse-controls-fix.js
+            // Do nothing - let the long-press system handle this
             break;
             
           case 3: // First side button (Back) - EXPLOSION EFFECT

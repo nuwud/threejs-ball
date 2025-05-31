@@ -2,18 +2,11 @@
  * UI Bridge Enhancer - Adds robust implementations for all menu features
  * Handles fallbacks and safety for each operation
  */
-import * as THREE from 'three';
 import { createParticleExplosion, updateParticleExplosion } from '../../effects/visual/explosion.js';
-import { 
-  createBlackholeEffect, 
-  removeBlackholeEffect, 
-  updateBlackholeEffect,
-  toggleBlackholeEffect 
-} from '../../effects/effectManager.js';
+import { callEffect } from '../../effects/effectManager.js';
 import { createTrailEffect, updateTrailEffect } from '../../effects/visual/trail.js';
 import { updateRainbowMode, toggleRainbowMode } from '../../effects/visual/rainbow.js';
 import { createGradientTexture, updateGradientColors } from '../../effects/visual/gradients.js';
-import { callEffect } from '../../effects/effectManager.js';
 
 // Enhance the existing uiBridge
 export function enhanceUIBridge(app) {

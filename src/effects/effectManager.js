@@ -1311,7 +1311,7 @@ function toggleAudioVisualization(app) {
 }
 
 // Initialize effects system if needed
-function initializeEffects(app) {
+async function initializeEffects(app) {
     // Set up event listeners for 3D interaction
     if (app.renderer && app.camera && !app._effectsInitialized) {
         // Create raycaster if it doesn't exist
@@ -1319,7 +1319,9 @@ function initializeEffects(app) {
 
         // Initialize sound manager if needed
         if (!app.soundManager) {
-            initSoundManager(app);
+            const { soundManager } = await import('../audio/audioSystem.js');
+            await soundManager.init();
+            app.soundManager = soundManager;
         }
 
         // Initialize effectState colors
@@ -1338,69 +1340,6 @@ function initializeEffects(app) {
     }
 
     return false;
-}
-
-// Initialize sound manager
-function initSoundManager(app) {
-    // Initialize a basic sound manager if it doesn't exist
-    if (!app.soundManager) {
-        app.soundManager = {
-            sounds: {},
-
-            init: function () {
-                // Try to create common sounds 
-                this.createSound('hover', '../../assets/sounds/hover.mp3');
-                this.createSound('click', '../../assets/sounds/click.mp3');
-                this.createSound('explosion', '../../assets/sounds/explosion.mp3');
-                this.createSound('spike', '../../assets/sounds/spike.mp3');
-                this.createSound('rainbow', '../../assets/sounds/rainbow.mp3');
-                this.createSound('blackhole', '../../assets/sounds/blackhole.mp3');
-                this.createSound('magnetic', '../../assets/sounds/magnetic.mp3');
-                this.createSound('deform', '../../assets/sounds/deform.mp3');
-            },
-
-            createSound: function (name, url) {
-                const sound = new Audio();
-                sound.src = url;
-                sound.volume = 0.5;
-
-                this.sounds[name] = {
-                    audio: sound,
-                    isPlaying: false
-                };
-            },
-
-            play: function (name, loop = false) {
-                const sound = this.sounds[name];
-                if (sound && sound.audio) {
-                    // Don't restart if it's already playing
-                    if (!sound.isPlaying) {
-                        sound.audio.loop = loop;
-                        sound.audio.play().catch(e => console.log(`Failed to play sound ${name}:`, e));
-                        sound.isPlaying = true;
-
-                        // For non-looping sounds, reset isPlaying when done
-                        if (!loop) {
-                            sound.audio.onended = () => {
-                                sound.isPlaying = false;
-                            };
-                        }
-                    }
-                }
-            },
-
-            stop: function (name) {
-                const sound = this.sounds[name];
-                if (sound && sound.audio && sound.isPlaying) {
-                    sound.audio.pause();
-                    sound.audio.currentTime = 0;
-                    sound.isPlaying = false;
-                }
-            }
-        };
-
-        app.soundManager.init();
-    }
 }
 
 // --- Effect Registry ---
