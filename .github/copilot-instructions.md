@@ -24,6 +24,7 @@
 
 **Workflows & Debugging**
 - Serve from repo root with `python -m http.server`; direct file:// loads will break import maps and audio autoplay permissions.
+- Three.js upgrades run through `config/threejs-version.json` via `scripts/update-threejs-version.(sh|ps1)`; regenerate import maps before touching runtime code and follow `docs/version-upgrades/README.md`.
 - Before investigating UI bugs, clear localStorage (`localStorage.clear()` or manually remove `ball*` entries) because persisted toggles override defaults on load.
 - Use `window.app.debug` (true by default) for verbose logs; fire `window.dispatchEvent(new Event('sceneReady'))` if you hot-reload modules that rely on that signal.
 - `tools/path-checker.js` and docs in `docs/path-fix.md` explain historical path issues; follow them when moving assets or scripts.

@@ -89,7 +89,7 @@ The project demonstrates several advanced Three.js and Web Audio API techniques:
 
    ## Three.js Version Management
 
-   Use the manifest-driven workflow documented in `docs/threejs-upgrade-workflow.md` to upgrade or pin Three.js releases. The helper scripts regenerate the import maps and expose runtime metadata so other agents stay in sync with the currently active revision.
+   Use the manifest-driven workflow documented in `docs/version-upgrades/README.md` to upgrade or pin Three.js releases. The helper scripts regenerate the import maps and expose runtime metadata so other agents stay in sync with the currently active revision. Capture manual validation results with the checklist in `docs/version-upgrades/threejs-smoke-checklist.md`.
 
 ## Code Structure
 

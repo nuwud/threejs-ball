@@ -17,13 +17,13 @@ description: "Implementation tasks for Three.js version management"
 
 - [ ] T001 [P] [Foundation] Create `config/threejs-version.json` seeded with `r180`, `supported` list, and metadata.
 - [ ] T002 [P] [Foundation] Add `scripts/update-threejs-version.ps1` and `.sh` placeholders referencing manifest + GitHub API.
-- [ ] T003 [Foundation] Add `docs/version-upgrades/README.md` with workflow overview and checklist template.
+- [x] T003 [Foundation] Add `docs/version-upgrades/README.md` with workflow overview and checklist template.
 
 ---
 
 ## Phase 2: Foundational Changes (Prerequisite for all stories)
 
-- [ ] T101 [Foundation] Update `.github/copilot-instructions.md` and README dependency sections to mention manifest-based versioning.
+- [x] T101 [Foundation] Update `.github/copilot-instructions.md` and README dependency sections to mention manifest-based versioning.
 - [ ] T102 [Foundation] Add `src/utils/versioning.js` helper that reads manifest via fetch (with fallback) and exposes `getActiveThreeVersion()` for logging.
 - [ ] T103 [Foundation] Ensure `window.app` initialization logs active version and attaches it to `window.app.meta.threeVersion`.
 
@@ -42,7 +42,7 @@ description: "Implementation tasks for Three.js version management"
 - [ ] T201 [US1] Refactor import maps in `index.html`, `testcase.html`, `facet-rainbow-test.html`, `audio-test.html` to use templated placeholders (`{{THREE_VERSION}}`) or script-injected URLs.
 - [ ] T202 [US1] Implement `scripts/apply-threejs-version.js` Node/uv script that reads manifest and rewrites HTML import maps with resolved CDN URLs.
 - [ ] T203 [US1] Update `tools/path-checker.js` or add new lint check to ensure all import map references match manifest active version.
-- [ ] T204 [US1] Document smoke test checklist in `docs/version-upgrades/threejs-smoke-checklist.md` covering visual/audio verification.
+- [x] T204 [US1] Document smoke test checklist in `docs/version-upgrades/threejs-smoke-checklist.md` covering visual/audio verification.
 
 ### Validation
 
