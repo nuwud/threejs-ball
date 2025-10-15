@@ -1,21 +1,13 @@
 {
-    "MicroPython.executeButton": [
-        {
-            "text": "▶",
-            "tooltip": "Run",
-            "alignment": "left",
-            "command": "extension.executeFile",
-            "priority": 3.5
-        }
-    ],
-    "MicroPython.syncButton": [
-        {
-            "text": "$(sync)",
-            "tooltip": "sync",
-            "alignment": "left",
-            "command": "extension.execute",
-            "priority": 4
-        }
-    ],
-    "DockerRun.DisableDockerrc": true
+    "chat.promptFilesRecommendations": {
+        "speckit.constitution": true,
+        "speckit.specify": true,
+        "speckit.plan": true,
+        "speckit.tasks": true,
+        "speckit.implement": true
+    },
+    "chat.tools.terminal.autoApprove": {
+        ".specify/scripts/bash/": true,
+        ".specify/scripts/powershell/": true
+    }
 }
