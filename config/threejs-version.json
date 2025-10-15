@@ -1,0 +1,27 @@
+{
+  "latest": {
+    "tag": "r180",
+    "npm": "0.180.0",
+    "released": "2024-09-30"
+  },
+  "pinned": null,
+  "supported": [
+    {
+      "tag": "r180",
+      "npm": "0.180.0"
+    },
+    {
+      "tag": "r179",
+      "npm": "0.179.0"
+    }
+  ],
+  "cdn": {
+    "primary": "https://cdn.jsdelivr.net/npm",
+    "package": "three"
+  },
+  "releaseNotes": {
+    "r180": "https://github.com/mrdoob/three.js/releases/tag/r180",
+    "r179": "https://github.com/mrdoob/three.js/releases/tag/r179"
+  },
+  "updatedAt": "2025-10-15T02:28:05.792Z"
+}

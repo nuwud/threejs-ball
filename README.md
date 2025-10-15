@@ -87,6 +87,10 @@ The project demonstrates several advanced Three.js and Web Audio API techniques:
    # Then visit http://localhost:8000
    ```
 
+   ## Three.js Version Management
+
+   Use the manifest-driven workflow documented in `docs/threejs-upgrade-workflow.md` to upgrade or pin Three.js releases. The helper scripts regenerate the import maps and expose runtime metadata so other agents stay in sync with the currently active revision.
+
 ## Code Structure
 
 ### Modular Version (js/ directory)

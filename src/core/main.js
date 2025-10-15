@@ -1,6 +1,7 @@
 // Import Three.js properly - using the import map from index.html
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { threeVersionInfo, logThreeVersion } from '../utils/versioning.js';
 import { updateRainbowMode, toggleRainbowMode } from '../effects/visual/rainbow.js';
 import { callEffect } from '../effects/effectManager.js';
 import {
@@ -13,6 +14,14 @@ import {
 
 // Define window.app and uiBridge as early as possible
 window.app = window.app || {};
+window.app.meta = window.app.meta || {};
+window.app.meta.threeVersion = threeVersionInfo;
+
+try {
+    logThreeVersion();
+} catch (error) {
+    console.warn('[threejs-ball] Unable to log Three.js version info', error);
+}
 
 // Make it accessible to other scripts
 window.blackholeActivated = false;
